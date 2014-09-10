@@ -72,7 +72,7 @@ class AlternativesCommand(Subcommand):
                             dest='create', const=True)
         update.add_argument('--no-create', action='store_const',
                             dest='create', const=False)
-        super(AlternativesCommand, self).__init__(self.name, parser)
+        super(AlternativesCommand, self).__init__(self.name, parser, self.help)
 
     def func(self, lib, opts, _):
         opts.func(lib, opts)
