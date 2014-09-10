@@ -8,8 +8,10 @@ env:
   # - TOX_ENV=beets-release
 
 install:
-  - "pip install coveralls tox"
+  - "pip install tox"
+  - "[ ! -z $COVERAGE ] && pip install coveralls || true"
 
 script: "tox -e $TOX_ENV"
 
-after_success: "[ ! -z $COVERAGE ] && coveralls || true"
+after_success:
+  - "[ ! -z $COVERAGE ] && coveralls || true"

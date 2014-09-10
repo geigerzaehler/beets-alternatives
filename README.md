@@ -125,7 +125,7 @@ line. The values are again dictionaries with the following keys.
   configuration.
 
 * `paths` Path templates for audio files under `directory`. Configured
-  like [global paths option][config-paths].
+  like and defaults to [global paths option][config-paths].
 
 * `query` A [query string][] that determine which tracks belong to the
   collection.

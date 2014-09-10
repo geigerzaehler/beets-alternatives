@@ -63,7 +63,6 @@ class ExternalCopyCliTest(TestHelper, TestCase):
         self.config['alternatives']['external'] = {
             'myexternal': {
                 'directory': external_dir,
-                'paths': {'default': '$artist/$title'},
                 'query': 'myexternal:true'
             }
         }

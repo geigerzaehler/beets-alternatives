@@ -17,6 +17,7 @@ import threading
 from argparse import ArgumentParser
 from concurrent import futures
 
+import beets
 from beets import util
 from beets.plugins import BeetsPlugin
 from beets.ui import Subcommand, get_path_formats
@@ -79,7 +80,11 @@ class External(object):
     def __init__(self, name, lib, config):
         self.lib = lib
         self.path_key = 'alt.{0}'.format(name)
-        self.path_formats = get_path_formats(config['paths'])
+        if config['paths'].exists():
+            path_config = config['paths']
+        else:
+            path_config = beets.config['paths']
+        self.path_formats = get_path_formats(path_config)
         self.query, _ = get_query_sort(config['query'].get(unicode), Item)
 
         dir = config['directory'].as_filename()
