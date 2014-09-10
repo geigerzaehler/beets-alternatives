@@ -1,0 +1,15 @@
+notifications:
+  email: false
+
+language: python
+
+env:
+  - TOX_ENV=beets-master COVERAGE=1
+  # - TOX_ENV=beets-release
+
+install:
+  - "pip install coveralls tox"
+
+script: "tox -e $TOX_ENV"
+
+after_success: "[ ! -z $COVERAGE ] && coveralls || true"
