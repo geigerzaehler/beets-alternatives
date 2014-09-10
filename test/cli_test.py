@@ -138,6 +138,7 @@ class ExternalCopyCliTest(TestHelper, TestCase):
         out = self.runcli('alt', 'update', 'unkown')
         self.assertIn("Alternative collection 'unkown' not found.", out)
 
+
 class ExternalRemovableTest(TestHelper, TestCase):
 
     def setUp(self):

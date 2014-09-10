@@ -57,7 +57,6 @@ class AlternativesPlugin(BeetsPlugin):
         raise KeyError(name)
 
 
-
 class AlternativesCommand(Subcommand):
 
     name = 'alt'
