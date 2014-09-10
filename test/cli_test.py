@@ -72,6 +72,12 @@ class ExternalCopyCliTest(TestHelper, TestCase):
         self.external_config = \
             self.config['alternatives']['external']['myexternal']
 
+    def test_add(self):
+        item = self.add_track(title=u'\u00e9', myexternal='true')
+        self.runcli('alt', 'update', 'myexternal')
+        item.load()
+        self.assertTrue(os.path.isfile(item['alt.myexternal']))
+
     def test_update_older(self):
         item = self.add_external_track('myexternal')
         item['composer'] = 'JSB'
@@ -143,7 +149,7 @@ class ExternalRemovableTest(TestHelper, TestCase):
 
     def setUp(self):
         super(ExternalRemovableTest, self).setUp()
-        external_dir = os.path.join(self.mkdtemp(), 'e\xf6t')
+        external_dir = os.path.join(self.mkdtemp(), u'\u00e9xt')
         self.config['alternatives']['external'] = {
             'myexternal': {
                 'directory': external_dir,

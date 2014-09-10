@@ -20,7 +20,7 @@ from concurrent import futures
 import beets
 from beets import util
 from beets.plugins import BeetsPlugin
-from beets.ui import Subcommand, get_path_formats, input_yn, UserError
+from beets.ui import Subcommand, get_path_formats, input_yn, UserError, print_
 from beets.library import get_query_sort, Item
 from beets.util import syspath, displayable_path, bytestring_path, cpu_count
 
@@ -41,7 +41,7 @@ class AlternativesPlugin(BeetsPlugin):
         try:
             alt = self.alternative(options.name, lib)
         except KeyError as e:
-            raise UserError("Alternative collection '{0}' not found."
+            raise UserError(u"Alternative collection '{0}' not found."
                             .format(e.args[0]))
         alt.update(create=options.create)
 
@@ -107,7 +107,7 @@ class External(object):
 
     def items_action(self, items):
         for item in items:
-            path = item.get(self.path_key)
+            path = self.get_path(item)
             if self.query.match(item):
                 if path:
                     dest = self.destination(item)
@@ -127,49 +127,60 @@ class External(object):
         if create is not None:
             return create
 
-        msg = "Collection at '{0}' does not exists. " \
-              "Maybe you forgot to mount it.\n" \
-              "Do you want to create the collection? (y/n)" \
-              .format(displayable_path(self.directory))
+        msg = u"Collection at '{0}' does not exists. " \
+               "Maybe you forgot to mount it.\n" \
+               "Do you want to create the collection? (y/n)" \
+               .format(displayable_path(self.directory))
         return input_yn(msg, require=True)
 
     def update(self, create=None):
         if not os.path.isdir(self.directory) and not self.ask_create(create):
-            print('Skipping creation of {0}'
+            print_(u'Skipping creation of {0}'
                   .format(displayable_path(self.directory)))
             return
 
         converter = self.converter()
         for (item, action) in self.items_action(self.lib.items()):
             dest = self.destination(item)
-            path = item.get(self.path_key)
+            path = self.get_path(item)
             if action == self.MOVE:
-                print('>{0} -> {1}'.format(path, dest))
+                print_(u'>{0} -> {1}'.format(displayable_path(path),
+                                            displayable_path(dest)))
                 util.mkdirall(dest)
                 util.move(path, dest)
-                item[self.path_key] = dest
+                self.set_path(item, dest)
                 item.store()
+                item.write(path=dest)
             elif action == self.WRITE:
-                print('*{0}'.format(path))
+                print_(u'*{0}'.format(displayable_path(path)))
                 item.write(path=path)
             elif action == self.ADD:
-                print('+{0}'.format(dest))
+                print_(u'+{0}'.format(displayable_path(dest)))
                 converter.submit(item)
             elif action == self.REMOVE:
-                print('-{0}'.format(self.destination(item)))
+                print_(u'-{0}'.format(displayable_path(path)))
                 util.remove(path)
                 util.prune_dirs(path, root=self.directory)
                 del item[self.path_key]
                 item.store()
 
         for item, dest in converter.as_completed():
-            item[self.path_key] = dest
+            self.set_path(item, dest)
             item.store()
         converter.shutdown()
 
     def destination(self, item):
         return item.destination(basedir=self.directory,
                                 path_formats=self.path_formats)
+
+    def set_path(self, item, path):
+        item[self.path_key] = unicode(path, 'utf8')
+
+    def get_path(self, item):
+        try:
+            return item[self.path_key].encode('utf8')
+        except KeyError:
+            return None
 
     def converter(self):
         def _convert(item):
