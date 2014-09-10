@@ -5,6 +5,7 @@ language: python
 
 env:
   - TOX_ENV=beets-master COVERAGE=1
+  - TOX_ENV=flake8
   # - TOX_ENV=beets-release
 
 install:
