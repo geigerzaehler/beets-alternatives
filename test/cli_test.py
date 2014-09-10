@@ -135,7 +135,8 @@ class ExternalCopyCliTest(TestHelper, TestCase):
         self.assertFalse(os.path.isfile(old_path))
 
     def test_unkown_collection(self):
-        self.skipTest('implement me')
+        out = self.runcli('alt', 'update', 'unkown')
+        self.assertIn("Alternative collection 'unkown' not found.", out)
 
 class ExternalRemovableTest(TestHelper, TestCase):
 

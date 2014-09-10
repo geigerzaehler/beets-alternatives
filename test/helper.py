@@ -121,7 +121,10 @@ class TestHelper(object):
 
     def runcli(self, *args):
         with capture_stdout() as out:
-            ui._raw_main(list(args), self.lib)
+            try:
+                ui._raw_main(list(args), self.lib)
+            except ui.UserError as u:
+                print(u.args[0])
         return out.getvalue()
 
     def add_album(self, **kwargs):

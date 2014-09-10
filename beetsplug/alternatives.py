@@ -20,7 +20,7 @@ from concurrent import futures
 import beets
 from beets import util
 from beets.plugins import BeetsPlugin
-from beets.ui import Subcommand, get_path_formats, input_yn
+from beets.ui import Subcommand, get_path_formats, input_yn, UserError
 from beets.library import get_query_sort, Item
 from beets.util import syspath, displayable_path
 
@@ -38,7 +38,12 @@ class AlternativesPlugin(BeetsPlugin):
         return [AlternativesCommand(self)]
 
     def update(self, lib, options):
-        self.alternative(options.name, lib).update(create=options.create)
+        try:
+            alt = self.alternative(options.name, lib)
+        except KeyError as e:
+            raise UserError("Alternative collection '{0}' not found."
+                            .format(e.args[0]))
+        alt.update(create=options.create)
 
     def alternative(self, name, lib):
         conf = self.config['external'][name]
@@ -48,6 +53,9 @@ class AlternativesPlugin(BeetsPlugin):
                                        lib, conf)
             else:
                 return External(name, lib, conf)
+
+        raise KeyError(name)
+
 
 
 class AlternativesCommand(Subcommand):
