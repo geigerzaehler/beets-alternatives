@@ -31,6 +31,7 @@ alt:
         default: $album/$title
       format: mp3
       query: "onplayer:true"
+      removable: true
 ```
 
 The first to options are self-explanatory. They determine the location
@@ -55,10 +56,15 @@ We then tell beets to create the external files.
 
 ```
 $ beet alt update myplayer
+Collection at '/player' does not exists. Maybe you forgot to mount it.
+Do you want to create the collection? (y/N)
 ```
 
-A quick look into the `/player` directory reveals that indeed all
-tracks of Bach have been transcoded to MP3 and copied to the player.
+The question makes sure that you don’t recreate a external collection
+if the device is not mounted. Since this is our first go, we answer the
+question by typing `y`.  A quick look into the `/player` directory then
+reveals that indeed all tracks of Bach have been transcoded to MP3 and
+copied to the player.
 
 If you update your takes locally, the `alt update` command will
 propagate the changes to your external collection. Since we don’t need
@@ -99,7 +105,7 @@ CLI Reference
 -------------
 
 ```
-beet alt update NAME
+beet alt update [options] NAME
 ```
 
 Updates the external collection configured under `alt.external.NAME`.
@@ -112,6 +118,10 @@ Updates the external collection configured under `alt.external.NAME`.
 * Update tags if the modification time of the external file is older
   then that of the source file from the library.
 
+* **`--[no-]create`** If the `removable` configuration option
+  is set and the external base directory does not exists, then the
+  command will ask you to confirm the creation of the external
+  collection. These options specify the answer as a cli option.
 
 Configuration
 -------------
@@ -120,20 +130,24 @@ The `alt.external` configuration is a dictionary. The keys are the
 names of the external locations and used for reference from the command
 line. The values are again dictionaries with the following keys.
 
-* `directory` The root directory to store the external files under.
+* **`directory`** The root directory to store the external files under.
   Relative paths are resolved with respect to the global `directory`
   configuration.
 
-* `paths` Path templates for audio files under `directory`. Configured
+* **`paths`** Path templates for audio files under `directory`. Configured
   like and defaults to [global paths option][config-paths].
 
-* `query` A [query string][] that determine which tracks belong to the
+* **`query`** A [query string][] that determine which tracks belong to the
   collection.
 
-* `format` (optional) A string that determines the format to convert
+* **`format`** (optional) A string that determines the format to convert
   audio files in the external collection to. The string must correspond
   to a key in the [`convert.formats`][convert plugin] configuration.
   The settings of the configuration are used to run the conversion.
+
+* **`removable`** If this is `true` (the default) and `directory` does
+  not exist, the `update` command will ask you to confirm the creation
+  of the external collection.
 
 
 License

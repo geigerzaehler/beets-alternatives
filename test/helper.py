@@ -30,7 +30,7 @@ class LogCapture(logging.Handler):
 
 
 @contextmanager
-def captureLog(logger='beets'):
+def capture_log(logger='beets'):
     capture = LogCapture()
     log = logging.getLogger(logger)
     log.addHandler(capture)
@@ -41,17 +41,18 @@ def captureLog(logger='beets'):
 
 
 @contextmanager
-def captureStdout():
+def capture_stdout():
     org = sys.stdout
-    sys.stdout = StringIO()
+    sys.stdout = captured = StringIO()
     try:
         yield sys.stdout
     finally:
         sys.stdout = org
+        sys.stdout.write(captured.getvalue())
 
 
 @contextmanager
-def controlStdin(input=None):
+def control_stdin(input=None):
     org = sys.stdin
     sys.stdin = StringIO(input)
     sys.stdin.encoding = 'utf8'
@@ -119,7 +120,9 @@ class TestHelper(object):
             plugins._instances = {}
 
     def runcli(self, *args):
-        ui._raw_main(list(args), self.lib)
+        with capture_stdout() as out:
+            ui._raw_main(list(args), self.lib)
+        return out.getvalue()
 
     def add_album(self, **kwargs):
         values = {

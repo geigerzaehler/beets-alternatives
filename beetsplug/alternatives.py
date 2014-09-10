@@ -20,9 +20,9 @@ from concurrent import futures
 import beets
 from beets import util
 from beets.plugins import BeetsPlugin
-from beets.ui import Subcommand, get_path_formats
+from beets.ui import Subcommand, get_path_formats, input_yn
 from beets.library import get_query_sort, Item
-from beets.util import syspath
+from beets.util import syspath, displayable_path
 
 from beetsplug import convert
 
@@ -38,7 +38,7 @@ class AlternativesPlugin(BeetsPlugin):
         return [AlternativesCommand(self)]
 
     def update(self, lib, options):
-        self.alternative(options.name, lib).update()
+        self.alternative(options.name, lib).update(create=options.create)
 
     def alternative(self, name, lib):
         conf = self.config['external'][name]
@@ -61,6 +61,10 @@ class AlternativesCommand(Subcommand):
         update = subparsers.add_parser('update')
         update.set_defaults(func=plugin.update)
         update.add_argument('name')
+        update.add_argument('--create', action='store_const',
+                            dest='create', const=True)
+        update.add_argument('--no-create', action='store_const',
+                            dest='create', const=False)
         super(AlternativesCommand, self).__init__(self.name, parser)
 
     def func(self, lib, opts, _):
@@ -87,6 +91,8 @@ class External(object):
         self.path_formats = get_path_formats(path_config)
         self.query, _ = get_query_sort(config['query'].get(unicode), Item)
 
+        self.removable = config.get(dict).get('removable', True)
+
         dir = config['directory'].as_filename()
         if not os.path.isabs(dir):
             dir = os.path.join(lib.directory, dir)
@@ -108,7 +114,24 @@ class External(object):
             elif path:
                 yield (item, self.REMOVE)
 
-    def update(self):
+    def ask_create(self, create=None):
+        if not self.removable:
+            return True
+        if create is not None:
+            return create
+
+        msg = "Collection at '{0}' does not exists. " \
+              "Maybe you forgot to mount it.\n" \
+              "Do you want to create the collection?" \
+              .format(displayable_path(self.directory))
+        return input_yn(msg, require=True)
+
+    def update(self, create=None):
+        if not os.path.isdir(self.directory) and not self.ask_create(create):
+            print('Skipping creation of {0}'
+                  .format(displayable_path(self.directory)))
+            return
+
         converter = self.converter()
         for (item, action) in self.items_action(self.lib.items()):
             dest = self.destination(item)

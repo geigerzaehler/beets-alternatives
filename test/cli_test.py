@@ -2,7 +2,7 @@ import os
 import os.path
 from unittest import TestCase
 
-from helper import TestHelper
+from helper import TestHelper, control_stdin
 
 from beets.mediafile import MediaFile
 
@@ -15,7 +15,7 @@ class DocTest(TestHelper, TestCase):
         self.add_album(artist='Beethoven')
 
     def test_external(self):
-        external_dir = self.mkdtemp()
+        external_dir = os.path.join(self.mkdtemp(), 'myplayer')
         self.config['convert']['formats'] = {
             'ogg': 'cp $source $dest; printf ISOGG >> $dest'
         }
@@ -24,7 +24,8 @@ class DocTest(TestHelper, TestCase):
                 'directory': external_dir,
                 'paths': {'default': '$artist/$title'},
                 'format': 'ogg',
-                'query': 'onplayer:true'
+                'query': 'onplayer:true',
+                'removable': True,
             }
         }
 
@@ -32,7 +33,9 @@ class DocTest(TestHelper, TestCase):
         external_beet = os.path.join(external_dir, 'Beethoven', 'track 1.ogg')
 
         self.runcli('modify', '--yes', 'onplayer=true', 'artist:Bach')
-        self.runcli('alt', 'update', 'myplayer')
+        with control_stdin('y'):
+            out = self.runcli('alt', 'update', 'myplayer')
+            self.assertIn('Do you want to create the collection?', out)
 
         self.assertIsConvertedOgg(external_bach)
         self.assertFalse(os.path.isfile(external_beet))
@@ -59,11 +62,11 @@ class ExternalCopyCliTest(TestHelper, TestCase):
 
     def setUp(self):
         super(ExternalCopyCliTest, self).setUp()
-        external_dir = self.mkdtemp()
+        self.external_dir = self.mkdtemp()
         self.config['alternatives']['external'] = {
             'myexternal': {
-                'directory': external_dir,
-                'query': 'myexternal:true'
+                'directory': self.external_dir,
+                'query': 'myexternal:true',
             }
         }
         self.external_config = \
@@ -130,3 +133,57 @@ class ExternalCopyCliTest(TestHelper, TestCase):
         item.load()
         self.assertNotIn('alt.myexternal', item)
         self.assertFalse(os.path.isfile(old_path))
+
+    def test_unkown_collection(self):
+        self.skipTest('implement me')
+
+class ExternalRemovableTest(TestHelper, TestCase):
+
+    def setUp(self):
+        super(ExternalRemovableTest, self).setUp()
+        external_dir = os.path.join(self.mkdtemp(), 'ext')
+        self.config['alternatives']['external'] = {
+            'myexternal': {
+                'directory': external_dir,
+                'query': '',
+            }
+        }
+        self.external_config = \
+            self.config['alternatives']['external']['myexternal']
+
+    def test_ask_create_yes(self):
+        item = self.add_track()
+        with control_stdin('y'):
+            out = self.runcli('alt', 'update', 'myexternal')
+            self.assertIn('Do you want to create the collection?', out)
+        item.load()
+        self.assertIn('alt.myexternal', item)
+
+    def test_ask_create_no(self):
+        item = self.add_track()
+        with control_stdin('n'):
+            out = self.runcli('alt', 'update', 'myexternal')
+            self.assertIn('Skipping creation of', out)
+        item.load()
+        self.assertNotIn('alt.myexternal', item)
+
+    def test_create_option(self):
+        item = self.add_track()
+        self.runcli('alt', 'update', '--create', 'myexternal')
+        item.load()
+        self.assertIn('alt.myexternal', item)
+
+    def test_no_create_option(self):
+        item = self.add_track()
+        self.runcli('alt', 'update', '--no-create', 'myexternal')
+        item.load()
+        self.assertNotIn('alt.myexternal', item)
+
+    def test_not_removable(self):
+        item = self.add_track()
+        self.external_config['removable'] = False
+        with control_stdin('y'):
+            out = self.runcli('alt', 'update', 'myexternal')
+            self.assertNotIn('Do you want to create the collection?', out)
+        item.load()
+        self.assertIn('alt.myexternal', item)
