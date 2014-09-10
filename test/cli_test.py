@@ -143,7 +143,7 @@ class ExternalRemovableTest(TestHelper, TestCase):
 
     def setUp(self):
         super(ExternalRemovableTest, self).setUp()
-        external_dir = os.path.join(self.mkdtemp(), 'ext')
+        external_dir = os.path.join(self.mkdtemp(), 'e\xf6t')
         self.config['alternatives']['external'] = {
             'myexternal': {
                 'directory': external_dir,

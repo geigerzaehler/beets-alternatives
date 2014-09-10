@@ -22,7 +22,7 @@ from beets import util
 from beets.plugins import BeetsPlugin
 from beets.ui import Subcommand, get_path_formats, input_yn, UserError
 from beets.library import get_query_sort, Item
-from beets.util import syspath, displayable_path
+from beets.util import syspath, displayable_path, bytestring_path, cpu_count
 
 from beetsplug import convert
 
@@ -103,7 +103,7 @@ class External(object):
         dir = config['directory'].as_filename()
         if not os.path.isabs(dir):
             dir = os.path.join(lib.directory, dir)
-        self.directory = dir
+        self.directory = bytestring_path(dir)
 
     def items_action(self, items):
         for item in items:
@@ -129,7 +129,7 @@ class External(object):
 
         msg = "Collection at '{0}' does not exists. " \
               "Maybe you forgot to mount it.\n" \
-              "Do you want to create the collection?" \
+              "Do you want to create the collection? (y/n)" \
               .format(displayable_path(self.directory))
         return input_yn(msg, require=True)
 
@@ -158,7 +158,7 @@ class External(object):
             elif action == self.REMOVE:
                 print('-{0}'.format(self.destination(item)))
                 util.remove(path)
-                util.prune_dirs(path)
+                util.prune_dirs(path, root=self.directory)
                 del item[self.path_key]
                 item.store()
 
@@ -211,7 +211,7 @@ class ExternalConvert(External):
 class Worker(futures.ThreadPoolExecutor):
 
     def __init__(self, fn, max_workers=None):
-        super(Worker, self).__init__(max_workers=1)
+        super(Worker, self).__init__(max_workers or cpu_count())
         self._tasks = set()
         self._fn = fn
 
