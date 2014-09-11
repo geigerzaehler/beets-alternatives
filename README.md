@@ -1,6 +1,9 @@
 beets-alternatives
 ==================
 
+[![Build Status](https://travis-ci.org/geigerzaehler/beets-alternatives.svg?branch=master)](https://travis-ci.org/geigerzaehler/beets-alternatives)
+[![Coverage Status](https://coveralls.io/repos/geigerzaehler/beets-alternatives/badge.png?branch=master)](https://coveralls.io/r/geigerzaehler/beets-alternatives?branch=master)
+
 You want to manage multiple versions of your audio files with beets?
 Your favorite iPlayer has limited space and does not support OGG? You
 want to keep lossless versions on a large external drive? You want to
