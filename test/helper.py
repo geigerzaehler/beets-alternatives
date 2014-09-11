@@ -113,6 +113,9 @@ class TestHelper(object):
         self.config.clear()
         beets.config.read(user=False, defaults=True)
 
+    def set_paths_config(self, conf):
+        self.lib.path_formats = conf.items()
+
     def unload_plugins(self):
         for plugin in plugins._classes:
             plugin.listeners = None
@@ -120,12 +123,17 @@ class TestHelper(object):
             plugins._instances = {}
 
     def runcli(self, *args):
+        # TODO mock stdin
         with capture_stdout() as out:
             try:
                 ui._raw_main(list(args), self.lib)
             except ui.UserError as u:
+                # TODO remove this and handle exceptions in tests
                 print(u.args[0])
         return out.getvalue()
+
+    def lib_path(self, path):
+        return os.path.join(self.libdir, path.replace('/', os.sep))
 
     def add_album(self, **kwargs):
         values = {

@@ -9,11 +9,6 @@ from beets.mediafile import MediaFile
 
 class DocTest(TestHelper, TestCase):
 
-    def setUp(self):
-        super(DocTest, self).setUp()
-        self.add_album(artist='Bach')
-        self.add_album(artist='Beethoven')
-
     def test_external(self):
         external_dir = os.path.join(self.mkdtemp(), 'myplayer')
         self.config['convert']['formats'] = {
@@ -28,6 +23,9 @@ class DocTest(TestHelper, TestCase):
                 'removable': True,
             }
         }
+
+        self.add_album(artist='Bach')
+        self.add_album(artist='Beethoven')
 
         external_bach = os.path.join(external_dir, 'Bach', 'track 1.ogg')
         external_beet = os.path.join(external_dir, 'Beethoven', 'track 1.ogg')
@@ -52,10 +50,40 @@ class DocTest(TestHelper, TestCase):
         self.assertFalse(os.path.isfile(external_bach))
         self.assertIsConvertedOgg(external_beet)
 
+    def test_symlink_view(self):
+        self.set_paths_config({
+            'default': '$artist/$album/$title'
+        })
+        self.config['alternatives'] = {
+            'by-year': {
+                'directory': 'by-year',
+                'paths': {'default': '$year/$album/$title'},
+                'format': 'link',
+            }
+        }
+
+        self.add_album(artist='Michael Jackson', album='Thriller', year='1982')
+
+        self.runcli('alt', 'update', 'by-year')
+
+        self.assertSymlink(
+            self.lib_path('by-year/1982/Thriller/track 1.mp3'),
+            self.lib_path('Michael Jackson/Thriller/track 1.mp3'),
+        )
+
     def assertIsConvertedOgg(self, path):
         with open(path, 'r') as f:
             f.seek(-5, os.SEEK_END)
             self.assertEqual(f.read(), 'ISOGG')
+
+    def assertSymlink(self, link, target):
+        self.assertTrue(os.path.islink(link),
+                        msg=u'Path is not a symbolic link: {0}'.format(link))
+        self.assertTrue(os.path.isfile(target),
+                        msg=u'Path is not a file: {0}'.format(link))
+        link_target = os.readlink(link)
+        link_target = os.path.join(os.path.dirname(link), link_target)
+        self.assertEqual(target, link_target)
 
 
 class ExternalCopyCliTest(TestHelper, TestCase):

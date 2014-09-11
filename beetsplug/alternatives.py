@@ -22,7 +22,8 @@ from beets import util
 from beets.plugins import BeetsPlugin
 from beets.ui import Subcommand, get_path_formats, input_yn, UserError, print_
 from beets.library import get_query_sort, Item
-from beets.util import syspath, displayable_path, bytestring_path, cpu_count
+from beets.util import syspath, displayable_path, cpu_count
+from beets.dbcore.query import TrueQuery
 
 from beetsplug import convert
 
@@ -52,7 +53,10 @@ class AlternativesPlugin(BeetsPlugin):
 
         if conf['format'].exists():
             fmt = conf['format'].get(unicode)
-            return ExternalConvert(name, fmt, lib, conf)
+            if fmt == 'link':
+                return SymlinkView(name, lib, conf)
+            else:
+                return ExternalConvert(name, fmt, lib, conf)
         else:
             return External(name, lib, conf)
 
@@ -101,10 +105,11 @@ class External(object):
 
         self.removable = config.get(dict).get('removable', True)
 
-        dir = config['directory'].as_filename()
+
+        dir = config['directory'].get(str)
         if not os.path.isabs(dir):
             dir = os.path.join(lib.directory, dir)
-        self.directory = bytestring_path(dir)
+        self.directory = dir
 
     def items_action(self, items):
         for item in items:
@@ -149,6 +154,7 @@ class External(object):
                                             displayable_path(dest)))
                 util.mkdirall(dest)
                 util.move(path, dest)
+                util.prune_dirs(path, root=self.directory)
                 self.set_path(item, dest)
                 item.store()
                 item.write(path=dest)
@@ -219,6 +225,61 @@ class ExternalConvert(External):
         dest = super(ExternalConvert, self).destination(item)
         return os.path.splitext(dest)[0] + '.' + self.ext
 
+class SymlinkView(External):
+
+    def __init__(self, name, lib, config):
+        # FIXME remove code duplication with `External`
+        self.lib = lib
+        self.path_key = 'alt.{0}'.format(name)
+        if config['paths'].exists():
+            path_config = config['paths']
+        else:
+            path_config = beets.config['paths']
+        self.path_formats = get_path_formats(path_config)
+        if config['query'].exists():
+            self.query, _ = get_query_sort(config['query'].get(unicode), Item)
+        else:
+            self.query = TrueQuery()
+
+        self.removable = config.get(dict).get('removable', True)
+
+        dir = config['directory'].get(str)
+        if not os.path.isabs(dir):
+            dir = os.path.join(lib.directory, dir)
+        self.directory = dir
+
+
+    def update(self, create=None):
+        for (item, action) in self.items_action(self.lib.items()):
+            dest = self.destination(item)
+            path = self.get_path(item)
+            if action == self.MOVE:
+                print_(u'>{0} -> {1}'.format(displayable_path(path),
+                                            displayable_path(dest)))
+                util.remove(path)
+                util.prune_dirs(path, root=self.directory)
+                self.create_symlink(item)
+                self.set_path(item, dest)
+                item.store()
+            elif action == self.ADD:
+                print_(u'+{0}'.format(displayable_path(dest)))
+                self.create_symlink(item)
+                self.set_path(item, dest)
+                item.store()
+            elif action == self.REMOVE:
+                print_(u'-{0}'.format(displayable_path(path)))
+                # TODO add self.remove_path(item) method
+                util.remove(path)
+                util.prune_dirs(path, root=self.directory)
+                del item[self.path_key]
+            else:
+                continue
+            item.store()
+
+    def create_symlink(self, item):
+        dest = self.destination(item)
+        util.mkdirall(dest)
+        os.symlink(item.path, dest)
 
 class Worker(futures.ThreadPoolExecutor):
 

@@ -86,18 +86,52 @@ $ beet alt update myplayer
 
 This removes all Bach tracks from the player and adds Beethoven’s.
 
+### Symlink Views
+
+Instead of copying and converting files this plugin can also create
+symbolic links to the files in your library. For example you want to
+have a directory containing all music sorted by year and album.
+
+```yaml
+directory: /music
+paths:
+  default: $artist/$album/$title
+
+alternatives:
+  by-year:
+    directory: by-year
+    paths:
+      default: $year/$album/$title
+    format: link
+```
+
+The first thing to note here is the `link` format. Instead of
+converting the files this tells the plugin to create symbolic links to
+the original audio file.  We also note that the directory is a relative
+path: it will be resolved with respect to the global `directory`
+option.  Finally, we omitted the `query` option. This means that we
+want to create symlinks for all files. Of course you can still add a
+query to select only parts of your collection.
+
+The `beet alt update by-year` command will now create the symlinks. For
+example
+
+```
+/music/by-year/1982/Thriller/Beat It.mp3
+-> /music/Michael Jackson/Thriller/Beat It.mp3
+```
+
 
 ### Archive Files
 
-TODO
-
-### Symlink Views
-
-TODO
-
-### Ideas
-
-* `removable` option checks if directory exists and aborts otherwise
+```yaml
+alternatives:
+  lossless:
+    directory: /archive/music
+    paths: ...
+    archive: 'format:FLAC'
+    keep: mp3
+```
 
 
 CLI Reference
@@ -149,6 +183,17 @@ line. The values are again dictionaries with the following keys.
   of the external collection.
 
 
+Feature Requests
+----------------
+
+If you have an idea or a use case this plugin is missing feel free to
+[open an issue](https://github.com/geigerzaehler/beets-alternatives/issues/new).
+
+The following is a list of things I might add in the feature.
+
+* Symbolic links for each artist in a multiple artist release (see the
+  [beets issue][beets-issue-split-symlinks])
+
 License
 -------
 
@@ -173,6 +218,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 
+[beets-issue-split-symlinks]: https://github.com/sampsyo/beets/issues/153
 [config-directory]: http://beets.readthedocs.org/en/latest/reference/config.html#directory
 [config-paths]: http://beets.readthedocs.org/en/latest/reference/config.html#path-format-configuration
 [configured for convert]: http://beets.readthedocs.org/en/latest/plugins/convert.html#configuring-the-transcoding-command
