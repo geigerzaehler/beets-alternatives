@@ -2,7 +2,7 @@ beets-alternatives
 ==================
 
 You want to manage multiple versions of your audio files with beets?
-Your favourite iPlayer has limited space and does not support OGG? You
+Your favorite iPlayer has limited space and does not support OGG? You
 want to keep lossless versions on a large external drive? You want to
 symlink your audio to other locations?
 
@@ -16,22 +16,21 @@ There are three basic use cases introduced below.
 
 ### External Files
 
-Suppose your favourite portable player only supports MP3 and has
+Suppose your favorite portable player only supports MP3 and has
 limited disk space. It is mounted at `/player` and instead of selecting
 its content manually and using the `convert` plugin to transcode it you
 want to sync it automatically. We call this external location
 'myplayer' and start configuring beets.
 
 ```yaml
-alt:
-  external:
-    myplayer:
-      directory: /player
-      paths:
-        default: $album/$title
-      format: mp3
-      query: "onplayer:true"
-      removable: true
+alternatives:
+  myplayer:
+    directory: /player
+    paths:
+      default: $album/$title
+    format: mp3
+    query: "onplayer:true"
+    removable: true
 ```
 
 The first to options are self-explanatory. They determine the location
@@ -76,7 +75,7 @@ $ beet modify composer="Johann Sebastian Bach" artist:Bach
 $ beet alt update myplayer
 ```
 
-After going for a run you realise that Bach is probably not the right
+After going for a run you realize that Bach is probably not the right
 thing to work out to. So you decide to put Beethoven on your player.
 
 ```
@@ -112,7 +111,7 @@ Updates the external collection configured under `alt.external.NAME`.
 
 * Add missing files. Convert them to the configured format or copy
   them.
-* Remove files that dont’t match the query but are still in the
+* Remove files that don’t match the query but are still in the
   external collection
 * Move files to the path determined from the `paths` configuration.
 * Update tags if the modification time of the external file is older

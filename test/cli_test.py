@@ -19,7 +19,7 @@ class DocTest(TestHelper, TestCase):
         self.config['convert']['formats'] = {
             'ogg': 'cp $source $dest; printf ISOGG >> $dest'
         }
-        self.config['alternatives']['external'] = {
+        self.config['alternatives'] = {
             'myplayer': {
                 'directory': external_dir,
                 'paths': {'default': '$artist/$title'},
@@ -63,14 +63,13 @@ class ExternalCopyCliTest(TestHelper, TestCase):
     def setUp(self):
         super(ExternalCopyCliTest, self).setUp()
         self.external_dir = self.mkdtemp()
-        self.config['alternatives']['external'] = {
+        self.config['alternatives'] = {
             'myexternal': {
                 'directory': self.external_dir,
                 'query': 'myexternal:true',
             }
         }
-        self.external_config = \
-            self.config['alternatives']['external']['myexternal']
+        self.external_config = self.config['alternatives']['myexternal']
 
     def test_add(self):
         item = self.add_track(title=u'\u00e9', myexternal='true')
@@ -150,14 +149,13 @@ class ExternalRemovableTest(TestHelper, TestCase):
     def setUp(self):
         super(ExternalRemovableTest, self).setUp()
         external_dir = os.path.join(self.mkdtemp(), u'\u00e9xt')
-        self.config['alternatives']['external'] = {
+        self.config['alternatives'] = {
             'myexternal': {
                 'directory': external_dir,
                 'query': '',
             }
         }
-        self.external_config = \
-            self.config['alternatives']['external']['myexternal']
+        self.external_config = self.config['alternatives']['myexternal']
 
     def test_ask_create_yes(self):
         item = self.add_track()

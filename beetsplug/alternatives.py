@@ -46,15 +46,16 @@ class AlternativesPlugin(BeetsPlugin):
         alt.update(create=options.create)
 
     def alternative(self, name, lib):
-        conf = self.config['external'][name]
-        if conf.exists():
-            if conf['format'].exists():
-                return ExternalConvert(name, conf['format'].get(unicode),
-                                       lib, conf)
-            else:
-                return External(name, lib, conf)
+        conf = self.config[name]
+        if not conf.exists():
+            raise KeyError(name)
 
-        raise KeyError(name)
+        if conf['format'].exists():
+            fmt = conf['format'].get(unicode)
+            return ExternalConvert(name, fmt, lib, conf)
+        else:
+            return External(name, lib, conf)
+
 
 
 class AlternativesCommand(Subcommand):
