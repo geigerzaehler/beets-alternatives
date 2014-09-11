@@ -148,9 +148,12 @@ Updates the external collection configured under `alt.external.NAME`.
 
 * Add missing files. Convert them to the configured format or copy
   them.
+
 * Remove files that don’t match the query but are still in the
   external collection
+
 * Move files to the path determined from the `paths` configuration.
+
 * Update tags if the modification time of the external file is older
   then that of the source file from the library.
 

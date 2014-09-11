@@ -22,7 +22,7 @@ from beets import util
 from beets.plugins import BeetsPlugin
 from beets.ui import Subcommand, get_path_formats, input_yn, UserError, print_
 from beets.library import get_query_sort, Item
-from beets.util import syspath, displayable_path, cpu_count
+from beets.util import syspath, displayable_path, cpu_count, bytestring_path
 
 from beetsplug import convert
 
@@ -110,7 +110,7 @@ class External(object):
         dir = config['directory'].get(str)
         if not os.path.isabs(dir):
             dir = os.path.join(self.lib.directory, dir)
-        self.directory = dir
+        self.directory = bytestring_path(dir)
 
     def items_action(self, items):
         for item in items:
