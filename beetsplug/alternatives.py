@@ -23,7 +23,6 @@ from beets.plugins import BeetsPlugin
 from beets.ui import Subcommand, get_path_formats, input_yn, UserError, print_
 from beets.library import get_query_sort, Item
 from beets.util import syspath, displayable_path, cpu_count
-from beets.dbcore.query import TrueQuery
 
 from beetsplug import convert
 
@@ -61,7 +60,6 @@ class AlternativesPlugin(BeetsPlugin):
             return External(name, lib, conf)
 
 
-
 class AlternativesCommand(Subcommand):
 
     name = 'alt'
@@ -94,9 +92,13 @@ class External(object):
     MOVE = 4
 
     def __init__(self, name, lib, config):
+        self.name = name
         self.lib = lib
         self.path_key = 'alt.{0}'.format(name)
-        if config['paths'].exists():
+        self.parse_config(config)
+
+    def parse_config(self, config):
+        if 'paths' in config:
             path_config = config['paths']
         else:
             path_config = beets.config['paths']
@@ -105,10 +107,9 @@ class External(object):
 
         self.removable = config.get(dict).get('removable', True)
 
-
         dir = config['directory'].get(str)
         if not os.path.isabs(dir):
-            dir = os.path.join(lib.directory, dir)
+            dir = os.path.join(self.lib.directory, dir)
         self.directory = dir
 
     def items_action(self, items):
@@ -134,15 +135,15 @@ class External(object):
             return create
 
         msg = u"Collection at '{0}' does not exists. " \
-               "Maybe you forgot to mount it.\n" \
-               "Do you want to create the collection? (y/n)" \
-               .format(displayable_path(self.directory))
+              "Maybe you forgot to mount it.\n" \
+              "Do you want to create the collection? (y/n)" \
+              .format(displayable_path(self.directory))
         return input_yn(msg, require=True)
 
     def update(self, create=None):
         if not os.path.isdir(self.directory) and not self.ask_create(create):
             print_(u'Skipping creation of {0}'
-                  .format(displayable_path(self.directory)))
+                   .format(displayable_path(self.directory)))
             return
 
         converter = self.converter()
@@ -151,7 +152,7 @@ class External(object):
             path = self.get_path(item)
             if action == self.MOVE:
                 print_(u'>{0} -> {1}'.format(displayable_path(path),
-                                            displayable_path(dest)))
+                                             displayable_path(dest)))
                 util.mkdirall(dest)
                 util.move(path, dest)
                 util.prune_dirs(path, root=self.directory)
@@ -166,9 +167,7 @@ class External(object):
                 converter.submit(item)
             elif action == self.REMOVE:
                 print_(u'-{0}'.format(displayable_path(path)))
-                util.remove(path)
-                util.prune_dirs(path, root=self.directory)
-                del item[self.path_key]
+                self.remove_item(item)
                 item.store()
 
         for item, dest in converter.as_completed():
@@ -188,6 +187,12 @@ class External(object):
             return item[self.path_key].encode('utf8')
         except KeyError:
             return None
+
+    def remove_item(self, item):
+        path = item[self.path_key].encode('utf8')
+        util.remove(path)
+        util.prune_dirs(path, root=self.directory)
+        del item[self.path_key]
 
     def converter(self):
         def _convert(item):
@@ -225,29 +230,13 @@ class ExternalConvert(External):
         dest = super(ExternalConvert, self).destination(item)
         return os.path.splitext(dest)[0] + '.' + self.ext
 
+
 class SymlinkView(External):
 
-    def __init__(self, name, lib, config):
-        # FIXME remove code duplication with `External`
-        self.lib = lib
-        self.path_key = 'alt.{0}'.format(name)
-        if config['paths'].exists():
-            path_config = config['paths']
-        else:
-            path_config = beets.config['paths']
-        self.path_formats = get_path_formats(path_config)
-        if config['query'].exists():
-            self.query, _ = get_query_sort(config['query'].get(unicode), Item)
-        else:
-            self.query = TrueQuery()
-
-        self.removable = config.get(dict).get('removable', True)
-
-        dir = config['directory'].get(str)
-        if not os.path.isabs(dir):
-            dir = os.path.join(lib.directory, dir)
-        self.directory = dir
-
+    def parse_config(self, config):
+        if 'query' not in config:
+            config['query'] = ''  # This is a TrueQuery()
+        super(SymlinkView, self).parse_config(config)
 
     def update(self, create=None):
         for (item, action) in self.items_action(self.lib.items()):
@@ -255,9 +244,8 @@ class SymlinkView(External):
             path = self.get_path(item)
             if action == self.MOVE:
                 print_(u'>{0} -> {1}'.format(displayable_path(path),
-                                            displayable_path(dest)))
-                util.remove(path)
-                util.prune_dirs(path, root=self.directory)
+                                             displayable_path(dest)))
+                self.remove_item(item)
                 self.create_symlink(item)
                 self.set_path(item, dest)
                 item.store()
@@ -268,10 +256,7 @@ class SymlinkView(External):
                 item.store()
             elif action == self.REMOVE:
                 print_(u'-{0}'.format(displayable_path(path)))
-                # TODO add self.remove_path(item) method
-                util.remove(path)
-                util.prune_dirs(path, root=self.directory)
-                del item[self.path_key]
+                self.remove_item(item)
             else:
                 continue
             item.store()
@@ -280,6 +265,7 @@ class SymlinkView(External):
         dest = self.destination(item)
         util.mkdirall(dest)
         os.symlink(item.path, dest)
+
 
 class Worker(futures.ThreadPoolExecutor):
 
