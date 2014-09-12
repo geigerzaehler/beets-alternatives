@@ -62,7 +62,29 @@ def control_stdin(input=None):
         sys.stdin = org
 
 
-class TestHelper(object):
+class Assertions(object):
+
+    def assertFileTag(self, path, tag):
+        with open(path, 'r') as f:
+            f.seek(-5, os.SEEK_END)
+            self.assertEqual(f.read(), tag)
+
+    def assertNotFileTag(self, path, tag):
+        with open(path, 'r') as f:
+            f.seek(-5, os.SEEK_END)
+            self.assertNotEqual(f.read(), tag)
+
+    def assertSymlink(self, link, target):
+        self.assertTrue(os.path.islink(link),
+                        msg=u'Path is not a symbolic link: {0}'.format(link))
+        self.assertTrue(os.path.isfile(target),
+                        msg=u'Path is not a file: {0}'.format(link))
+        link_target = os.readlink(link)
+        link_target = os.path.join(os.path.dirname(link), link_target)
+        self.assertEqual(target, link_target)
+
+
+class TestHelper(Assertions):
 
     def setUp(self):
         ThreadPoolMockExecutor.patch()

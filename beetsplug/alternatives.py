@@ -219,7 +219,7 @@ class ExternalConvert(External):
             with fs_lock:
                 util.mkdirall(dest)
 
-            if not self.format or self.format.lower() == item.format.lower():
+            if self.format.lower() == item.format.lower():
                 util.copy(item.path, dest)
             else:
                 convert.encode(command, item.path, dest)

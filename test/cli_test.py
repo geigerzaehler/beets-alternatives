@@ -35,7 +35,7 @@ class DocTest(TestHelper, TestCase):
             out = self.runcli('alt', 'update', 'myplayer')
             self.assertIn('Do you want to create the collection?', out)
 
-        self.assertIsConvertedOgg(external_bach)
+        self.assertFileTag(external_bach, 'ISOGG')
         self.assertFalse(os.path.isfile(external_beet))
 
         self.runcli('modify', '--yes', 'composer=JSB', 'artist:Bach')
@@ -48,7 +48,7 @@ class DocTest(TestHelper, TestCase):
         self.runcli('alt', 'update', 'myplayer')
 
         self.assertFalse(os.path.isfile(external_bach))
-        self.assertIsConvertedOgg(external_beet)
+        self.assertFileTag(external_beet, 'ISOGG')
 
     def test_symlink_view(self):
         self.set_paths_config({
@@ -71,25 +71,11 @@ class DocTest(TestHelper, TestCase):
             self.lib_path('Michael Jackson/Thriller/track 1.mp3'),
         )
 
-    def assertIsConvertedOgg(self, path):
-        with open(path, 'r') as f:
-            f.seek(-5, os.SEEK_END)
-            self.assertEqual(f.read(), 'ISOGG')
 
-    def assertSymlink(self, link, target):
-        self.assertTrue(os.path.islink(link),
-                        msg=u'Path is not a symbolic link: {0}'.format(link))
-        self.assertTrue(os.path.isfile(target),
-                        msg=u'Path is not a file: {0}'.format(link))
-        link_target = os.readlink(link)
-        link_target = os.path.join(os.path.dirname(link), link_target)
-        self.assertEqual(target, link_target)
-
-
-class ExternalCopyCliTest(TestHelper, TestCase):
+class ExternalCopyTest(TestHelper, TestCase):
 
     def setUp(self):
-        super(ExternalCopyCliTest, self).setUp()
+        super(ExternalCopyTest, self).setUp()
         self.external_dir = self.mkdtemp()
         self.config['alternatives'] = {
             'myexternal': {
@@ -170,6 +156,40 @@ class ExternalCopyCliTest(TestHelper, TestCase):
     def test_unkown_collection(self):
         out = self.runcli('alt', 'update', 'unkown')
         self.assertIn("Alternative collection 'unkown' not found.", out)
+
+
+class ExternalConvertTest(TestHelper, TestCase):
+
+    def setUp(self):
+        super(ExternalConvertTest, self).setUp()
+        self.external_dir = self.mkdtemp()
+        self.config['convert']['formats'] = {
+            'ogg': 'cp $source $dest; printf ISOGG >> $dest'
+        }
+        self.config['alternatives'] = {
+            'myexternal': {
+                'directory': self.external_dir,
+                'query': 'myexternal:true',
+                'format': 'ogg'
+            }
+        }
+        self.external_config = self.config['alternatives']['myexternal']
+
+    def test_convert(self):
+        item = self.add_track(myexternal='true')
+        self.runcli('alt', 'update', 'myexternal')
+        item.load()
+        converted_path = item['alt.myexternal']
+        self.assertFileTag(converted_path, 'ISOGG')
+
+    def test_skip_convert_for_same_format(self):
+        item = self.add_track(myexternal='true')
+        item['format'] = 'OGG'
+        item.store()
+        self.runcli('alt', 'update', 'myexternal')
+        item.load()
+        converted_path = item['alt.myexternal']
+        self.assertNotFileTag(converted_path, 'ISOGG')
 
 
 class ExternalRemovableTest(TestHelper, TestCase):
