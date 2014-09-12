@@ -21,7 +21,7 @@ There are three basic use cases introduced below.
 
 Suppose your favorite portable player only supports MP3 and has
 limited disk space. It is mounted at `/player` and instead of selecting
-its content manually and using the `convert` plugin to transcode it you
+its content manually and using the `convert` plugin to transcode it, you
 want to sync it automatically. We call this external location
 'myplayer' and start configuring beets.
 
@@ -36,7 +36,7 @@ alternatives:
     removable: true
 ```
 
-The first to options are self-explanatory. They determine the location
+The first two options are self-explanatory. They determine the location
 of the external files and correspond to the global
 [`directory`][config-directory] and [`paths`][config-paths] options.
 The `format` option specifies the format we transcode the files to.
@@ -155,10 +155,10 @@ Updates the external collection configured under `alt.external.NAME`.
 * Move files to the path determined from the `paths` configuration.
 
 * Update tags if the modification time of the external file is older
-  then that of the source file from the library.
+  than that of the source file from the library.
 
 * **`--[no-]create`** If the `removable` configuration option
-  is set and the external base directory does not exists, then the
+  is set and the external base directory does not exist, then the
   command will ask you to confirm the creation of the external
   collection. These options specify the answer as a cli option.
 
@@ -192,12 +192,12 @@ line. The values are again dictionaries with the following keys.
 Feature Requests
 ----------------
 
-If you have an idea or a use case this plugin is missing feel free to
+If you have an idea or a use case this plugin is missing, feel free to
 [open an issue](https://github.com/geigerzaehler/beets-alternatives/issues/new).
 
 The following is a list of things I might add in the feature.
 
-* Symbolic links for each artist in a multiple artist release (see the
+* Symbolic links for each artist in a multiple artists release (see the
   [beets issue][beets-issue-split-symlinks])
 
 License
