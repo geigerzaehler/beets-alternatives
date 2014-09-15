@@ -5,7 +5,7 @@ beets-alternatives
 [![Coverage Status](https://coveralls.io/repos/geigerzaehler/beets-alternatives/badge.png?branch=master)](https://coveralls.io/r/geigerzaehler/beets-alternatives?branch=master)
 
 You want to manage multiple versions of your audio files with beets?
-Your favorite iPlayer has limited space and does not support OGG? You
+Your favorite iPlayer has limited space and does not support Ogg Vorbis? You
 want to keep lossless versions on a large external drive? You want to
 symlink your audio to other locations?
 
@@ -15,15 +15,23 @@ Getting Started
 The basic idea of this plugin is that every file in your library can
 have multiple alternate versions in separate locations.
 
-There are three basic use cases introduced below.
+Since this plugin is in early development you will need to install
+beets and this plugin from the master branch.
+
+```
+pip install git+git://github.com/sampsyo/beets.git@master
+pip install git+git://github.com/geigerzaehler/beets-alternatives.git@master
+```
+
+Now, you can get rolling with one of the use cases below.
 
 ### External Files
 
-Suppose your favorite portable player only supports MP3 and has
-limited disk space. It is mounted at `/player` and instead of selecting
+Suppose your favorite portable player only supports MP3 and MP4, has
+limited disk space and is mounted at `/player`. Instead of selecting
 its content manually and using the `convert` plugin to transcode it, you
-want to sync it automatically. We call this external location
-'myplayer' and start configuring beets.
+want to sync it automatically. First we give this external collection
+the name ‘myplayer’ and start configuring beets.
 
 ```yaml
 alternatives:
@@ -31,24 +39,24 @@ alternatives:
     directory: /player
     paths:
       default: $album/$title
-    format: mp3
+    format: aac mp3
     query: "onplayer:true"
     removable: true
 ```
 
-The first two options are self-explanatory. They determine the location
-of the external files and correspond to the global
-[`directory`][config-directory] and [`paths`][config-paths] options.
-The `format` option specifies the format we transcode the files to.
-We use the [convert plugin][], so the format name must correspond to
-one of the formats [configured for convert][]. Finally, the `query`
-option tells the plugin which files you want to put in the external
-location. The value is a [query string][] as used for the beets command
-line. In our case we use a flexible attribute to make the selection
-transparent.
+The first two options determine the location of the external files and
+correspond to the global [`directory`][config-directory] and
+[`paths`][config-paths] settings.  The `format` option specifies the
+formats we transcode the files to (more on that below).  Finally, the
+`query` option tells the plugin which files you want to put in the
+external location. The value is a [query string][] as used for the
+beets command line. In our case we use a flexible attribute to make the
+selection transparent.
 
-First we add some files to our selection by setting the flexible
-attribute from the `query` option.
+Let’s add some files to our selection by setting the flexible attribute
+from the `query` option. (Since we use boolean values for the
+‘onplayer’ field it might be a good idea to set the type of this field
+to `bool` using the *types* plugin)
 
 ```
 $ beet modify onplayer=true artist:Bach
@@ -64,22 +72,27 @@ Do you want to create the collection? (y/N)
 
 The question makes sure that you don’t recreate a external collection
 if the device is not mounted. Since this is our first go, we answer the
-question by typing `y`.  A quick look into the `/player` directory then
-reveals that indeed all tracks of Bach have been transcoded to MP3 and
-copied to the player.
+question with yes.
 
-If you update your takes locally, the `alt update` command will
-propagate the changes to your external collection. Since we don’t need
-to convert the files but just update the tags, this will be much faster
-the second time.
+The command will copy all files with the artist ‘Bach’ and format
+either ‘AAC’ or ‘MP3’ to the `/player` directory. All other formats
+will be transcodec to the ‘AAC’ format unsing the [*convert* plugin][].
+The transcoding process can be configured through [*convert’s*
+configuration][convert config].
+
+If you update some tracks in your main collection, the `alt update`
+command will propagate the changes to your external collection.  Since
+we don’t need to convert the files but just update the tags, this will
+be much faster the second time.
 
 ```
 $ beet modify composer="Johann Sebastian Bach" artist:Bach
 $ beet alt update myplayer
 ```
 
-After going for a run you realize that Bach is probably not the right
-thing to work out to. So you decide to put Beethoven on your player.
+After going for a run you mitght realize that Bach is probably not the
+right thing to work out to. So you decide to put Beethoven on your
+player.
 
 ```
 $ beet modify onplayer! artist:Bach
@@ -141,10 +154,10 @@ CLI Reference
 -------------
 
 ```
-beet alt update [options] NAME
+beet alt update [--create|--no-create] NAME
 ```
 
-Updates the external collection configured under `alt.external.NAME`.
+Updates the external collection configured under `alternatives.NAME`.
 
 * Add missing files. Convert them to the configured format or copy
   them.
@@ -157,6 +170,8 @@ Updates the external collection configured under `alt.external.NAME`.
 * Update tags if the modification time of the external file is older
   than that of the source file from the library.
 
+The command accepts the following option.
+
 * **`--[no-]create`** If the `removable` configuration option
   is set and the external base directory does not exist, then the
   command will ask you to confirm the creation of the external
@@ -165,28 +180,31 @@ Updates the external collection configured under `alt.external.NAME`.
 Configuration
 -------------
 
-The `alt.external` configuration is a dictionary. The keys are the
-names of the external locations and used for reference from the command
-line. The values are again dictionaries with the following keys.
+An external collection is configured as a name-settings-pair under the
+`alternatives` configuration. The name is used to reference the
+collection from the command line. The settings is a map of the
+following settings.
 
 * **`directory`** The root directory to store the external files under.
   Relative paths are resolved with respect to the global `directory`
-  configuration.
+  configuration. (required)
 
 * **`paths`** Path templates for audio files under `directory`. Configured
-  like and defaults to [global paths option][config-paths].
+  like the [global paths option][config-paths] and defaults to it if
+  not given. (optional)
 
 * **`query`** A [query string][] that determine which tracks belong to the
-  collection.
+  collection. To match all items, specify an empty string. (required)
 
-* **`format`** (optional) A string that determines the format to convert
+* **`format`** A string that determines the format to convert
   audio files in the external collection to. The string must correspond
   to a key in the [`convert.formats`][convert plugin] configuration.
   The settings of the configuration are used to run the conversion.
+  (optional)
 
 * **`removable`** If this is `true` (the default) and `directory` does
   not exist, the `update` command will ask you to confirm the creation
-  of the external collection.
+  of the external collection. (optional)
 
 
 Feature Requests
@@ -227,6 +245,6 @@ SOFTWARE.
 [beets-issue-split-symlinks]: https://github.com/sampsyo/beets/issues/153
 [config-directory]: http://beets.readthedocs.org/en/latest/reference/config.html#directory
 [config-paths]: http://beets.readthedocs.org/en/latest/reference/config.html#path-format-configuration
-[configured for convert]: http://beets.readthedocs.org/en/latest/plugins/convert.html#configuring-the-transcoding-command
+[convert config]: http://beets.readthedocs.org/en/latest/plugins/convert.html#configuring-the-transcoding-command
 [convert plugin]: http://beets.readthedocs.org/en/latest/plugins/convert.html
 [query string]: http://beets.readthedocs.org/en/latest/reference/query.html
