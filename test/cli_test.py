@@ -12,43 +12,54 @@ class DocTest(TestHelper, TestCase):
     def test_external(self):
         external_dir = os.path.join(self.mkdtemp(), 'myplayer')
         self.config['convert']['formats'] = {
-            'ogg': 'cp $source $dest; printf ISOGG >> $dest'
+            'aac': {
+                'command': 'cp $source $dest; printf ISAAC >> $dest',
+                'extension': 'm4a'
+            },
         }
         self.config['alternatives'] = {
             'myplayer': {
                 'directory': external_dir,
                 'paths': {'default': '$artist/$title'},
-                'format': 'ogg',
+                'formats': 'aac mp3',
                 'query': 'onplayer:true',
                 'removable': True,
             }
         }
 
-        self.add_album(artist='Bach')
-        self.add_album(artist='Beethoven')
+        self.add_album(artist='Bach', title='was mp3', format='mp3')
+        self.add_album(artist='Bach', title='was m4a', format='m4a')
+        self.add_album(artist='Bach', title='was ogg', format='ogg')
+        self.add_album(artist='Beethoven', title='was ogg', format='ogg')
 
-        external_bach = os.path.join(external_dir, 'Bach', 'track 1.ogg')
-        external_beet = os.path.join(external_dir, 'Beethoven', 'track 1.ogg')
+        external_from_mp3 = os.path.join(external_dir, 'Bach', 'was mp3.mp3')
+        external_from_m4a = os.path.join(external_dir, 'Bach', 'was m4a.m4a')
+        external_from_ogg = os.path.join(external_dir, 'Bach', 'was ogg.m4a')
+        external_beet = os.path.join(external_dir, 'Beethoven', 'was ogg.m4a')
 
         self.runcli('modify', '--yes', 'onplayer=true', 'artist:Bach')
         with control_stdin('y'):
             out = self.runcli('alt', 'update', 'myplayer')
             self.assertIn('Do you want to create the collection?', out)
 
-        self.assertFileTag(external_bach, 'ISOGG')
+        self.assertNotFileTag(external_from_mp3, 'ISAAC')
+        self.assertNotFileTag(external_from_m4a, 'ISAAC')
+        self.assertFileTag(external_from_ogg, 'ISAAC')
         self.assertFalse(os.path.isfile(external_beet))
 
         self.runcli('modify', '--yes', 'composer=JSB', 'artist:Bach')
         self.runcli('alt', 'update', 'myplayer')
-        mediafile = MediaFile(external_bach)
+        mediafile = MediaFile(external_from_ogg)
         self.assertEqual(mediafile.composer, 'JSB')
 
         self.runcli('modify', '--yes', 'onplayer!', 'artist:Bach')
         self.runcli('modify', '--yes', 'onplayer=true', 'artist:Beethoven')
         self.runcli('alt', 'update', 'myplayer')
 
-        self.assertFalse(os.path.isfile(external_bach))
-        self.assertFileTag(external_beet, 'ISOGG')
+        self.assertFalse(os.path.isfile(external_from_mp3))
+        self.assertFalse(os.path.isfile(external_from_m4a))
+        self.assertFalse(os.path.isfile(external_from_ogg))
+        self.assertFileTag(external_beet, 'ISAAC')
 
     def test_symlink_view(self):
         self.set_paths_config({
@@ -58,7 +69,7 @@ class DocTest(TestHelper, TestCase):
             'by-year': {
                 'directory': 'by-year',
                 'paths': {'default': '$year/$album/$title'},
-                'format': 'link',
+                'formats': 'link',
             }
         }
 
@@ -170,13 +181,13 @@ class ExternalConvertTest(TestHelper, TestCase):
             'myexternal': {
                 'directory': self.external_dir,
                 'query': 'myexternal:true',
-                'format': 'ogg'
+                'formats': 'ogg mp3'
             }
         }
         self.external_config = self.config['alternatives']['myexternal']
 
     def test_convert(self):
-        item = self.add_track(myexternal='true')
+        item = self.add_track(myexternal='true', format='mp4')
         self.runcli('alt', 'update', 'myexternal')
         item.load()
         converted_path = item['alt.myexternal']
@@ -185,6 +196,15 @@ class ExternalConvertTest(TestHelper, TestCase):
     def test_skip_convert_for_same_format(self):
         item = self.add_track(myexternal='true')
         item['format'] = 'OGG'
+        item.store()
+        self.runcli('alt', 'update', 'myexternal')
+        item.load()
+        converted_path = item['alt.myexternal']
+        self.assertNotFileTag(converted_path, 'ISOGG')
+
+    def test_skip_convert_for_alternative_format(self):
+        item = self.add_track(myexternal='true')
+        item['format'] = 'MP3'
         item.store()
         self.runcli('alt', 'update', 'myexternal')
         item.load()

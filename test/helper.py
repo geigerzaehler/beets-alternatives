@@ -65,11 +65,15 @@ def control_stdin(input=None):
 class Assertions(object):
 
     def assertFileTag(self, path, tag):
+        self.assertTrue(os.path.isfile(path),
+                        msg=u'Path is not a file: {0}'.format(path))
         with open(path, 'r') as f:
             f.seek(-5, os.SEEK_END)
             self.assertEqual(f.read(), tag)
 
     def assertNotFileTag(self, path, tag):
+        self.assertTrue(os.path.isfile(path),
+                        msg=u'Path is not a file: {0}'.format(path))
         with open(path, 'r') as f:
             f.seek(-5, os.SEEK_END)
             self.assertNotEqual(f.read(), tag)
@@ -162,10 +166,11 @@ class TestHelper(Assertions):
             'title': 'track 1',
             'artist': 'artist 1',
             'album': 'album 1',
+            'format': 'mp3',
         }
         values.update(kwargs)
-
-        item = Item.from_path(os.path.join(self.fixture_dir, 'min.mp3'))
+        ext = values.pop('format').lower()
+        item = Item.from_path(os.path.join(self.fixture_dir, 'min.' + ext))
         item.add(self.lib)
         item.update(values)
         item.move(copy=True)

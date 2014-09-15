@@ -39,7 +39,7 @@ alternatives:
     directory: /player
     paths:
       default: $album/$title
-    format: aac mp3
+    formats: aac mp3
     query: "onplayer:true"
     removable: true
 ```
@@ -118,7 +118,7 @@ alternatives:
     directory: by-year
     paths:
       default: $year/$album/$title
-    format: link
+    formats: link
 ```
 
 The first thing to note here is the `link` format. Instead of
@@ -196,11 +196,18 @@ following settings.
 * **`query`** A [query string][] that determine which tracks belong to the
   collection. To match all items, specify an empty string. (required)
 
-* **`format`** A string that determines the format to convert
-  audio files in the external collection to. The string must correspond
-  to a key in the [`convert.formats`][convert plugin] configuration.
-  The settings of the configuration are used to run the conversion.
-  (optional)
+* **`formats`** A list of space separated strings that determine the
+  audio file formats in the external collection. If the ‘format’ field
+  of a track is included in the list, the file is copied. Otherwise,
+  the file is transcoded to the first format in the list. The name of
+  the first format must correpond to a key in the
+  [`convert.formats`][convert plugin] configuration. This configuration
+  controls the transcoding process.
+
+  The special format ‘link’ is used to create symbolik links instead of
+  transcoding the file. It can not be combined with other formats.
+
+  By default no transcoding is done.
 
 * **`removable`** If this is `true` (the default) and `directory` does
   not exist, the `update` command will ask you to confirm the creation

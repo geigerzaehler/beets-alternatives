@@ -50,12 +50,12 @@ class AlternativesPlugin(BeetsPlugin):
         if not conf.exists():
             raise KeyError(name)
 
-        if conf['format'].exists():
-            fmt = conf['format'].get(unicode)
+        if conf['formats'].exists():
+            fmt = conf['formats'].get(unicode)
             if fmt == 'link':
                 return SymlinkView(name, lib, conf)
             else:
-                return ExternalConvert(name, fmt, lib, conf)
+                return ExternalConvert(name, fmt.split(), lib, conf)
         else:
             return External(name, lib, conf)
 
@@ -205,13 +205,12 @@ class External(object):
 
 class ExternalConvert(External):
 
-    def __init__(self, name, format, lib, config):
+    def __init__(self, name, formats, lib, config):
         super(ExternalConvert, self).__init__(name, lib, config)
-        self.format = format
-        self.convert_cmd, self.ext = convert.get_format(self.format)
+        self.formats = [f.lower() for f in formats]
+        self.convert_cmd, self.ext = convert.get_format(self.formats[0])
 
     def converter(self):
-        command, ext = convert.get_format(self.format)
         fs_lock = threading.Lock()
 
         def _convert(item):
@@ -219,16 +218,23 @@ class ExternalConvert(External):
             with fs_lock:
                 util.mkdirall(dest)
 
-            if self.format.lower() == item.format.lower():
-                util.copy(item.path, dest)
+            if self.should_transcode(item):
+                convert.encode(self.convert_cmd, item.path, dest)
             else:
-                convert.encode(command, item.path, dest)
+                log.debug(u'copying {0}'.format(displayable_path(dest)))
+                util.copy(item.path, dest)
             return item, dest
         return Worker(_convert)
 
     def destination(self, item):
         dest = super(ExternalConvert, self).destination(item)
-        return os.path.splitext(dest)[0] + '.' + self.ext
+        if self.should_transcode(item):
+            return os.path.splitext(dest)[0] + '.' + self.ext
+        else:
+            return dest
+
+    def should_transcode(self, item):
+        return item.format.lower() not in self.formats
 
 
 class SymlinkView(External):
