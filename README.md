@@ -16,10 +16,11 @@ The basic idea of this plugin is that every file in your library can
 have multiple alternate versions in separate locations.
 
 Since this plugin is in early development you will need to install
-beets and this plugin from the master branch.
+it from the master branch. You will also need the most recent version
+of beets.
 
 ```
-pip install git+git://github.com/sampsyo/beets.git@master
+pip install --upgrade beets>=1.3.8
 pip install git+git://github.com/geigerzaehler/beets-alternatives.git@master
 ```
 
