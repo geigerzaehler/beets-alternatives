@@ -21,8 +21,9 @@ import beets
 from beets import util
 from beets.plugins import BeetsPlugin
 from beets.ui import Subcommand, get_path_formats, input_yn, UserError, print_
-from beets.library import get_query_sort, Item
+from beets.library import parse_query_string, Item
 from beets.util import syspath, displayable_path, cpu_count, bytestring_path
+from beets.dbcore.query import NoneQuery
 
 from beetsplug import convert
 
@@ -90,6 +91,7 @@ class External(object):
     REMOVE = 2
     WRITE = 3
     MOVE = 4
+    NOOP = 5
 
     def __init__(self, name, lib, config):
         self.name = name
@@ -103,7 +105,7 @@ class External(object):
         else:
             path_config = beets.config['paths']
         self.path_formats = get_path_formats(path_config)
-        self.query, _ = get_query_sort(config['query'].get(unicode), Item)
+        self.query, _ = parse_query_string(config['query'].get(unicode), Item)
 
         self.removable = config.get(dict).get('removable', True)
 
@@ -112,20 +114,41 @@ class External(object):
             dir = os.path.join(self.lib.directory, dir)
         self.directory = bytestring_path(dir)
 
-    def items_action(self, items):
-        for item in items:
-            path = self.get_path(item)
+    def matched_item_action(self, item):
+        path = self.get_path(item)
+        if path:
+            dest = self.destination(item)
+            if path != dest:
+                return (item, self.MOVE)
+            elif (os.path.getmtime(syspath(dest))
+                  < os.path.getmtime(syspath(item.path))):
+                return (item, self.WRITE)
+            else:
+                return (item, self.NOOP)
+        else:
+            return (item, self.ADD)
+
+    def items_action(self):
+        for album in self.lib.albums():
+            if self.query.match(album):
+                matched_items = album.items()
+                unmatched_items = []
+            else:
+                matched_items = [i for i in album.items()
+                                 if self.query.match(i)]
+                unmatched_items = [i for i in album.items()
+                                   if not self.query.match(i)]
+
+            for item in matched_items:
+                yield self.matched_item_action(item)
+            for item in unmatched_items:
+                if self.get_path(item):
+                    yield (item, self.REMOVE)
+
+        for item in self.lib.items(NoneQuery('album_id')):
             if self.query.match(item):
-                if path:
-                    dest = self.destination(item)
-                    if path != dest:
-                        yield (item, self.MOVE)
-                    elif (os.path.getmtime(syspath(dest))
-                          < os.path.getmtime(syspath(item.path))):
-                        yield (item, self.WRITE)
-                else:
-                    yield (item, self.ADD)
-            elif path:
+                yield self.matched_item_action(item)
+            elif self.get_path(item):
                 yield (item, self.REMOVE)
 
     def ask_create(self, create=None):
@@ -147,7 +170,7 @@ class External(object):
             return
 
         converter = self.converter()
-        for (item, action) in self.items_action(self.lib.items()):
+        for (item, action) in self.items_action():
             dest = self.destination(item)
             path = self.get_path(item)
             if action == self.MOVE:
@@ -245,7 +268,7 @@ class SymlinkView(External):
         super(SymlinkView, self).parse_config(config)
 
     def update(self, create=None):
-        for (item, action) in self.items_action(self.lib.items()):
+        for (item, action) in self.items_action():
             dest = self.destination(item)
             path = self.get_path(item)
             if action == self.MOVE:

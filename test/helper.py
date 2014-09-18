@@ -199,6 +199,14 @@ class TestHelper(Assertions):
         item.load()
         return item
 
+    def add_external_album(self, ext_name, **kwargs):
+        album = self.add_album(**kwargs)
+        album[ext_name] = 'true'
+        album.store()
+        self.runcli('alt', 'update', ext_name)
+        album.load()
+        return album
+
 
 class ThreadPoolMockExecutor(object):
 

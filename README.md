@@ -62,6 +62,13 @@ to `bool` using the *types* plugin)
 $ beet modify onplayer=true artist:Bach
 ```
 
+The configured query also matches all tracks that are part of an album
+where the `onplayer` attribute is ‘true’. We could also use
+
+```
+$ beet modify -a onplayer=true artist:Bach
+```
+
 We then tell beets to create the external files.
 
 ```
@@ -194,7 +201,9 @@ following settings.
   not given. (optional)
 
 * **`query`** A [query string][] that determine which tracks belong to the
-  collection. To match all items, specify an empty string. (required)
+  collection. A track belongs to the collection if itself or the album
+  it is part of matches the query. To match all items, specify an empty
+  string. (required)
 
 * **`formats`** A list of space separated strings that determine the
   audio file formats in the external collection. If the ‘format’ field

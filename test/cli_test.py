@@ -96,11 +96,19 @@ class ExternalCopyTest(TestHelper, TestCase):
         }
         self.external_config = self.config['alternatives']['myexternal']
 
-    def test_add(self):
+    def test_add_singleton(self):
         item = self.add_track(title=u'\u00e9', myexternal='true')
         self.runcli('alt', 'update', 'myexternal')
         item.load()
         self.assertTrue(os.path.isfile(item['alt.myexternal']))
+
+    def test_add_album(self):
+        album = self.add_album()
+        album['myexternal'] = 'true'
+        album.store()
+        self.runcli('alt', 'update', 'myexternal')
+        for item in album.items():
+            self.assertTrue(os.path.isfile(item['alt.myexternal']))
 
     def test_update_older(self):
         item = self.add_external_track('myexternal')
@@ -151,13 +159,27 @@ class ExternalCopyTest(TestHelper, TestCase):
         self.assertFalse(os.path.isfile(old_path))
         self.assertTrue(os.path.isfile(new_path))
 
-    def test_remove(self):
+    def test_remove_item(self):
         item = self.add_external_track('myexternal')
         old_path = item['alt.myexternal']
         self.assertTrue(os.path.isfile(old_path))
 
         del item['myexternal']
         item.store()
+        self.runcli('alt', 'update', 'myexternal')
+
+        item.load()
+        self.assertNotIn('alt.myexternal', item)
+        self.assertFalse(os.path.isfile(old_path))
+
+    def test_remove_album(self):
+        album= self.add_external_album('myexternal')
+        item = album.items().get()
+        old_path = item['alt.myexternal']
+        self.assertTrue(os.path.isfile(old_path))
+
+        del album['myexternal']
+        album.store()
         self.runcli('alt', 'update', 'myexternal')
 
         item.load()
