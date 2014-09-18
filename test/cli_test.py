@@ -173,7 +173,7 @@ class ExternalCopyTest(TestHelper, TestCase):
         self.assertFalse(os.path.isfile(old_path))
 
     def test_remove_album(self):
-        album= self.add_external_album('myexternal')
+        album = self.add_external_album('myexternal')
         item = album.items().get()
         old_path = item['alt.myexternal']
         self.assertTrue(os.path.isfile(old_path))
