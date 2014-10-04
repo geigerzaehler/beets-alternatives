@@ -159,6 +159,17 @@ class ExternalCopyTest(TestHelper, TestCase):
         self.assertFalse(os.path.isfile(old_path))
         self.assertTrue(os.path.isfile(new_path))
 
+    def test_prune_after_move(self):
+        item = self.add_external_track('myexternal')
+        artist_dir = os.path.dirname(item['alt.myexternal'])
+        self.assertTrue(os.path.isdir(artist_dir))
+
+        item['artist'] = 'a new artist'
+        item.store()
+        self.runcli('alt', 'update', 'myexternal')
+
+        self.assertFalse(os.path.exists(artist_dir))
+
     def test_remove_item(self):
         item = self.add_external_track('myexternal')
         old_path = item['alt.myexternal']

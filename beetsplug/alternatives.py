@@ -178,7 +178,7 @@ class External(object):
                                              displayable_path(dest)))
                 util.mkdirall(dest)
                 util.move(path, dest)
-                util.prune_dirs(path, root=self.directory)
+                util.prune_dirs(os.path.dirname(path), root=self.directory)
                 self.set_path(item, dest)
                 item.store()
                 item.write(path=dest)
