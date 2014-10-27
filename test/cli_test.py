@@ -53,7 +53,8 @@ class DocTest(TestHelper, TestCase):
         self.assertEqual(mediafile.composer, 'JSB')
 
         self.runcli('modify', '--yes', 'onplayer!', 'artist:Bach')
-        self.runcli('modify', '--yes', 'onplayer=true', 'artist:Beethoven')
+        self.runcli('modify', '--album', '--yes',
+                    'onplayer=true', 'albumartist:Beethoven')
         self.runcli('alt', 'update', 'myplayer')
 
         self.assertFalse(os.path.isfile(external_from_mp3))

@@ -175,7 +175,10 @@ class TestHelper(Assertions):
         item.update(values)
         item.move(copy=True)
         item.write()
-        return self.lib.add_album([item])
+        album = self.lib.add_album([item])
+        album.albumartist = item.artist
+        album.store()
+        return album
 
     def add_track(self, **kwargs):
         values = {

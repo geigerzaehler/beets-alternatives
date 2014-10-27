@@ -67,7 +67,7 @@ The configured query also matches all tracks that are part of an album
 where the `onplayer` attribute is ‘true’. We could also use
 
 ```
-$ beet modify -a onplayer=true artist:Bach
+$ beet modify -a onplayer=true albumartist:Bach
 ```
 
 We then tell beets to create the external files.
@@ -147,6 +147,8 @@ example
 
 
 ### Archive Files
+
+This is not implemented yet.
 
 ```yaml
 alternatives:
