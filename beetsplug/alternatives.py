@@ -23,7 +23,6 @@ from beets.plugins import BeetsPlugin
 from beets.ui import Subcommand, get_path_formats, input_yn, UserError, print_
 from beets.library import parse_query_string, Item
 from beets.util import syspath, displayable_path, cpu_count, bytestring_path
-from beets.dbcore.query import NoneQuery
 
 from beetsplug import convert
 
@@ -129,24 +128,14 @@ class External(object):
             return (item, self.ADD)
 
     def items_action(self):
+        matched_ids = set()
         for album in self.lib.albums():
             if self.query.match(album):
                 matched_items = album.items()
-                unmatched_items = []
-            else:
-                matched_items = [i for i in album.items()
-                                 if self.query.match(i)]
-                unmatched_items = [i for i in album.items()
-                                   if not self.query.match(i)]
+                matched_ids.update(item.id for item in matched_items)
 
-            for item in matched_items:
-                yield self.matched_item_action(item)
-            for item in unmatched_items:
-                if self.get_path(item):
-                    yield (item, self.REMOVE)
-
-        for item in self.lib.items(NoneQuery('album_id')):
-            if self.query.match(item):
+        for item in self.lib.items():
+            if item.id in matched_ids or self.query.match(item):
                 yield self.matched_item_action(item)
             elif self.get_path(item):
                 yield (item, self.REMOVE)
