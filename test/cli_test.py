@@ -111,6 +111,23 @@ class ExternalCopyTest(TestHelper, TestCase):
         for item in album.items():
             self.assertTrue(os.path.isfile(item['alt.myexternal']))
 
+    def test_add_nonexistent(self):
+        item = self.add_external_track('myexternal')
+        path = item['alt.myexternal']
+        os.remove(path)
+
+        self.runcli('alt', 'update', 'myexternal')
+        self.assertTrue(os.path.isfile(item['alt.myexternal']))
+
+    def test_add_replace(self):
+        item = self.add_external_track('myexternal')
+        del item['alt.myexternal']
+        item.store()
+
+        self.runcli('alt', 'update', 'myexternal')
+        item.load()
+        self.assertIn('alt.myexternal', item)
+
     def test_update_older(self):
         item = self.add_external_track('myexternal')
         item['composer'] = 'JSB'

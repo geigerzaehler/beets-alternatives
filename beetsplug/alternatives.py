@@ -115,7 +115,7 @@ class External(object):
 
     def matched_item_action(self, item):
         path = self.get_path(item)
-        if path:
+        if path and os.path.isfile(path):
             dest = self.destination(item)
             if path != dest:
                 return (item, self.MOVE)
@@ -210,7 +210,7 @@ class External(object):
         def _convert(item):
             dest = self.destination(item)
             util.mkdirall(dest)
-            util.copy(item.path, dest)
+            util.copy(item.path, dest, replace=True)
             return item, dest
         return Worker(_convert)
 
@@ -234,7 +234,7 @@ class ExternalConvert(External):
                 convert.encode(self.convert_cmd, item.path, dest)
             else:
                 log.debug(u'copying {0}'.format(displayable_path(dest)))
-                util.copy(item.path, dest)
+                util.copy(item.path, dest, replace=True)
             return item, dest
         return Worker(_convert)
 
