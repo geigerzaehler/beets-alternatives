@@ -68,7 +68,6 @@ class DocTest(TestHelper, TestCase):
         })
         self.config['alternatives'] = {
             'by-year': {
-                'directory': 'by-year',
                 'paths': {'default': '$year/$album/$title'},
                 'formats': 'link',
             }

@@ -133,9 +133,10 @@ The first thing to note here is the `link` format. Instead of
 converting the files this tells the plugin to create symbolic links to
 the original audio file.  We also note that the directory is a relative
 path: it will be resolved with respect to the global `directory`
-option.  Finally, we omitted the `query` option. This means that we
-want to create symlinks for all files. Of course you can still add a
-query to select only parts of your collection.
+option. We could also omit the directory configuration as it defaults
+to the collection’s name. Finally, we omitted the `query` option. This
+means that we want to create symlinks for all files. Of course you can
+still add a query to select only parts of your collection.
 
 The `beet alt update by-year` command will now create the symlinks. For
 example
@@ -197,7 +198,8 @@ following settings.
 
 * **`directory`** The root directory to store the external files under.
   Relative paths are resolved with respect to the global `directory`
-  configuration. (required)
+  configuration. If omitted it defaults to the name of the collection
+  and is therefore relative to the library directory. (optional)
 
 * **`paths`** Path templates for audio files under `directory`. Configured
   like the [global paths option][config-paths] and defaults to it if

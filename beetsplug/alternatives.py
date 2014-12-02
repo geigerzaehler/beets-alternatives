@@ -108,7 +108,10 @@ class External(object):
 
         self.removable = config.get(dict).get('removable', True)
 
-        dir = config['directory'].get(str)
+        if 'directory' in config:
+            dir = config['directory'].get(str)
+        else:
+            dir = self.name
         if not os.path.isabs(dir):
             dir = os.path.join(self.lib.directory, dir)
         self.directory = bytestring_path(dir)
