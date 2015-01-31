@@ -20,7 +20,7 @@ it from the master branch. You will also need the most recent version
 of beets.
 
 ```
-pip install --upgrade beets>=1.3.8
+pip install --upgrade beets>=1.3.10
 pip install git+git://github.com/geigerzaehler/beets-alternatives.git@master
 ```
 
