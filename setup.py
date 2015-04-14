@@ -2,7 +2,7 @@ from setuptools import setup
 
 setup(
     name='beets-alternatives',
-    version='0.8.0-beta.1',
+    version='0.8.0',
     description='beets plugin to manage multiple files',
     long_description=open('README.md').read(),
     author='Thomas Scholtes',
@@ -16,7 +16,7 @@ setup(
     packages=['beetsplug'],
 
     install_requires=[
-        'beets>=1.3.8',
+        'beets>=1.3.10',
         'futures',
     ],
 
