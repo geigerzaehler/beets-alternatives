@@ -24,7 +24,13 @@ pip install --upgrade beets>=1.3.13
 pip install git+git://github.com/geigerzaehler/beets-alternatives.git@master
 ```
 
-Now you have to enable this plugin in your beets configuration file (normally ~/beets/config.yaml on linux systems):
+Now you have to enable this plugin in your beets configuration file.
+Running
+
+```
+beet config -e
+```
+you have to add alternatives like this:
 
 ```yaml
 plugins:
