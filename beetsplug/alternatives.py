@@ -34,6 +34,7 @@ def get_unicode_config(config, key):
         ret = unicode(ret, 'utf8')
     return ret
 
+
 class AlternativesPlugin(BeetsPlugin):
 
     def __init__(self):
