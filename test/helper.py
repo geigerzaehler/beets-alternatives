@@ -65,18 +65,28 @@ def control_stdin(input=None):
 class Assertions(object):
 
     def assertFileTag(self, path, tag):
-        self.assertTrue(os.path.isfile(path),
-                        msg=u'Path is not a file: {0}'.format(path))
+        self.assertIsFile(path)
         with open(path, 'r') as f:
             f.seek(-5, os.SEEK_END)
             self.assertEqual(f.read(), tag)
 
     def assertNotFileTag(self, path, tag):
-        self.assertTrue(os.path.isfile(path),
-                        msg=u'Path is not a file: {0}'.format(path))
+        self.assertIsFile(path)
         with open(path, 'r') as f:
             f.seek(-5, os.SEEK_END)
             self.assertNotEqual(f.read(), tag)
+
+    def assertIsFile(self, path):
+        if not isinstance(path, unicode):
+            path = unicode(path, 'utf8')
+        self.assertTrue(os.path.isfile(path.encode('utf8')),
+                        msg=u'Path is not a file: {0}'.format(path))
+
+    def assertIsNotFile(self, path):
+        if not isinstance(path, unicode):
+            path = unicode(path, 'utf8')
+        self.assertFalse(os.path.isfile(path.encode('utf8')),
+                        msg=u'Path is a file: {0}'.format(path))
 
     def assertSymlink(self, link, target):
         self.assertTrue(os.path.islink(link),

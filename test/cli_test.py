@@ -101,7 +101,7 @@ class ExternalCopyTest(TestHelper, TestCase):
         item = self.add_track(title=u'\u00e9', myexternal='true')
         self.runcli('alt', 'update', 'myexternal')
         item.load()
-        self.assertTrue(os.path.isfile(item['alt.myexternal']))
+        self.assertIsFile(item['alt.myexternal'])
 
     def test_add_album(self):
         album = self.add_album()
@@ -109,7 +109,7 @@ class ExternalCopyTest(TestHelper, TestCase):
         album.store()
         self.runcli('alt', 'update', 'myexternal')
         for item in album.items():
-            self.assertTrue(os.path.isfile(item['alt.myexternal']))
+            self.assertIsFile(item['alt.myexternal'])
 
     def test_add_nonexistent(self):
         item = self.add_external_track('myexternal')
@@ -117,7 +117,7 @@ class ExternalCopyTest(TestHelper, TestCase):
         os.remove(path)
 
         self.runcli('alt', 'update', 'myexternal')
-        self.assertTrue(os.path.isfile(item['alt.myexternal']))
+        self.assertIsFile(item['alt.myexternal'])
 
     def test_add_replace(self):
         item = self.add_external_track('myexternal')
@@ -153,20 +153,20 @@ class ExternalCopyTest(TestHelper, TestCase):
     def test_move_after_path_format_update(self):
         item = self.add_external_track('myexternal')
         old_path = item['alt.myexternal']
-        self.assertTrue(os.path.isfile(old_path))
+        self.assertIsFile(old_path)
 
         self.external_config['paths'] = {'default': '$album/$title'}
         self.runcli('alt', 'update', 'myexternal')
 
         item.load()
         new_path = item['alt.myexternal']
-        self.assertFalse(os.path.isfile(old_path))
-        self.assertTrue(os.path.isfile(new_path))
+        self.assertIsNotFile(old_path)
+        self.assertIsFile(new_path)
 
     def test_move_after_tags_changed(self):
         item = self.add_external_track('myexternal')
         old_path = item['alt.myexternal']
-        self.assertTrue(os.path.isfile(old_path))
+        self.assertIsFile(old_path)
 
         item['title'] = 'a new title'
         item.store()
@@ -174,8 +174,8 @@ class ExternalCopyTest(TestHelper, TestCase):
 
         item.load()
         new_path = item['alt.myexternal']
-        self.assertFalse(os.path.isfile(old_path))
-        self.assertTrue(os.path.isfile(new_path))
+        self.assertIsNotFile(old_path)
+        self.assertIsFile(new_path)
 
     def test_prune_after_move(self):
         item = self.add_external_track('myexternal')
