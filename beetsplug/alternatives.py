@@ -29,6 +29,10 @@ from beetsplug import convert
 log = logging.getLogger('beets.alternatives')
 
 
+def get_unicode_config(config, key):
+    return unicode(config[key].get(str), 'utf8')
+
+
 class AlternativesPlugin(BeetsPlugin):
 
     def __init__(self):
@@ -104,7 +108,8 @@ class External(object):
         else:
             path_config = beets.config['paths']
         self.path_formats = get_path_formats(path_config)
-        self.query, _ = parse_query_string(config['query'].get(unicode), Item)
+        query = get_unicode_config(config, 'query')
+        self.query, _ = parse_query_string(query, Item)
 
         self.removable = config.get(dict).get('removable', True)
 
@@ -222,6 +227,7 @@ class ExternalConvert(External):
 
     def __init__(self, name, formats, lib, config):
         super(ExternalConvert, self).__init__(name, lib, config)
+        self._encode = convert.ConvertPlugin().encode
         self.formats = [f.lower() for f in formats]
         self.convert_cmd, self.ext = convert.get_format(self.formats[0])
 
@@ -234,7 +240,7 @@ class ExternalConvert(External):
                 util.mkdirall(dest)
 
             if self.should_transcode(item):
-                convert.encode(self.convert_cmd, item.path, dest)
+                self._encode(self.convert_cmd, item.path, dest)
             else:
                 log.debug(u'copying {0}'.format(displayable_path(dest)))
                 util.copy(item.path, dest, replace=True)

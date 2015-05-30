@@ -20,7 +20,7 @@ it from the master branch. You will also need the most recent version
 of beets.
 
 ```
-pip install --upgrade beets>=1.3.10
+pip install --upgrade beets>=1.3.13
 pip install git+git://github.com/geigerzaehler/beets-alternatives.git@master
 ```
 
@@ -238,6 +238,13 @@ The following is a list of things I might add in the feature.
 
 * Symbolic links for each artist in a multiple artists release (see the
   [beets issue][beets-issue-split-symlinks])
+
+
+Change Log
+----------
+
+## v0.8.1 - 2015-05-30
+* Require and make compatible for beets v1.3.13
 
 License
 -------
