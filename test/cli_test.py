@@ -13,7 +13,8 @@ class DocTest(TestHelper, TestCase):
         external_dir = os.path.join(self.mkdtemp(), 'myplayer')
         self.config['convert']['formats'] = {
             'aac': {
-                'command': 'bash -c "cp \'$source\' \'$dest\'; printf ISAAC >> \'$dest\'"',
+                'command': 'bash -c "cp \'$source\' \'$dest\';' +
+                           'printf ISAAC >> \'$dest\'"',
                 'extension': 'm4a'
             },
         }
@@ -225,7 +226,8 @@ class ExternalConvertTest(TestHelper, TestCase):
         super(ExternalConvertTest, self).setUp()
         self.external_dir = self.mkdtemp()
         self.config['convert']['formats'] = {
-            'ogg': 'bash -c "cp \'$source\' \'$dest\'; printf ISOGG >> \'$dest\'"'
+            'ogg': 'bash -c "cp \'$source\' \'$dest\';' +
+            'printf ISOGG >> \'$dest\'"'
         }
         self.config['alternatives'] = {
             'myexternal': {
