@@ -12,13 +12,12 @@
 
 
 import os.path
-import logging
 import threading
 from argparse import ArgumentParser
 from concurrent import futures
 
 import beets
-from beets import util
+from beets import util, art, logging
 from beets.plugins import BeetsPlugin
 from beets.ui import Subcommand, get_path_formats, input_yn, UserError, print_
 from beets.library import parse_query_string, Item
@@ -227,7 +226,9 @@ class ExternalConvert(External):
 
     def __init__(self, name, formats, lib, config):
         super(ExternalConvert, self).__init__(name, lib, config)
-        self._encode = convert.ConvertPlugin().encode
+        convert_plugin = convert.ConvertPlugin()
+        self._encode = convert_plugin.encode
+        self._embed = convert_plugin.config['embed'].get(bool)
         self.formats = [f.lower() for f in formats]
         self.convert_cmd, self.ext = convert.get_format(self.formats[0])
 
@@ -241,10 +242,18 @@ class ExternalConvert(External):
 
             if self.should_transcode(item):
                 self._encode(self.convert_cmd, item.path, dest)
+                if self._embed:
+                    embed_art(item, dest)
             else:
                 log.debug(u'copying {0}'.format(displayable_path(dest)))
                 util.copy(item.path, dest, replace=True)
             return item, dest
+
+        def embed_art(item, path):
+            album = item.get_album()
+            if album and album.artpath:
+                art.embed_item(log, item, album.artpath,
+                               itempath=path)
         return Worker(_convert)
 
     def destination(self, item):

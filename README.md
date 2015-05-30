@@ -245,6 +245,7 @@ Change Log
 
 ## v0.8.1 - 2015-05-30
 * Require and make compatible for beets v1.3.13
+* Embed cover art when converting items
 
 License
 -------

@@ -227,7 +227,7 @@ class ExternalConvertTest(TestHelper, TestCase):
         self.external_dir = self.mkdtemp()
         self.config['convert']['formats'] = {
             'ogg': 'bash -c "cp \'$source\' \'$dest\';' +
-            'printf ISOGG >> \'$dest\'"'
+                   'printf ISOGG >> \'$dest\'"'
         }
         self.config['alternatives'] = {
             'myexternal': {
@@ -244,6 +244,19 @@ class ExternalConvertTest(TestHelper, TestCase):
         item.load()
         converted_path = item['alt.myexternal']
         self.assertFileTag(converted_path, 'ISOGG')
+
+    def test_convert_and_embed(self):
+        self.config['convert']['embed'] = True
+
+        album = self.add_album(myexternal='true', format='m4a')
+        album.artpath = os.path.join(self.fixture_dir, 'image.png')
+        album.store()
+
+        self.runcli('alt', 'update', 'myexternal')
+        item = album.items().get()
+        converted_path = item['alt.myexternal']
+        mediafile = MediaFile(converted_path)
+        self.assertIsNotNone(mediafile.art)
 
     def test_skip_convert_for_same_format(self):
         item = self.add_track(myexternal='true')

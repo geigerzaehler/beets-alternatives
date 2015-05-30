@@ -86,7 +86,7 @@ class Assertions(object):
         if not isinstance(path, unicode):
             path = unicode(path, 'utf8')
         self.assertFalse(os.path.isfile(path.encode('utf8')),
-                        msg=u'Path is a file: {0}'.format(path))
+                         msg=u'Path is a file: {0}'.format(path))
 
     def assertSymlink(self, link, target):
         self.assertTrue(os.path.islink(link),
@@ -242,12 +242,14 @@ class ThreadPoolMockExecutor(object):
 
     def submit(self, fn, *args, **kwargs):
         fut = futures.Future()
-        try:
-            res = fn(*args, **kwargs)
-        except Exception as e:
-            fut.set_exception(e)
-        else:
-            fut.set_result(res)
+        res = fn(*args, **kwargs)
+        fut.set_result(res)
+        # try:
+        #     res = fn(*args, **kwargs)
+        # except Exception as e:
+        #     fut.set_exception(e)
+        # else:
+        #     fut.set_result(res)
         return fut
 
     def shutdown(wait=True):
