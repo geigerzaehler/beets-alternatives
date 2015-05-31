@@ -253,8 +253,12 @@ The following is a list of things I might add in the feature.
 Change Log
 ----------
 
+## v0.8.2 - 2015-05-31
+* Fix a bug that made the plugin crash when reading unicode strings
+  from the configuration
+
 ## v0.8.1 - 2015-05-30
-* Require and make compatible for beets v1.3.13
+* Require beets v1.3.13 and drop support for all older versions.
 * Embed cover art when converting items
 
 License
