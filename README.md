@@ -24,18 +24,14 @@ pip install --upgrade beets>=1.3.13
 pip install git+git://github.com/geigerzaehler/beets-alternatives.git@master
 ```
 
-Now you have to enable this plugin in your beets configuration file.
-Running
-
-```
-beet config -e
-```
-you have to add alternatives like this:
+Don’t forget to [enable the plugin][using plugins]. You may use the
+`beet config --edit` command to add the *alternatives* plugin to the
+configuration.
 
 ```yaml
 plugins:
-  ...
-  alternatives
+- ...
+- alternatives
 ```
 
 Now, you can get rolling with one of the use cases below.
@@ -291,3 +287,4 @@ SOFTWARE.
 [convert config]: http://beets.readthedocs.org/en/latest/plugins/convert.html#configuring-the-transcoding-command
 [convert plugin]: http://beets.readthedocs.org/en/latest/plugins/convert.html
 [query string]: http://beets.readthedocs.org/en/latest/reference/query.html
+[using plugins]: http://beets.readthedocs.org/en/latest/plugins/index.html#using-plugins
