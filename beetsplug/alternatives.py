@@ -29,7 +29,10 @@ log = logging.getLogger('beets.alternatives')
 
 
 def get_unicode_config(config, key):
-    return unicode(config[key].get(str), 'utf8')
+    ret = config[key].get(str)
+    if type(ret) != unicode:
+        ret = unicode(ret, 'utf8')
+    return ret
 
 
 class AlternativesPlugin(BeetsPlugin):
