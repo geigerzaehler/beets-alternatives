@@ -45,11 +45,17 @@ class AlternativesPlugin(BeetsPlugin):
 
     def update(self, lib, options):
         try:
-            alt = self.alternative(options.name, lib)
+            alts = []
+            if options.all:
+                for key in self.config.keys():
+                    alts.append(self.alternative(key, lib))
+            else:
+                alts = [self.alternative(options.name, lib)]
+            for alt in alts:
+                alt.update(create=options.create)
         except KeyError as e:
             raise UserError(u"Alternative collection '{0}' not found."
                             .format(e.args[0]))
-        alt.update(create=options.create)
 
     def alternative(self, name, lib):
         conf = self.config[name]
@@ -76,11 +82,15 @@ class AlternativesCommand(Subcommand):
         subparsers = parser.add_subparsers()
         update = subparsers.add_parser('update')
         update.set_defaults(func=plugin.update)
-        update.add_argument('name')
+        nameOrAll = update.add_mutually_exclusive_group(required=True)
+        nameOrAll.add_argument('name', nargs='?')
+        nameOrAll.add_argument('--all', action='store_const',
+                               dest='all', const=True)
         update.add_argument('--create', action='store_const',
                             dest='create', const=True)
         update.add_argument('--no-create', action='store_const',
                             dest='create', const=False)
+        
         super(AlternativesCommand, self).__init__(self.name, parser, self.help)
 
     def func(self, lib, opts, _):
