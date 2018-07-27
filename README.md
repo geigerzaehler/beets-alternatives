@@ -15,12 +15,11 @@ Getting Started
 The basic idea of this plugin is that every file in your library can
 have multiple alternate versions in separate locations.
 
-Since this plugin is in early development you will need to install
-it from the master branch. You will also need the most recent version
-of beets.
+Since this plugin is in early development you will need to install it from the
+master branch. You will also need at least version 1.4.1 of beets.
 
 ```
-pip install --upgrade beets>=1.3.13
+pip install --upgrade beets>=1.4.1
 pip install git+git://github.com/geigerzaehler/beets-alternatives.git@master
 ```
 
@@ -249,17 +248,6 @@ The following is a list of things I might add in the feature.
 * Symbolic links for each artist in a multiple artists release (see the
   [beets issue][beets-issue-split-symlinks])
 
-
-Change Log
-----------
-
-## v0.8.2 - 2015-05-31
-* Fix a bug that made the plugin crash when reading unicode strings
-  from the configuration
-
-## v0.8.1 - 2015-05-30
-* Require beets v1.3.13 and drop support for all older versions.
-* Embed cover art when converting items
 
 License
 -------

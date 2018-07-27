@@ -11,6 +11,7 @@ import beets
 from beets import plugins
 from beets import ui
 from beets.library import Item
+from beets.util import MoveOperation
 
 from beetsplug import alternatives
 from beetsplug import convert
@@ -183,7 +184,7 @@ class TestHelper(Assertions):
         item = Item.from_path(os.path.join(self.fixture_dir, 'min.' + ext))
         item.add(self.lib)
         item.update(values)
-        item.move(copy=True)
+        item.move(MoveOperation.COPY)
         item.write()
         album = self.lib.add_album([item])
         album.albumartist = item.artist
@@ -201,7 +202,7 @@ class TestHelper(Assertions):
         item = Item.from_path(os.path.join(self.fixture_dir, 'min.mp3'))
         item.add(self.lib)
         item.update(values)
-        item.move(copy=True)
+        item.move(MoveOperation.COPY)
         item.write()
         return item
 

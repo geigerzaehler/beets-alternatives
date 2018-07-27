@@ -4,8 +4,8 @@ notifications:
 language: python
 
 env:
-  - TOX_ENV=beets-master COVERAGE=1
-  - TOX_ENV=beets-release
+  - TOX_ENV=beets_master COVERAGE=1
+  - TOX_ENV=beets_1.4.1
   - TOX_ENV=flake8
 
 install:
