@@ -133,7 +133,7 @@ class TestHelper(Assertions):
 
         self.config['plugins'] = []
         self.config['verbose'] = True
-        self.config['color'] = False
+        self.config['ui']['color'] = False
         self.config['threaded'] = False
         self.config['import']['copy'] = False
 
