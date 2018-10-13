@@ -17,15 +17,13 @@ from argparse import ArgumentParser
 from concurrent import futures
 
 import beets
-from beets import util, art, logging
+from beets import util, art
 from beets.plugins import BeetsPlugin
 from beets.ui import Subcommand, get_path_formats, input_yn, UserError, print_
 from beets.library import parse_query_string, Item
 from beets.util import syspath, displayable_path, cpu_count, bytestring_path
 
 from beetsplug import convert
-
-log = logging.getLogger('beets.alternatives')
 
 
 def get_unicode_config(config, key):
@@ -59,11 +57,11 @@ class AlternativesPlugin(BeetsPlugin):
         if conf['formats'].exists():
             fmt = conf['formats'].get(unicode)
             if fmt == 'link':
-                return SymlinkView(name, lib, conf)
+                return SymlinkView(self._log, name, lib, conf)
             else:
-                return ExternalConvert(name, fmt.split(), lib, conf)
+                return ExternalConvert(self._log, name, fmt.split(), lib, conf)
         else:
-            return External(name, lib, conf)
+            return External(self._log, name, lib, conf)
 
 
 class AlternativesCommand(Subcommand):
@@ -98,7 +96,8 @@ class External(object):
     MOVE = 4
     NOOP = 5
 
-    def __init__(self, name, lib, config):
+    def __init__(self, log, name, lib, config):
+        self._log = log
         self.name = name
         self.lib = lib
         self.path_key = 'alt.{0}'.format(name)
@@ -227,8 +226,8 @@ class External(object):
 
 class ExternalConvert(External):
 
-    def __init__(self, name, formats, lib, config):
-        super(ExternalConvert, self).__init__(name, lib, config)
+    def __init__(self, log, name, formats, lib, config):
+        super(ExternalConvert, self).__init__(log, name, lib, config)
         convert_plugin = convert.ConvertPlugin()
         self._encode = convert_plugin.encode
         self._embed = convert_plugin.config['embed'].get(bool)
@@ -248,14 +247,14 @@ class ExternalConvert(External):
                 if self._embed:
                     embed_art(item, dest)
             else:
-                log.debug(u'copying {0}'.format(displayable_path(dest)))
+                self._log.debug(u'copying {0}'.format(displayable_path(dest)))
                 util.copy(item.path, dest, replace=True)
             return item, dest
 
         def embed_art(item, path):
             album = item.get_album()
             if album and album.artpath:
-                art.embed_item(log, item, album.artpath,
+                art.embed_item(self._log, item, album.artpath,
                                itempath=path)
         return Worker(_convert)
 

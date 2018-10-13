@@ -1,13 +1,13 @@
 import sys
 import os
 import tempfile
-import logging
 import shutil
 from contextlib import contextmanager
 from StringIO import StringIO
 from concurrent import futures
 
 import beets
+from beets import logging
 from beets import plugins
 from beets import ui
 from beets.library import Item
@@ -27,7 +27,7 @@ class LogCapture(logging.Handler):
         self.messages = []
 
     def emit(self, record):
-        self.messages.append(str(record.msg))
+        self.messages.append(unicode(record.msg))
 
 
 @contextmanager
