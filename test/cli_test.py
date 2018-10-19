@@ -163,19 +163,22 @@ class ExternalCopyTest(TestHelper, TestCase):
         self.assertIsNotFile(old_path)
         self.assertIsFile(new_path)
 
-    def test_move_after_tags_changed(self):
+    def test_move_and_write_after_tags_changed(self):
         item = self.add_external_track('myexternal')
         old_path = item['alt.myexternal']
         self.assertIsFile(old_path)
 
         item['title'] = 'a new title'
         item.store()
+        item.try_write()  # Required to update mtime.
         self.runcli('alt', 'update', 'myexternal')
 
         item.load()
         new_path = item['alt.myexternal']
         self.assertIsNotFile(old_path)
         self.assertIsFile(new_path)
+        mediafile = MediaFile(new_path)
+        self.assertEqual(mediafile.title, 'a new title')
 
     def test_prune_after_move(self):
         item = self.add_external_track('myexternal')
