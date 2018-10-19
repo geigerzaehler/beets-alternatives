@@ -5,12 +5,14 @@ import shutil
 from contextlib import contextmanager
 from StringIO import StringIO
 from concurrent import futures
+from zlib import crc32
 
 import beets
 from beets import logging
 from beets import plugins
 from beets import ui
 from beets.library import Item
+from beets.mediafile import MediaFile
 from beets.util import MoveOperation
 
 from beetsplug import alternatives
@@ -99,7 +101,32 @@ class Assertions(object):
         self.assertEqual(target, link_target)
 
 
-class TestHelper(Assertions):
+class MediaFileAssertions(object):
+
+    def assertHasEmbeddedArtwork(self, path, compare_file=None):
+        mediafile = MediaFile(path)
+        self.assertIsNotNone(mediafile.art,
+                             msg=u'MediaFile has no embedded artwork')
+        if compare_file:
+            with open(compare_file, 'rb') as compare_fh:
+                crc_is = crc32(mediafile.art)
+                crc_expected = crc32(compare_fh.read())
+                self.assertEqual(
+                        crc_is, crc_expected,
+                        msg=u"MediaFile has embedded artwork, but "
+                            u"content (CRC32: {}) doesn't match "
+                            u"expectations (CRC32: {}).".format(
+                                crc_is, crc_expected
+                                )
+                            )
+
+    def assertHasNoEmbeddedArtwork(self, path):
+        mediafile = MediaFile(path)
+        self.assertIsNone(mediafile.art,
+                          msg=u'MediaFile has embedded artwork')
+
+
+class TestHelper(Assertions, MediaFileAssertions):
 
     def setUp(self):
         ThreadPoolMockExecutor.patch()
@@ -142,6 +169,8 @@ class TestHelper(Assertions):
 
         self.lib = beets.library.Library(':memory:', self.libdir)
         self.fixture_dir = os.path.join(os.path.dirname(__file__), 'fixtures')
+
+        self.IMAGE_FIXTURE1 = os.path.join(self.fixture_dir, 'image.png')
 
     def teardown_beets(self):
         del self.lib._connections
