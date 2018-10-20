@@ -171,6 +171,7 @@ class TestHelper(Assertions, MediaFileAssertions):
         self.fixture_dir = os.path.join(os.path.dirname(__file__), 'fixtures')
 
         self.IMAGE_FIXTURE1 = os.path.join(self.fixture_dir, 'image.png')
+        self.IMAGE_FIXTURE2 = os.path.join(self.fixture_dir, 'image_black.png')
 
     def teardown_beets(self):
         del self.lib._connections

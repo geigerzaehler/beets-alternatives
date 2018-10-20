@@ -94,6 +94,7 @@ class External(object):
     REMOVE = 2
     WRITE = 3
     MOVE = 4
+    SYNC_ART = 5
 
     def __init__(self, log, name, lib, config):
         self._log = log
@@ -128,9 +129,15 @@ class External(object):
             dest = self.destination(item)
             if path != dest:
                 actions.append(self.MOVE)
-            if (os.path.getmtime(syspath(path))
-                    < os.path.getmtime(syspath(item.path))):
+            item_mtime_alt = os.path.getmtime(syspath(path))
+            if (item_mtime_alt < os.path.getmtime(syspath(item.path))):
                 actions.append(self.WRITE)
+            album = item.get_album()
+            if album:
+                if (album.artpath and os.path.isfile(album.artpath) and
+                        (item_mtime_alt
+                         < os.path.getmtime(syspath(album.artpath)))):
+                    actions.append(self.SYNC_ART)
         else:
             actions.append(self.ADD)
         return (item, actions)
@@ -183,6 +190,9 @@ class External(object):
                 elif action == self.WRITE:
                     print_(u'*{0}'.format(displayable_path(path)))
                     item.write(path=path)
+                elif action == self.SYNC_ART:
+                    print_(u'~{0}'.format(displayable_path(path)))
+                    self.sync_art(item, path)
                 elif action == self.ADD:
                     print_(u'+{0}'.format(displayable_path(dest)))
                     converter.submit(item)
@@ -223,6 +233,18 @@ class External(object):
             return item, dest
         return Worker(_convert)
 
+    def sync_art(self, item, path):
+        """ Embed artwork in the destination file.
+        """
+        album = item.get_album()
+        if album:
+            if album.artpath and os.path.isfile(album.artpath):
+                self._log.debug("Embedding art from {} into {}".format(
+                                displayable_path(album.artpath),
+                                displayable_path(path)))
+                art.embed_item(self._log, item, album.artpath,
+                               itempath=path)
+
 
 class ExternalConvert(External):
 
@@ -244,18 +266,12 @@ class ExternalConvert(External):
 
             if self.should_transcode(item):
                 self._encode(self.convert_cmd, item.path, dest)
-                if self._embed:
-                    embed_art(item, dest)
             else:
                 self._log.debug(u'copying {0}'.format(displayable_path(dest)))
                 util.copy(item.path, dest, replace=True)
+            if self._embed:
+                self.sync_art(item, dest)
             return item, dest
-
-        def embed_art(item, path):
-            album = item.get_album()
-            if album and album.artpath:
-                art.embed_item(self._log, item, album.artpath,
-                               itempath=path)
         return Worker(_convert)
 
     def destination(self, item):
