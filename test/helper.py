@@ -6,6 +6,7 @@ from contextlib import contextmanager
 from StringIO import StringIO
 from concurrent import futures
 from zlib import crc32
+from pkg_resources import parse_version
 
 import beets
 from beets import logging
@@ -20,6 +21,16 @@ from beetsplug import convert
 
 
 logging.getLogger('beets').propagate = True
+
+
+
+if parse_version(beets.__version__) < parse_version("1.4.6"):
+    def _move_item(item):
+        item.move(copy=True)
+else:
+    from beets.util import MoveOperation
+    def _move_item(item):
+        item.move(operation=MoveOperation.COPY)
 
 
 class LogCapture(logging.Handler):
@@ -214,7 +225,7 @@ class TestHelper(Assertions, MediaFileAssertions):
         item = Item.from_path(os.path.join(self.fixture_dir, 'min.' + ext))
         item.add(self.lib)
         item.update(values)
-        item.move(MoveOperation.COPY)
+        _move_item(item)
         item.write()
         album = self.lib.add_album([item])
         album.albumartist = item.artist
@@ -232,7 +243,7 @@ class TestHelper(Assertions, MediaFileAssertions):
         item = Item.from_path(os.path.join(self.fixture_dir, 'min.mp3'))
         item.add(self.lib)
         item.update(values)
-        item.move(MoveOperation.COPY)
+        _move_item(item)
         item.write()
         return item
 
