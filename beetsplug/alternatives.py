@@ -303,12 +303,10 @@ class SymlinkView(External):
                     self.remove_item(item)
                     self.create_symlink(item)
                     self.set_path(item, dest)
-                    item.store()
                 elif action == self.ADD:
                     print_(u'+{0}'.format(displayable_path(dest)))
                     self.create_symlink(item)
                     self.set_path(item, dest)
-                    item.store()
                 elif action == self.REMOVE:
                     print_(u'-{0}'.format(displayable_path(path)))
                     self.remove_item(item)
