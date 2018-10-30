@@ -22,6 +22,7 @@ from beets.plugins import BeetsPlugin
 from beets.ui import Subcommand, get_path_formats, input_yn, UserError, print_
 from beets.library import parse_query_string, Item
 from beets.util import syspath, displayable_path, cpu_count, bytestring_path
+from beets.mediafile import MediaFile
 
 from beetsplug import convert
 
@@ -138,6 +139,16 @@ class External(object):
                         (item_mtime_alt
                          < os.path.getmtime(syspath(album.artpath)))):
                     actions.append(self.SYNC_ART)
+                elif not album.artpath and MediaFile(path).art:
+                    # FIXME: The above naive check for whether removing artwork
+                    # necessary is expensive due to reading metadata from _all_
+                    # files in the alternative collection. Also, it seems that
+                    # beets currently has no clean interface to actually remove
+                    # cover art, anyway (at least the `update` and `edit`
+                    # commands have no explicit support). One way to improve
+                    # this might be to store an additional flexattr in the
+                    # database that indicates whether the alt item has artwork.
+                    actions.append(self.SYNC_ART)
         else:
             actions.append(self.ADD)
         return (item, actions)
@@ -234,7 +245,8 @@ class External(object):
         return Worker(_convert)
 
     def sync_art(self, item, path):
-        """ Embed artwork in the destination file.
+        """ Embed artwork in the destination file resp. remove it in order to
+        match the artwork of the parent item.
         """
         album = item.get_album()
         if album:
@@ -244,6 +256,13 @@ class External(object):
                                 displayable_path(path)))
                 art.embed_item(self._log, item, album.artpath,
                                itempath=path)
+            else:
+                mediafile = MediaFile(path)
+                if mediafile.art:
+                    self._log.debug("Removing art from {}".format(
+                                    displayable_path(path)))
+                    del mediafile.art
+                    mediafile.save()
 
 
 class ExternalConvert(External):
