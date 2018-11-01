@@ -281,6 +281,15 @@ class ExternalCopyTest(TestHelper, TestCase):
         self.assertHasEmbeddedArtwork(item['alt.myexternal'],
                                       self.IMAGE_FIXTURE2)
 
+        # Remove artwork, assert that this removes embedded artwork.
+        os.remove(image_path)
+        album.artpath = ""
+        album.store()
+        self.runcli('alt', 'update', 'myexternal')
+
+        item = album.items().get()
+        self.assertHasNoEmbeddedArtwork(item['alt.myexternal'])
+
 
 class ExternalConvertTest(TestHelper, TestCase):
 
