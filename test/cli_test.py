@@ -1,5 +1,6 @@
 import os
 import os.path
+import shutil
 from unittest import TestCase
 
 from helper import TestHelper, control_stdin
@@ -163,19 +164,22 @@ class ExternalCopyTest(TestHelper, TestCase):
         self.assertIsNotFile(old_path)
         self.assertIsFile(new_path)
 
-    def test_move_after_tags_changed(self):
+    def test_move_and_write_after_tags_changed(self):
         item = self.add_external_track('myexternal')
         old_path = item['alt.myexternal']
         self.assertIsFile(old_path)
 
         item['title'] = 'a new title'
         item.store()
+        item.try_write()  # Required to update mtime.
         self.runcli('alt', 'update', 'myexternal')
 
         item.load()
         new_path = item['alt.myexternal']
         self.assertIsNotFile(old_path)
         self.assertIsFile(new_path)
+        mediafile = MediaFile(new_path)
+        self.assertEqual(mediafile.title, 'a new title')
 
     def test_prune_after_move(self):
         item = self.add_external_track('myexternal')
@@ -219,6 +223,64 @@ class ExternalCopyTest(TestHelper, TestCase):
         out = self.runcli('alt', 'update', 'unkown')
         self.assertIn("Alternative collection 'unkown' not found.", out)
 
+    def test_embed_art(self):
+        """ Test that artwork is embedded and updated to match the source file.
+
+        There used to be a bug that meant that albumart was only embedded
+        once on initial addition to the alternative collection, but not if
+        the artwork was added or changed later.
+
+        This test comprehensively checks that embedded artwork is up-to-date
+        with the artwork file, even if no changes to the database happen.
+        """
+        def touch_art(item, image_path):
+            """ `touch` the image file, but don't set mtime to the current
+            time since the tests run rather fast and item and art mtimes might
+            end up identical if the filesystem has low mtime granularity or
+            mtimes are cashed as laid out in
+                https://stackoverflow.com/a/14393315/3451198
+            Considering the interpreter startup time when running `beet alt
+            update <name>` in a real use-case, this should not obscure any
+            bugs.
+            """
+            item_mtime_alt = os.path.getmtime(item.path)
+            os.utime(image_path, (item_mtime_alt + 2, item_mtime_alt + 2))
+
+        # Initially add album without artwork.
+        album = self.add_album(myexternal='true')
+        album.store()
+        self.runcli('alt', 'update', 'myexternal')
+
+        item = album.items().get()
+        self.assertHasNoEmbeddedArtwork(item['alt.myexternal'])
+
+        # Make a copy of the artwork, so that changing mtime/content won't
+        # affect the repository.
+        image_dir = self.mkdtemp()
+        image_path = os.path.join(image_dir, 'image')
+        shutil.copy(self.IMAGE_FIXTURE1, image_path)
+        touch_art(item, image_path)
+
+        # Add a cover image, assert that it is being embedded.
+        album.artpath = image_path
+        album.store()
+        self.runcli('alt', 'update', 'myexternal')
+
+        item = album.items().get()
+        self.assertHasEmbeddedArtwork(item['alt.myexternal'],
+                                      self.IMAGE_FIXTURE1)
+
+        # Change content and update mtime, but do not change the item/album in
+        # database.
+        # Assert that artwork is re-embedded.
+        shutil.copy(self.IMAGE_FIXTURE2, image_path)
+        touch_art(item, image_path)
+        self.runcli('alt', 'update', 'myexternal')
+
+        item = album.items().get()
+        self.assertHasEmbeddedArtwork(item['alt.myexternal'],
+                                      self.IMAGE_FIXTURE2)
+
 
 class ExternalConvertTest(TestHelper, TestCase):
 
@@ -249,14 +311,12 @@ class ExternalConvertTest(TestHelper, TestCase):
         self.config['convert']['embed'] = True
 
         album = self.add_album(myexternal='true', format='m4a')
-        album.artpath = os.path.join(self.fixture_dir, 'image.png')
+        album.artpath = self.IMAGE_FIXTURE1
         album.store()
 
         self.runcli('alt', 'update', 'myexternal')
         item = album.items().get()
-        converted_path = item['alt.myexternal']
-        mediafile = MediaFile(converted_path)
-        self.assertIsNotNone(mediafile.art)
+        self.assertHasEmbeddedArtwork(item['alt.myexternal'])
 
     def test_skip_convert_for_same_format(self):
         item = self.add_track(myexternal='true')
