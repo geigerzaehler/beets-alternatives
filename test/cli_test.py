@@ -233,6 +233,19 @@ class ExternalCopyTest(TestHelper, TestCase):
         This test comprehensively checks that embedded artwork is up-to-date
         with the artwork file, even if no changes to the database happen.
         """
+        def touch_art(item, image_path):
+            """ `touch` the image file, but don't set mtime to the current
+            time since the tests run rather fast and item and art mtimes might
+            end up identical if the filesystem has low mtime granularity or
+            mtimes are cashed as laid out in
+                https://stackoverflow.com/a/14393315/3451198
+            Considering the interpreter startup time when running `beet alt
+            update <name>` in a real use-case, this should not obscure any
+            bugs.
+            """
+            item_mtime_alt = os.path.getmtime(item.path)
+            os.utime(image_path, (item_mtime_alt + 2, item_mtime_alt + 2))
+
         # Initially add album without artwork.
         album = self.add_album(myexternal='true')
         album.store()
@@ -246,6 +259,7 @@ class ExternalCopyTest(TestHelper, TestCase):
         image_dir = self.mkdtemp()
         image_path = os.path.join(image_dir, 'image')
         shutil.copy(self.IMAGE_FIXTURE1, image_path)
+        touch_art(item, image_path)
 
         # Add a cover image, assert that it is being embedded.
         album.artpath = image_path
@@ -257,9 +271,10 @@ class ExternalCopyTest(TestHelper, TestCase):
                                       self.IMAGE_FIXTURE1)
 
         # Change content and update mtime, but do not change the item/album in
-        # database. Assert that artwork is re-embedded.
+        # database.
+        # Assert that artwork is re-embedded.
         shutil.copy(self.IMAGE_FIXTURE2, image_path)
-        os.utime(image_path, None)
+        touch_art(item, image_path)
         self.runcli('alt', 'update', 'myexternal')
 
         item = album.items().get()
