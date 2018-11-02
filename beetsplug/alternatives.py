@@ -112,23 +112,25 @@ class External(object):
             dir = config['directory'].as_str()
         else:
             dir = self.name
-        if not os.path.isabs(dir):
+        dir = bytestring_path(dir)
+        if not os.path.isabs(syspath(dir)):
             dir = os.path.join(self.lib.directory, dir)
-        self.directory = bytestring_path(dir)
+        self.directory = dir
 
     def matched_item_action(self, item):
         path = self.get_path(item)
         actions = []
-        if path and os.path.isfile(path):
+        if path and os.path.isfile(syspath(path)):
             dest = self.destination(item)
-            if path != dest:
+            if not util.samefile(path, dest):
                 actions.append(self.MOVE)
             item_mtime_alt = os.path.getmtime(syspath(path))
             if (item_mtime_alt < os.path.getmtime(syspath(item.path))):
                 actions.append(self.WRITE)
             album = item.get_album()
             if album:
-                if (album.artpath and os.path.isfile(album.artpath) and
+                if (album.artpath and
+                        os.path.isfile(syspath(album.artpath)) and
                         (item_mtime_alt
                          < os.path.getmtime(syspath(album.artpath)))):
                     actions.append(self.SYNC_ART)
@@ -162,7 +164,8 @@ class External(object):
         return input_yn(msg, require=True)
 
     def update(self, create=None):
-        if not os.path.isdir(self.directory) and not self.ask_create(create):
+        if (not os.path.isdir(syspath(self.directory))
+                and not self.ask_create(create)):
             print_(u'Skipping creation of {0}'
                    .format(displayable_path(self.directory)))
             return
@@ -207,14 +210,18 @@ class External(object):
     def set_path(self, item, path):
         item[self.path_key] = six.text_type(path, 'utf8')
 
-    def get_path(self, item):
+    @staticmethod
+    def _get_path(item, path_key):
         try:
-            return item[self.path_key].encode('utf8')
+            return item[path_key].encode('utf8')
         except KeyError:
             return None
 
+    def get_path(self, item):
+        return self._get_path(item, self.path_key)
+
     def remove_item(self, item):
-        path = item[self.path_key].encode('utf8')
+        path = self.get_path(item)
         util.remove(path)
         util.prune_dirs(path, root=self.directory)
         del item[self.path_key]
@@ -232,7 +239,7 @@ class External(object):
         """
         album = item.get_album()
         if album:
-            if album.artpath and os.path.isfile(album.artpath):
+            if album.artpath and os.path.isfile(syspath(album.artpath)):
                 self._log.debug("Embedding art from {} into {}".format(
                                 displayable_path(album.artpath),
                                 displayable_path(path)))
@@ -311,7 +318,7 @@ class SymlinkView(External):
     def create_symlink(self, item):
         dest = self.destination(item)
         util.mkdirall(dest)
-        os.symlink(item.path, dest)
+        util.link(item.path, dest)
 
 
 class Worker(futures.ThreadPoolExecutor):
