@@ -18,6 +18,7 @@ setup(
     install_requires=[
         'beets>=1.4.7',
         'futures; python_version<"3"',
+        'six',
     ],
 
     classifiers=[
