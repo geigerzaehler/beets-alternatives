@@ -6,6 +6,9 @@ from contextlib import contextmanager
 from StringIO import StringIO
 from concurrent import futures
 from zlib import crc32
+from unittest import TestCase
+
+from mock import patch
 
 import beets
 from beets import logging
@@ -126,21 +129,19 @@ class MediaFileAssertions(object):
                           msg=u'MediaFile has embedded artwork')
 
 
-class TestHelper(Assertions, MediaFileAssertions):
+class TestHelper(TestCase, Assertions, MediaFileAssertions):
 
     def setUp(self):
-        ThreadPoolMockExecutor.patch()
+        patcher = patch('beetsplug.alternatives.Worker', new=MockedWorker)
+        patcher.start()
+        self.addCleanup(patcher.stop)
+
         self._tempdirs = []
-        self.temp_dir = tempfile.mkdtemp()
-        self._teardown_hooks = []
         plugins._classes = set([alternatives.AlternativesPlugin,
                                 convert.ConvertPlugin])
         self.setup_beets()
 
     def tearDown(self):
-        ThreadPoolMockExecutor.unpatch()
-        for hook in self._teardown_hooks:
-            hook()
         self.unload_plugins()
         for tempdir in self._tempdirs:
             shutil.rmtree(tempdir)
@@ -151,7 +152,7 @@ class TestHelper(Assertions, MediaFileAssertions):
         return path
 
     def setup_beets(self):
-        self._teardown_hooks.append(self.teardown_beets)
+        self.addCleanup(self.teardown_beets)
         os.environ['BEETSDIR'] = self.mkdtemp()
 
         self.config = beets.config
@@ -252,28 +253,15 @@ class TestHelper(Assertions, MediaFileAssertions):
         return album
 
 
-class ThreadPoolMockExecutor(object):
+class MockedWorker(alternatives.Worker):
 
-    @classmethod
-    def patch(cls):
-        target = futures.ThreadPoolExecutor
-        cls._orig = {}
-        for a in ['__init__', 'submit', 'shutdown']:
-            cls._orig[a] = getattr(target, a)
-            setattr(target, a, getattr(cls, a).__func__)
+    def __init__(self, fn, max_workers=None):
+        self._tasks = set()
+        self._fn = fn
 
-    @classmethod
-    def unpatch(cls):
-        target = futures.ThreadPoolExecutor
-        for a, v in cls._orig.items():
-            setattr(target, a, v)
-
-    def __init__(self, max_workers=None):
-        pass
-
-    def submit(self, fn, *args, **kwargs):
+    def submit(self, *args, **kwargs):
         fut = futures.Future()
-        res = fn(*args, **kwargs)
+        res = self._fn(*args, **kwargs)
         fut.set_result(res)
         # try:
         #     res = fn(*args, **kwargs)
@@ -281,6 +269,7 @@ class ThreadPoolMockExecutor(object):
         #     fut.set_exception(e)
         # else:
         #     fut.set_result(res)
+        self._tasks.add(fut)
         return fut
 
     def shutdown(wait=True):
