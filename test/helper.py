@@ -1,6 +1,7 @@
 import sys
 import os
 import tempfile
+import six
 import shutil
 from contextlib import contextmanager
 from six import StringIO
@@ -32,7 +33,7 @@ class LogCapture(logging.Handler):
         self.messages = []
 
     def emit(self, record):
-        self.messages.append(unicode(record.msg))
+        self.messages.append(six.text_type(record.msg))
 
 
 @contextmanager
@@ -85,17 +86,32 @@ def control_stdin(input=None):
         sys.stdin = org
 
 
+def _convert_args(args):
+    """Convert args to bytestrings for Python 2 and convert them to strings
+       on Python 3.
+    """
+    for i, elem in enumerate(args):
+        if six.PY2:
+            if isinstance(elem, six.text_type):
+                args[i] = elem.encode(util.arg_encoding())
+        else:
+            if isinstance(elem, bytes):
+                args[i] = elem.decode(util.arg_encoding())
+
+    return args
+
+
 class Assertions(object):
 
     def assertFileTag(self, path, tag):
         self.assertIsFile(path)
-        with open(path, 'r') as f:
+        with open(path, 'rb') as f:
             f.seek(-5, os.SEEK_END)
             self.assertEqual(f.read(), tag)
 
     def assertNotFileTag(self, path, tag):
         self.assertIsFile(path)
-        with open(path, 'r') as f:
+        with open(path, 'rb') as f:
             f.seek(-5, os.SEEK_END)
             self.assertNotEqual(f.read(), tag)
 
@@ -211,7 +227,7 @@ class TestHelper(TestCase, Assertions, MediaFileAssertions):
         # TODO mock stdin
         with capture_stdout() as out:
             try:
-                ui._raw_main(list(args), self.lib)
+                ui._raw_main(_convert_args(list(args)), self.lib)
             except ui.UserError as u:
                 # TODO remove this and handle exceptions in tests
                 print(u.args[0])

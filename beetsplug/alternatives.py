@@ -15,6 +15,7 @@ import os.path
 import threading
 from argparse import ArgumentParser
 from concurrent import futures
+import six
 
 import beets
 from beets import util, art
@@ -24,13 +25,6 @@ from beets.library import parse_query_string, Item
 from beets.util import syspath, displayable_path, cpu_count, bytestring_path
 
 from beetsplug import convert
-
-
-def get_unicode_config(config, key):
-    ret = config[key].get(str)
-    if type(ret) != unicode:
-        ret = unicode(ret, 'utf8')
-    return ret
 
 
 class AlternativesPlugin(BeetsPlugin):
@@ -55,8 +49,8 @@ class AlternativesPlugin(BeetsPlugin):
             raise KeyError(name)
 
         if conf['formats'].exists():
-            fmt = conf['formats'].get(unicode)
-            if fmt == 'link':
+            fmt = conf['formats'].as_str()
+            if fmt == u'link':
                 return SymlinkView(self._log, name, lib, conf)
             else:
                 return ExternalConvert(self._log, name, fmt.split(), lib, conf)
@@ -100,7 +94,7 @@ class External(object):
         self._log = log
         self.name = name
         self.lib = lib
-        self.path_key = 'alt.{0}'.format(name)
+        self.path_key = u'alt.{0}'.format(name)
         self.parse_config(config)
 
     def parse_config(self, config):
@@ -109,13 +103,13 @@ class External(object):
         else:
             path_config = beets.config['paths']
         self.path_formats = get_path_formats(path_config)
-        query = get_unicode_config(config, 'query')
+        query = config['query'].as_str()
         self.query, _ = parse_query_string(query, Item)
 
         self.removable = config.get(dict).get('removable', True)
 
         if 'directory' in config:
-            dir = config['directory'].get(str)
+            dir = config['directory'].as_str()
         else:
             dir = self.name
         if not os.path.isabs(dir):
@@ -211,7 +205,7 @@ class External(object):
                                 path_formats=self.path_formats)
 
     def set_path(self, item, path):
-        item[self.path_key] = unicode(path, 'utf8')
+        item[self.path_key] = six.text_type(path, 'utf8')
 
     def get_path(self, item):
         try:
@@ -277,7 +271,7 @@ class ExternalConvert(External):
     def destination(self, item):
         dest = super(ExternalConvert, self).destination(item)
         if self.should_transcode(item):
-            return os.path.splitext(dest)[0] + '.' + self.ext
+            return os.path.splitext(dest)[0] + b'.' + self.ext
         else:
             return dest
 
@@ -289,7 +283,7 @@ class SymlinkView(External):
 
     def parse_config(self, config):
         if 'query' not in config:
-            config['query'] = ''  # This is a TrueQuery()
+            config['query'] = u''  # This is a TrueQuery()
         super(SymlinkView, self).parse_config(config)
 
     def update(self, create=None):
