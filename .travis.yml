@@ -3,10 +3,22 @@ notifications:
 
 language: python
 
-env:
-  - TOX_ENV=beets_master COVERAGE=1
-  - TOX_ENV=beets_1.4.1
-  - TOX_ENV=flake8
+branches:
+  only:
+    master
+
+matrix:
+  include:
+    - env: TOX_ENV=py27-beets_master
+      python: 2.7
+    - env: TOX_ENV=py27-beets_release
+      python: 2.7
+    - env: TOX_ENV=py36-beets_master COVERAGE=1
+      python: 3.6
+    - env: TOX_ENV=py36-beets_release
+      python: 3.6
+    - env: TOX_ENV=py36-flake8
+      python: 3.6
 
 install:
   - "pip install tox"
