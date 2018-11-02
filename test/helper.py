@@ -3,7 +3,7 @@ import os
 import tempfile
 import shutil
 from contextlib import contextmanager
-from StringIO import StringIO
+from six import StringIO
 from concurrent import futures
 from zlib import crc32
 from unittest import TestCase
@@ -48,20 +48,37 @@ def capture_log(logger='beets'):
 
 @contextmanager
 def capture_stdout():
+    """Save stdout in a StringIO.
+
+    >>> with capture_stdout() as output:
+    ...     print('spam')
+    ...
+    >>> output.getvalue()
+    'spam'
+    """
     org = sys.stdout
-    sys.stdout = captured = StringIO()
+    sys.stdout = capture = StringIO()
+    if six.PY2:  # StringIO encoding attr isn't writable in python >= 3
+        sys.stdout.encoding = 'utf-8'
     try:
         yield sys.stdout
     finally:
         sys.stdout = org
-        sys.stdout.write(captured.getvalue())
+        print(capture.getvalue())
 
 
 @contextmanager
 def control_stdin(input=None):
+    """Sends ``input`` to stdin.
+
+    >>> with control_stdin('yes'):
+    ...     input()
+    'yes'
+    """
     org = sys.stdin
     sys.stdin = StringIO(input)
-    sys.stdin.encoding = 'utf8'
+    if six.PY2:  # StringIO encoding attr isn't writable in python >= 3
+        sys.stdin.encoding = 'utf-8'
     try:
         yield sys.stdin
     finally:
