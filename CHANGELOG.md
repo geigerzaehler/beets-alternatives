@@ -4,6 +4,7 @@ Change Log
 ## Upcoming
 * Require at least beets v1.4.1
 * Update album art in alternatives when it changes
+* Python 3 support (Python 2.7 continuous to be supported)
 
 ## v0.8.2 - 2015-05-31
 * Fix a bug that made the plugin crash when reading unicode strings
