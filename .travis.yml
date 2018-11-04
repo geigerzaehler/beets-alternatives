@@ -3,10 +3,6 @@ notifications:
 
 language: python
 
-branches:
-  only:
-    master
-
 matrix:
   include:
     - env: TOX_ENV=py27-beets_master
