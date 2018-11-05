@@ -1,19 +1,29 @@
 import sys
 import os
 import tempfile
+import six
 import shutil
 from contextlib import contextmanager
-from StringIO import StringIO
+from six import StringIO
 from concurrent import futures
 from zlib import crc32
+from unittest import TestCase
+
+from mock import patch
 
 import beets
 from beets import logging
 from beets import plugins
 from beets import ui
+from beets import util
 from beets.library import Item
 from beets.mediafile import MediaFile
-from beets.util import MoveOperation
+from beets.util import (
+    MoveOperation,
+    syspath,
+    bytestring_path,
+    displayable_path,
+)
 
 from beetsplug import alternatives
 from beetsplug import convert
@@ -29,7 +39,7 @@ class LogCapture(logging.Handler):
         self.messages = []
 
     def emit(self, record):
-        self.messages.append(unicode(record.msg))
+        self.messages.append(six.text_type(record.msg))
 
 
 @contextmanager
@@ -45,70 +55,110 @@ def capture_log(logger='beets'):
 
 @contextmanager
 def capture_stdout():
+    """Save stdout in a StringIO.
+
+    >>> with capture_stdout() as output:
+    ...     print('spam')
+    ...
+    >>> output.getvalue()
+    'spam'
+    """
     org = sys.stdout
-    sys.stdout = captured = StringIO()
+    sys.stdout = capture = StringIO()
+    if six.PY2:  # StringIO encoding attr isn't writable in python >= 3
+        sys.stdout.encoding = 'utf-8'
     try:
         yield sys.stdout
     finally:
         sys.stdout = org
-        sys.stdout.write(captured.getvalue())
+        print(capture.getvalue())
 
 
 @contextmanager
 def control_stdin(input=None):
+    """Sends ``input`` to stdin.
+
+    >>> with control_stdin('yes'):
+    ...     input()
+    'yes'
+    """
     org = sys.stdin
     sys.stdin = StringIO(input)
-    sys.stdin.encoding = 'utf8'
+    if six.PY2:  # StringIO encoding attr isn't writable in python >= 3
+        sys.stdin.encoding = 'utf-8'
     try:
         yield sys.stdin
     finally:
         sys.stdin = org
 
 
+def _convert_args(args):
+    """Convert args to bytestrings for Python 2 and convert them to strings
+       on Python 3.
+    """
+    for i, elem in enumerate(args):
+        if six.PY2:
+            if isinstance(elem, six.text_type):
+                args[i] = elem.encode(util.arg_encoding())
+        else:
+            if isinstance(elem, bytes):
+                args[i] = elem.decode(util.arg_encoding())
+
+    return args
+
+
 class Assertions(object):
 
     def assertFileTag(self, path, tag):
         self.assertIsFile(path)
-        with open(path, 'r') as f:
+        with open(syspath(path), 'rb') as f:
             f.seek(-5, os.SEEK_END)
             self.assertEqual(f.read(), tag)
 
     def assertNotFileTag(self, path, tag):
         self.assertIsFile(path)
-        with open(path, 'r') as f:
+        with open(syspath(path), 'rb') as f:
             f.seek(-5, os.SEEK_END)
             self.assertNotEqual(f.read(), tag)
 
     def assertIsFile(self, path):
-        if not isinstance(path, unicode):
-            path = unicode(path, 'utf8')
-        self.assertTrue(os.path.isfile(path.encode('utf8')),
-                        msg=u'Path is not a file: {0}'.format(path))
+        self.assertTrue(os.path.isfile(syspath(path)),
+                        msg=u'Path is not a file: {0}'.format(
+                            displayable_path(path)
+                        ))
 
     def assertIsNotFile(self, path):
-        if not isinstance(path, unicode):
-            path = unicode(path, 'utf8')
-        self.assertFalse(os.path.isfile(path.encode('utf8')),
-                         msg=u'Path is a file: {0}'.format(path))
+        self.assertFalse(os.path.isfile(syspath(path)),
+                         msg=u'Path is a file: {0}'.format(
+                             displayable_path(path)
+                        ))
 
     def assertSymlink(self, link, target):
-        self.assertTrue(os.path.islink(link),
-                        msg=u'Path is not a symbolic link: {0}'.format(link))
-        self.assertTrue(os.path.isfile(target),
-                        msg=u'Path is not a file: {0}'.format(link))
-        link_target = os.readlink(link)
+        self.assertTrue(os.path.islink(syspath(link)),
+                        msg=u'Path is not a symbolic link: {0}'.format(
+                            displayable_path(link)
+                        ))
+        self.assertTrue(os.path.isfile(syspath(target)),
+                        msg=u'Path is not a file: {0}'.format(
+                            displayable_path(link)
+                        ))
+        link_target = bytestring_path(os.readlink(syspath(link)))
         link_target = os.path.join(os.path.dirname(link), link_target)
-        self.assertEqual(target, link_target)
+        self.assertTrue(util.samefile(target, link_target),
+                        msg=u'Symlink points to {} instead of {}'.format(
+                                displayable_path(link_target),
+                                displayable_path(target)
+                            ))
 
 
 class MediaFileAssertions(object):
 
     def assertHasEmbeddedArtwork(self, path, compare_file=None):
-        mediafile = MediaFile(path)
+        mediafile = MediaFile(syspath(path))
         self.assertIsNotNone(mediafile.art,
                              msg=u'MediaFile has no embedded artwork')
         if compare_file:
-            with open(compare_file, 'rb') as compare_fh:
+            with open(syspath(compare_file), 'rb') as compare_fh:
                 crc_is = crc32(mediafile.art)
                 crc_expected = crc32(compare_fh.read())
                 self.assertEqual(
@@ -121,37 +171,37 @@ class MediaFileAssertions(object):
                             )
 
     def assertHasNoEmbeddedArtwork(self, path):
-        mediafile = MediaFile(path)
+        mediafile = MediaFile(syspath(path))
         self.assertIsNone(mediafile.art,
                           msg=u'MediaFile has embedded artwork')
 
 
-class TestHelper(Assertions, MediaFileAssertions):
+class TestHelper(TestCase, Assertions, MediaFileAssertions):
 
     def setUp(self):
-        ThreadPoolMockExecutor.patch()
+        patcher = patch('beetsplug.alternatives.Worker', new=MockedWorker)
+        patcher.start()
+        self.addCleanup(patcher.stop)
+
         self._tempdirs = []
-        self.temp_dir = tempfile.mkdtemp()
-        self._teardown_hooks = []
         plugins._classes = set([alternatives.AlternativesPlugin,
                                 convert.ConvertPlugin])
         self.setup_beets()
 
     def tearDown(self):
-        ThreadPoolMockExecutor.unpatch()
-        for hook in self._teardown_hooks:
-            hook()
         self.unload_plugins()
         for tempdir in self._tempdirs:
-            shutil.rmtree(tempdir)
+            shutil.rmtree(syspath(tempdir))
 
     def mkdtemp(self):
+        # This return a str path, i.e. Unicode on Python 3. We need this in
+        # order to put paths into the configuration.
         path = tempfile.mkdtemp()
         self._tempdirs.append(path)
         return path
 
     def setup_beets(self):
-        self._teardown_hooks.append(self.teardown_beets)
+        self.addCleanup(self.teardown_beets)
         os.environ['BEETSDIR'] = self.mkdtemp()
 
         self.config = beets.config
@@ -164,14 +214,19 @@ class TestHelper(Assertions, MediaFileAssertions):
         self.config['threaded'] = False
         self.config['import']['copy'] = False
 
-        self.libdir = self.mkdtemp()
-        self.config['directory'] = self.libdir
+        libdir = self.mkdtemp()
+        self.config['directory'] = libdir
+        self.libdir = bytestring_path(libdir)
 
         self.lib = beets.library.Library(':memory:', self.libdir)
-        self.fixture_dir = os.path.join(os.path.dirname(__file__), 'fixtures')
+        self.fixture_dir = os.path.join(
+                bytestring_path(os.path.dirname(__file__)),
+                b'fixtures')
 
-        self.IMAGE_FIXTURE1 = os.path.join(self.fixture_dir, 'image.png')
-        self.IMAGE_FIXTURE2 = os.path.join(self.fixture_dir, 'image_black.png')
+        self.IMAGE_FIXTURE1 = os.path.join(self.fixture_dir,
+                                           b'image.png')
+        self.IMAGE_FIXTURE2 = os.path.join(self.fixture_dir,
+                                           b'image_black.png')
 
     def teardown_beets(self):
         del self.lib._connections
@@ -193,14 +248,15 @@ class TestHelper(Assertions, MediaFileAssertions):
         # TODO mock stdin
         with capture_stdout() as out:
             try:
-                ui._raw_main(list(args), self.lib)
+                ui._raw_main(_convert_args(list(args)), self.lib)
             except ui.UserError as u:
                 # TODO remove this and handle exceptions in tests
                 print(u.args[0])
         return out.getvalue()
 
     def lib_path(self, path):
-        return os.path.join(self.libdir, path.replace('/', os.sep))
+        return os.path.join(self.libdir,
+                            path.replace(b'/', bytestring_path(os.sep)))
 
     def add_album(self, **kwargs):
         values = {
@@ -211,7 +267,8 @@ class TestHelper(Assertions, MediaFileAssertions):
         }
         values.update(kwargs)
         ext = values.pop('format').lower()
-        item = Item.from_path(os.path.join(self.fixture_dir, 'min.' + ext))
+        item = Item.from_path(os.path.join(self.fixture_dir,
+                                           bytestring_path('min.' + ext)))
         item.add(self.lib)
         item.update(values)
         item.move(MoveOperation.COPY)
@@ -229,7 +286,8 @@ class TestHelper(Assertions, MediaFileAssertions):
         }
         values.update(kwargs)
 
-        item = Item.from_path(os.path.join(self.fixture_dir, 'min.mp3'))
+        item = Item.from_path(os.path.join(self.fixture_dir,
+                                           bytestring_path('min.mp3')))
         item.add(self.lib)
         item.update(values)
         item.move(MoveOperation.COPY)
@@ -251,29 +309,19 @@ class TestHelper(Assertions, MediaFileAssertions):
         album.load()
         return album
 
+    def get_path(self, item, path_key='alt.myexternal'):
+        return alternatives.External._get_path(item, path_key)
 
-class ThreadPoolMockExecutor(object):
 
-    @classmethod
-    def patch(cls):
-        target = futures.ThreadPoolExecutor
-        cls._orig = {}
-        for a in ['__init__', 'submit', 'shutdown']:
-            cls._orig[a] = getattr(target, a)
-            setattr(target, a, getattr(cls, a).__func__)
+class MockedWorker(alternatives.Worker):
 
-    @classmethod
-    def unpatch(cls):
-        target = futures.ThreadPoolExecutor
-        for a, v in cls._orig.items():
-            setattr(target, a, v)
+    def __init__(self, fn, max_workers=None):
+        self._tasks = set()
+        self._fn = fn
 
-    def __init__(self, max_workers=None):
-        pass
-
-    def submit(self, fn, *args, **kwargs):
+    def submit(self, *args, **kwargs):
         fut = futures.Future()
-        res = fn(*args, **kwargs)
+        res = self._fn(*args, **kwargs)
         fut.set_result(res)
         # try:
         #     res = fn(*args, **kwargs)
@@ -281,6 +329,7 @@ class ThreadPoolMockExecutor(object):
         #     fut.set_exception(e)
         # else:
         #     fut.set_result(res)
+        self._tasks.add(fut)
         return fut
 
     def shutdown(wait=True):

@@ -17,7 +17,8 @@ setup(
 
     install_requires=[
         'beets>=1.4.7',
-        'futures',
+        'futures; python_version<"3"',
+        'six',
     ],
 
     classifiers=[
@@ -26,7 +27,11 @@ setup(
         'License :: OSI Approved :: MIT License',
         'Environment :: Console',
         'Programming Language :: Python :: 2',
-        'Programming Language :: Python :: 2.6',
         'Programming Language :: Python :: 2.7',
+        'Programming Language :: Python :: 3',
+        'Programming Language :: Python :: 3.4',
+        'Programming Language :: Python :: 3.5',
+        'Programming Language :: Python :: 3.6',
+        'Programming Language :: Python :: 3.7',
     ],
 )

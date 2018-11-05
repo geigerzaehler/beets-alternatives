@@ -1,14 +1,15 @@
 import os
 import os.path
 import shutil
-from unittest import TestCase
 
 from helper import TestHelper, control_stdin
 
 from beets.mediafile import MediaFile
+from beets import util
+from beets.util import bytestring_path, syspath
 
 
-class DocTest(TestHelper, TestCase):
+class DocTest(TestHelper):
 
     def test_external(self):
         external_dir = os.path.join(self.mkdtemp(), 'myplayer')
@@ -22,9 +23,9 @@ class DocTest(TestHelper, TestCase):
         self.config['alternatives'] = {
             'myplayer': {
                 'directory': external_dir,
-                'paths': {'default': '$artist/$title'},
-                'formats': 'aac mp3',
-                'query': 'onplayer:true',
+                'paths': {'default': u'$artist/$title'},
+                'formats': u'aac mp3',
+                'query': u'onplayer:true',
                 'removable': True,
             }
         }
@@ -34,24 +35,28 @@ class DocTest(TestHelper, TestCase):
         self.add_album(artist='Bach', title='was ogg', format='ogg')
         self.add_album(artist='Beethoven', title='was ogg', format='ogg')
 
-        external_from_mp3 = os.path.join(external_dir, 'Bach', 'was mp3.mp3')
-        external_from_m4a = os.path.join(external_dir, 'Bach', 'was m4a.m4a')
-        external_from_ogg = os.path.join(external_dir, 'Bach', 'was ogg.m4a')
-        external_beet = os.path.join(external_dir, 'Beethoven', 'was ogg.m4a')
+        external_from_mp3 = bytestring_path(
+                os.path.join(external_dir, 'Bach', 'was mp3.mp3'))
+        external_from_m4a = bytestring_path(
+                os.path.join(external_dir, 'Bach', 'was m4a.m4a'))
+        external_from_ogg = bytestring_path(
+                os.path.join(external_dir, 'Bach', 'was ogg.m4a'))
+        external_beet = bytestring_path(
+                os.path.join(external_dir, 'Beethoven', 'was ogg.m4a'))
 
         self.runcli('modify', '--yes', 'onplayer=true', 'artist:Bach')
         with control_stdin('y'):
             out = self.runcli('alt', 'update', 'myplayer')
             self.assertIn('Do you want to create the collection?', out)
 
-        self.assertNotFileTag(external_from_mp3, 'ISAAC')
-        self.assertNotFileTag(external_from_m4a, 'ISAAC')
-        self.assertFileTag(external_from_ogg, 'ISAAC')
+        self.assertNotFileTag(external_from_mp3, b'ISAAC')
+        self.assertNotFileTag(external_from_m4a, b'ISAAC')
+        self.assertFileTag(external_from_ogg, b'ISAAC')
         self.assertFalse(os.path.isfile(external_beet))
 
         self.runcli('modify', '--yes', 'composer=JSB', 'artist:Bach')
         self.runcli('alt', 'update', 'myplayer')
-        mediafile = MediaFile(external_from_ogg)
+        mediafile = MediaFile(syspath(external_from_ogg))
         self.assertEqual(mediafile.composer, 'JSB')
 
         self.runcli('modify', '--yes', 'onplayer!', 'artist:Bach')
@@ -62,7 +67,7 @@ class DocTest(TestHelper, TestCase):
         self.assertFalse(os.path.isfile(external_from_mp3))
         self.assertFalse(os.path.isfile(external_from_m4a))
         self.assertFalse(os.path.isfile(external_from_ogg))
-        self.assertFileTag(external_beet, 'ISAAC')
+        self.assertFileTag(external_beet, b'ISAAC')
 
     def test_symlink_view(self):
         self.set_paths_config({
@@ -80,20 +85,20 @@ class DocTest(TestHelper, TestCase):
         self.runcli('alt', 'update', 'by-year')
 
         self.assertSymlink(
-            self.lib_path('by-year/1982/Thriller/track 1.mp3'),
-            self.lib_path('Michael Jackson/Thriller/track 1.mp3'),
+            self.lib_path(b'by-year/1982/Thriller/track 1.mp3'),
+            self.lib_path(b'Michael Jackson/Thriller/track 1.mp3'),
         )
 
 
-class ExternalCopyTest(TestHelper, TestCase):
+class ExternalCopyTest(TestHelper):
 
     def setUp(self):
         super(ExternalCopyTest, self).setUp()
-        self.external_dir = self.mkdtemp()
+        external_dir = self.mkdtemp()
         self.config['alternatives'] = {
             'myexternal': {
-                'directory': self.external_dir,
-                'query': 'myexternal:true',
+                'directory': external_dir,
+                'query': u'myexternal:true',
             }
         }
         self.external_config = self.config['alternatives']['myexternal']
@@ -102,7 +107,7 @@ class ExternalCopyTest(TestHelper, TestCase):
         item = self.add_track(title=u'\u00e9', myexternal='true')
         self.runcli('alt', 'update', 'myexternal')
         item.load()
-        self.assertIsFile(item['alt.myexternal'])
+        self.assertIsFile(self.get_path(item))
 
     def test_add_album(self):
         album = self.add_album()
@@ -110,15 +115,15 @@ class ExternalCopyTest(TestHelper, TestCase):
         album.store()
         self.runcli('alt', 'update', 'myexternal')
         for item in album.items():
-            self.assertIsFile(item['alt.myexternal'])
+            self.assertIsFile(self.get_path(item))
 
     def test_add_nonexistent(self):
         item = self.add_external_track('myexternal')
-        path = item['alt.myexternal']
-        os.remove(path)
+        path = self.get_path(item)
+        util.remove(path)
 
         self.runcli('alt', 'update', 'myexternal')
-        self.assertIsFile(item['alt.myexternal'])
+        self.assertIsFile(self.get_path(item))
 
     def test_add_replace(self):
         item = self.add_external_track('myexternal')
@@ -137,7 +142,7 @@ class ExternalCopyTest(TestHelper, TestCase):
 
         self.runcli('alt', 'update', 'myexternal')
         item.load()
-        mediafile = MediaFile(item['alt.myexternal'])
+        mediafile = MediaFile(syspath(self.get_path(item)))
         self.assertEqual(mediafile.composer, 'JSB')
 
     def test_no_udpdate_newer(self):
@@ -148,25 +153,25 @@ class ExternalCopyTest(TestHelper, TestCase):
 
         self.runcli('alt', 'update', 'myexternal')
         item.load()
-        mediafile = MediaFile(item['alt.myexternal'])
+        mediafile = MediaFile(syspath(self.get_path(item)))
         self.assertNotEqual(mediafile.composer, 'JSB')
 
     def test_move_after_path_format_update(self):
         item = self.add_external_track('myexternal')
-        old_path = item['alt.myexternal']
+        old_path = self.get_path(item)
         self.assertIsFile(old_path)
 
         self.external_config['paths'] = {'default': '$album/$title'}
         self.runcli('alt', 'update', 'myexternal')
 
         item.load()
-        new_path = item['alt.myexternal']
+        new_path = self.get_path(item)
         self.assertIsNotFile(old_path)
         self.assertIsFile(new_path)
 
     def test_move_and_write_after_tags_changed(self):
         item = self.add_external_track('myexternal')
-        old_path = item['alt.myexternal']
+        old_path = self.get_path(item)
         self.assertIsFile(old_path)
 
         item['title'] = 'a new title'
@@ -175,27 +180,27 @@ class ExternalCopyTest(TestHelper, TestCase):
         self.runcli('alt', 'update', 'myexternal')
 
         item.load()
-        new_path = item['alt.myexternal']
+        new_path = self.get_path(item)
         self.assertIsNotFile(old_path)
         self.assertIsFile(new_path)
-        mediafile = MediaFile(new_path)
+        mediafile = MediaFile(syspath(new_path))
         self.assertEqual(mediafile.title, 'a new title')
 
     def test_prune_after_move(self):
         item = self.add_external_track('myexternal')
-        artist_dir = os.path.dirname(item['alt.myexternal'])
+        artist_dir = os.path.dirname(self.get_path(item))
         self.assertTrue(os.path.isdir(artist_dir))
 
         item['artist'] = 'a new artist'
         item.store()
         self.runcli('alt', 'update', 'myexternal')
 
-        self.assertFalse(os.path.exists(artist_dir))
+        self.assertFalse(os.path.exists(syspath(artist_dir)))
 
     def test_remove_item(self):
         item = self.add_external_track('myexternal')
-        old_path = item['alt.myexternal']
-        self.assertTrue(os.path.isfile(old_path))
+        old_path = self.get_path(item)
+        self.assertIsFile(old_path)
 
         del item['myexternal']
         item.store()
@@ -203,13 +208,13 @@ class ExternalCopyTest(TestHelper, TestCase):
 
         item.load()
         self.assertNotIn('alt.myexternal', item)
-        self.assertFalse(os.path.isfile(old_path))
+        self.assertIsNotFile(old_path)
 
     def test_remove_album(self):
         album = self.add_external_album('myexternal')
         item = album.items().get()
-        old_path = item['alt.myexternal']
-        self.assertTrue(os.path.isfile(old_path))
+        old_path = self.get_path(item)
+        self.assertIsFile(old_path)
 
         del album['myexternal']
         album.store()
@@ -217,7 +222,7 @@ class ExternalCopyTest(TestHelper, TestCase):
 
         item.load()
         self.assertNotIn('alt.myexternal', item)
-        self.assertFalse(os.path.isfile(old_path))
+        self.assertIsNotFile(old_path)
 
     def test_unkown_collection(self):
         out = self.runcli('alt', 'update', 'unkown')
@@ -243,8 +248,10 @@ class ExternalCopyTest(TestHelper, TestCase):
             update <name>` in a real use-case, this should not obscure any
             bugs.
             """
-            item_mtime_alt = os.path.getmtime(item.path)
-            os.utime(image_path, (item_mtime_alt + 2, item_mtime_alt + 2))
+            item_mtime_alt = os.path.getmtime(syspath(item.path))
+            os.utime(syspath(image_path),
+                     (item_mtime_alt + 2, item_mtime_alt + 2)
+                     )
 
         # Initially add album without artwork.
         album = self.add_album(myexternal='true')
@@ -252,13 +259,13 @@ class ExternalCopyTest(TestHelper, TestCase):
         self.runcli('alt', 'update', 'myexternal')
 
         item = album.items().get()
-        self.assertHasNoEmbeddedArtwork(item['alt.myexternal'])
+        self.assertHasNoEmbeddedArtwork(self.get_path(item))
 
         # Make a copy of the artwork, so that changing mtime/content won't
         # affect the repository.
-        image_dir = self.mkdtemp()
-        image_path = os.path.join(image_dir, 'image')
-        shutil.copy(self.IMAGE_FIXTURE1, image_path)
+        image_dir = bytestring_path(self.mkdtemp())
+        image_path = os.path.join(image_dir, b'image')
+        shutil.copy(self.IMAGE_FIXTURE1, syspath(image_path))
         touch_art(item, image_path)
 
         # Add a cover image, assert that it is being embedded.
@@ -267,8 +274,7 @@ class ExternalCopyTest(TestHelper, TestCase):
         self.runcli('alt', 'update', 'myexternal')
 
         item = album.items().get()
-        self.assertHasEmbeddedArtwork(item['alt.myexternal'],
-                                      self.IMAGE_FIXTURE1)
+        self.assertHasEmbeddedArtwork(self.get_path(item), self.IMAGE_FIXTURE1)
 
         # Change content and update mtime, but do not change the item/album in
         # database.
@@ -278,23 +284,22 @@ class ExternalCopyTest(TestHelper, TestCase):
         self.runcli('alt', 'update', 'myexternal')
 
         item = album.items().get()
-        self.assertHasEmbeddedArtwork(item['alt.myexternal'],
-                                      self.IMAGE_FIXTURE2)
+        self.assertHasEmbeddedArtwork(self.get_path(item), self.IMAGE_FIXTURE2)
 
 
-class ExternalConvertTest(TestHelper, TestCase):
+class ExternalConvertTest(TestHelper):
 
     def setUp(self):
         super(ExternalConvertTest, self).setUp()
-        self.external_dir = self.mkdtemp()
+        external_dir = self.mkdtemp()
         self.config['convert']['formats'] = {
             'ogg': 'bash -c "cp \'$source\' \'$dest\';' +
                    'printf ISOGG >> \'$dest\'"'
         }
         self.config['alternatives'] = {
             'myexternal': {
-                'directory': self.external_dir,
-                'query': 'myexternal:true',
+                'directory': external_dir,
+                'query': u'myexternal:true',
                 'formats': 'ogg mp3'
             }
         }
@@ -304,8 +309,8 @@ class ExternalConvertTest(TestHelper, TestCase):
         item = self.add_track(myexternal='true', format='mp4')
         self.runcli('alt', 'update', 'myexternal')
         item.load()
-        converted_path = item['alt.myexternal']
-        self.assertFileTag(converted_path, 'ISOGG')
+        converted_path = self.get_path(item)
+        self.assertFileTag(converted_path, b'ISOGG')
 
     def test_convert_and_embed(self):
         self.config['convert']['embed'] = True
@@ -316,7 +321,7 @@ class ExternalConvertTest(TestHelper, TestCase):
 
         self.runcli('alt', 'update', 'myexternal')
         item = album.items().get()
-        self.assertHasEmbeddedArtwork(item['alt.myexternal'])
+        self.assertHasEmbeddedArtwork(self.get_path(item))
 
     def test_skip_convert_for_same_format(self):
         item = self.add_track(myexternal='true')
@@ -324,8 +329,8 @@ class ExternalConvertTest(TestHelper, TestCase):
         item.store()
         self.runcli('alt', 'update', 'myexternal')
         item.load()
-        converted_path = item['alt.myexternal']
-        self.assertNotFileTag(converted_path, 'ISOGG')
+        converted_path = self.get_path(item)
+        self.assertNotFileTag(converted_path, b'ISOGG')
 
     def test_skip_convert_for_alternative_format(self):
         item = self.add_track(myexternal='true')
@@ -333,11 +338,11 @@ class ExternalConvertTest(TestHelper, TestCase):
         item.store()
         self.runcli('alt', 'update', 'myexternal')
         item.load()
-        converted_path = item['alt.myexternal']
-        self.assertNotFileTag(converted_path, 'ISOGG')
+        converted_path = self.get_path(item)
+        self.assertNotFileTag(converted_path, b'ISOGG')
 
 
-class ExternalRemovableTest(TestHelper, TestCase):
+class ExternalRemovableTest(TestHelper):
 
     def setUp(self):
         super(ExternalRemovableTest, self).setUp()
@@ -345,7 +350,7 @@ class ExternalRemovableTest(TestHelper, TestCase):
         self.config['alternatives'] = {
             'myexternal': {
                 'directory': external_dir,
-                'query': '',
+                'query': u'',
             }
         }
         self.external_config = self.config['alternatives']['myexternal']

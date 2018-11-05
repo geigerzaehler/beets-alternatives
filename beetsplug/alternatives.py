@@ -15,6 +15,7 @@ import os.path
 import threading
 from argparse import ArgumentParser
 from concurrent import futures
+import six
 
 import beets
 from beets import util, art
@@ -24,13 +25,6 @@ from beets.library import parse_query_string, Item
 from beets.util import syspath, displayable_path, cpu_count, bytestring_path
 
 from beetsplug import convert
-
-
-def get_unicode_config(config, key):
-    ret = config[key].get(str)
-    if type(ret) != unicode:
-        ret = unicode(ret, 'utf8')
-    return ret
 
 
 class AlternativesPlugin(BeetsPlugin):
@@ -55,8 +49,8 @@ class AlternativesPlugin(BeetsPlugin):
             raise KeyError(name)
 
         if conf['formats'].exists():
-            fmt = conf['formats'].get(unicode)
-            if fmt == 'link':
+            fmt = conf['formats'].as_str()
+            if fmt == u'link':
                 return SymlinkView(self._log, name, lib, conf)
             else:
                 return ExternalConvert(self._log, name, fmt.split(), lib, conf)
@@ -100,7 +94,7 @@ class External(object):
         self._log = log
         self.name = name
         self.lib = lib
-        self.path_key = 'alt.{0}'.format(name)
+        self.path_key = u'alt.{0}'.format(name)
         self.parse_config(config)
 
     def parse_config(self, config):
@@ -109,32 +103,34 @@ class External(object):
         else:
             path_config = beets.config['paths']
         self.path_formats = get_path_formats(path_config)
-        query = get_unicode_config(config, 'query')
+        query = config['query'].as_str()
         self.query, _ = parse_query_string(query, Item)
 
         self.removable = config.get(dict).get('removable', True)
 
         if 'directory' in config:
-            dir = config['directory'].get(str)
+            dir = config['directory'].as_str()
         else:
             dir = self.name
-        if not os.path.isabs(dir):
+        dir = bytestring_path(dir)
+        if not os.path.isabs(syspath(dir)):
             dir = os.path.join(self.lib.directory, dir)
-        self.directory = bytestring_path(dir)
+        self.directory = dir
 
     def matched_item_action(self, item):
         path = self.get_path(item)
         actions = []
-        if path and os.path.isfile(path):
+        if path and os.path.isfile(syspath(path)):
             dest = self.destination(item)
-            if path != dest:
+            if not util.samefile(path, dest):
                 actions.append(self.MOVE)
             item_mtime_alt = os.path.getmtime(syspath(path))
             if (item_mtime_alt < os.path.getmtime(syspath(item.path))):
                 actions.append(self.WRITE)
             album = item.get_album()
             if album:
-                if (album.artpath and os.path.isfile(album.artpath) and
+                if (album.artpath and
+                        os.path.isfile(syspath(album.artpath)) and
                         (item_mtime_alt
                          < os.path.getmtime(syspath(album.artpath)))):
                     actions.append(self.SYNC_ART)
@@ -168,7 +164,8 @@ class External(object):
         return input_yn(msg, require=True)
 
     def update(self, create=None):
-        if not os.path.isdir(self.directory) and not self.ask_create(create):
+        if (not os.path.isdir(syspath(self.directory))
+                and not self.ask_create(create)):
             print_(u'Skipping creation of {0}'
                    .format(displayable_path(self.directory)))
             return
@@ -211,16 +208,20 @@ class External(object):
                                 path_formats=self.path_formats)
 
     def set_path(self, item, path):
-        item[self.path_key] = unicode(path, 'utf8')
+        item[self.path_key] = six.text_type(path, 'utf8')
 
-    def get_path(self, item):
+    @staticmethod
+    def _get_path(item, path_key):
         try:
-            return item[self.path_key].encode('utf8')
+            return item[path_key].encode('utf8')
         except KeyError:
             return None
 
+    def get_path(self, item):
+        return self._get_path(item, self.path_key)
+
     def remove_item(self, item):
-        path = item[self.path_key].encode('utf8')
+        path = self.get_path(item)
         util.remove(path)
         util.prune_dirs(path, root=self.directory)
         del item[self.path_key]
@@ -238,7 +239,7 @@ class External(object):
         """
         album = item.get_album()
         if album:
-            if album.artpath and os.path.isfile(album.artpath):
+            if album.artpath and os.path.isfile(syspath(album.artpath)):
                 self._log.debug("Embedding art from {} into {}".format(
                                 displayable_path(album.artpath),
                                 displayable_path(path)))
@@ -277,7 +278,7 @@ class ExternalConvert(External):
     def destination(self, item):
         dest = super(ExternalConvert, self).destination(item)
         if self.should_transcode(item):
-            return os.path.splitext(dest)[0] + '.' + self.ext
+            return os.path.splitext(dest)[0] + b'.' + self.ext
         else:
             return dest
 
@@ -289,7 +290,7 @@ class SymlinkView(External):
 
     def parse_config(self, config):
         if 'query' not in config:
-            config['query'] = ''  # This is a TrueQuery()
+            config['query'] = u''  # This is a TrueQuery()
         super(SymlinkView, self).parse_config(config)
 
     def update(self, create=None):
@@ -317,7 +318,7 @@ class SymlinkView(External):
     def create_symlink(self, item):
         dest = self.destination(item)
         util.mkdirall(dest)
-        os.symlink(item.path, dest)
+        util.link(item.path, dest)
 
 
 class Worker(futures.ThreadPoolExecutor):
