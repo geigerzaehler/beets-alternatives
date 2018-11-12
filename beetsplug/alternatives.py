@@ -254,7 +254,8 @@ class ExternalConvert(External):
         convert_plugin = convert.ConvertPlugin()
         self._encode = convert_plugin.encode
         self._embed = convert_plugin.config['embed'].get(bool)
-        self.formats = [f.lower() for f in formats]
+        formats = [f.lower() for f in formats]
+        self.formats = [convert.ALIASES.get(f, f) for f in formats]
         self.convert_cmd, self.ext = convert.get_format(self.formats[0])
 
     def converter(self):
