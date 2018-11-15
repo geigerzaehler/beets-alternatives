@@ -156,20 +156,6 @@ example
 ```
 
 
-### Archive Files
-
-This is not implemented yet.
-
-```yaml
-alternatives:
-  lossless:
-    directory: /archive/music
-    paths: ...
-    archive: 'format:FLAC'
-    keep: mp3
-```
-
-
 CLI Reference
 -------------
 
