@@ -9,6 +9,8 @@ Change Log
   with current beets)
 * Bugfix: Explicitly write tags after encoding instead of relying on the
   encoder to do so
+* Bugfix: If the `formats` config option is modified, don't move files if the
+  extension would change, but re-encode
 
 ## v0.8.2 - 2015-05-31
 * Fix a bug that made the plugin crash when reading unicode strings

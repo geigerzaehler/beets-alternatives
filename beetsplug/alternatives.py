@@ -119,9 +119,14 @@ class External(object):
 
     def matched_item_action(self, item):
         path = self.get_path(item)
-        actions = []
         if path and os.path.isfile(syspath(path)):
             dest = self.destination(item)
+            _, path_ext = os.path.splitext(path)
+            _, dest_ext = os.path.splitext(dest)
+            if not path_ext == dest_ext:
+                # formats config option changed
+                return (item, [self.REMOVE, self.ADD])
+            actions = []
             if not util.samefile(path, dest):
                 actions.append(self.MOVE)
             item_mtime_alt = os.path.getmtime(syspath(path))
@@ -134,9 +139,9 @@ class External(object):
                         (item_mtime_alt
                          < os.path.getmtime(syspath(album.artpath)))):
                     actions.append(self.SYNC_ART)
+            return (item, actions)
         else:
-            actions.append(self.ADD)
-        return (item, actions)
+            return (item, [self.ADD])
 
     def items_actions(self):
         matched_ids = set()
