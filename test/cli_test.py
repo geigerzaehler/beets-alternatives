@@ -356,6 +356,22 @@ class ExternalConvertTest(TestHelper):
         converted_path = self.get_path(item)
         self.assertNotFileTag(converted_path, b'ISOGG')
 
+    def test_no_move_on_extension_change(self):
+        item = self.add_track(myexternal='true', format='m4a')
+        self.runcli('alt', 'update', 'myexternal')
+
+        self.config['convert']['formats'] = {
+            'mp3': 'bash -c "cp \'$source\' \'$dest\';' +
+                   'printf ISMP3 >> \'$dest\'"'
+        }
+        self.config['alternatives']['myexternal']['formats'] = 'mp3'
+
+        # Assert that this re-encodes instead of copying the ogg file
+        self.runcli('alt', 'update', 'myexternal')
+        item.load()
+        converted_path = self.get_path(item)
+        self.assertFileTag(converted_path, b'ISMP3')
+
 
 class ExternalRemovableTest(TestHelper):
 
