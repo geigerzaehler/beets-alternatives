@@ -283,11 +283,15 @@ class TestHelper(TestCase, Assertions, MediaFileAssertions):
             'title': 'track 1',
             'artist': 'artist 1',
             'album': 'album 1',
+            'format': 'mp3',
         }
         values.update(kwargs)
+        assert(values['format'] in 'mp3 m4a ogg'.split())
 
-        item = Item.from_path(os.path.join(self.fixture_dir,
-                                           bytestring_path('min.mp3')))
+        item = Item.from_path(os.path.join(
+            self.fixture_dir,
+            bytestring_path('min.' + values['format'])
+        ))
         item.add(self.lib)
         item.update(values)
         item.move(MoveOperation.COPY)

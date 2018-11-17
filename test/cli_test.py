@@ -306,7 +306,7 @@ class ExternalConvertTest(TestHelper):
         self.external_config = self.config['alternatives']['myexternal']
 
     def test_convert(self):
-        item = self.add_track(myexternal='true', format='mp4')
+        item = self.add_track(myexternal='true', format='m4a')
         self.runcli('alt', 'update', 'myexternal')
         item.load()
         converted_path = self.get_path(item)
@@ -324,7 +324,7 @@ class ExternalConvertTest(TestHelper):
         self.assertHasEmbeddedArtwork(self.get_path(item))
 
     def test_convert_write_tags(self):
-        item = self.add_track(myexternal='true', format='mp4', title=u'TITLE')
+        item = self.add_track(myexternal='true', format='m4a', title=u'TITLE')
 
         # We "convert" by copying the file. Setting the title simulates
         # a badly behaved converter
