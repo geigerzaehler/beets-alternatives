@@ -7,6 +7,8 @@ Change Log
 * Python 3 support (Python 2.7 continuous to be supported)
 * Support the format aliases defined by the convert plugin ('wma' and 'vorbis'
   with current beets)
+* Bugfix: Explicitly write tags after encoding instead of relying on the
+  encoder to do so
 
 ## v0.8.2 - 2015-05-31
 * Fix a bug that made the plugin crash when reading unicode strings

@@ -323,6 +323,21 @@ class ExternalConvertTest(TestHelper):
         item = album.items().get()
         self.assertHasEmbeddedArtwork(self.get_path(item))
 
+    def test_convert_write_tags(self):
+        item = self.add_track(myexternal='true', format='mp4', title=u'TITLE')
+
+        # We "convert" by copying the file. Setting the title simulates
+        # a badly behaved converter
+        mediafile_converted = MediaFile(syspath(item.path))
+        mediafile_converted.title = u'WRONG'
+        mediafile_converted.save()
+
+        self.runcli('alt', 'update', 'myexternal')
+        item.load()
+
+        alt_mediafile = MediaFile(syspath(self.get_path(item)))
+        self.assertEqual(alt_mediafile.title, u'TITLE')
+
     def test_skip_convert_for_same_format(self):
         item = self.add_track(myexternal='true')
         item['format'] = 'OGG'

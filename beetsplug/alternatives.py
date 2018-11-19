@@ -268,6 +268,8 @@ class ExternalConvert(External):
 
             if self.should_transcode(item):
                 self._encode(self.convert_cmd, item.path, dest)
+                # Don't rely on the converter to write correct/complete tags.
+                item.write(path=dest)
             else:
                 self._log.debug(u'copying {0}'.format(displayable_path(dest)))
                 util.copy(item.path, dest, replace=True)
