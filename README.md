@@ -9,23 +9,20 @@ Your favorite iPlayer has limited space and does not support Ogg Vorbis? You
 want to keep lossless versions on a large external drive? You want to
 symlink your audio to other locations?
 
+With this [beets][beets-docs] plugin every file in you music library have
+multiple alternate versions in separate locations.
+
 Getting Started
 ---------------
 
-The basic idea of this plugin is that every file in your library can
-have multiple alternate versions in separate locations.
-
-Since this plugin is in early development you will need to install it from the
-master branch. You will also need at least version 1.4.7 of beets.
+You will also need at least version 1.4.7 of beets.
 
 ```
-pip install --upgrade beets>=1.4.7
-pip install git+git://github.com/geigerzaehler/beets-alternatives.git@master
+pip install --upgrade beets>=1.4.7 beets-alternatives
 ```
 
-Don’t forget to [enable the plugin][using plugins]. You may use the
-`beet config --edit` command to add the *alternatives* plugin to the
-configuration.
+Then, [enable the plugin][using plugins]. You may use the `beet config --edit`
+command to add the *alternatives* plugin to the configuration.
 
 ```yaml
 plugins:
@@ -259,6 +256,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 
+[beets-docs]: https://beets.readthedocs.io/en/latest/index.html
 [beets-issue-split-symlinks]: https://github.com/sampsyo/beets/issues/153
 [config-directory]: http://beets.readthedocs.org/en/latest/reference/config.html#directory
 [config-paths]: http://beets.readthedocs.org/en/latest/reference/config.html#path-format-configuration

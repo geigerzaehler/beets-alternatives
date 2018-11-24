@@ -2,9 +2,10 @@ from setuptools import setup
 
 setup(
     name='beets-alternatives',
-    version='0.8.3-dev',
+    version='0.9.0',
     description='beets plugin to manage multiple files',
     long_description=open('README.md').read(),
+    long_description_content_type='text/markdown',
     author='Thomas Scholtes',
     author_email='thomas-scholtes@gmx.de',
     url='http://www.github.com/geigerzaehler/beets-alternatives',

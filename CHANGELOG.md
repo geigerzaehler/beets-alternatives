@@ -1,7 +1,8 @@
 Change Log
 ==========
 
-## Upcoming
+## v0.9.0 - 2018-11-24
+* The package is now on PyPI
 * Require at least beets v1.4.7
 * Update album art in alternatives when it changes
 * Python 3 support (Python 2.7 continuous to be supported)
