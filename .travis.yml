@@ -1,5 +1,9 @@
 notifications:
-  email: false
+  email:
+    recipients:
+      - secure: SCVrl5324WVy0WDH1480D0Yxs/iP7n74QCnBunfWBhXsvaQmL4M06+6ICuw1yZx1hwU+qSRcGWXO8ryPu3Z3mnW+VZ6bfRAeACDiHpbXkb+4q6q86EpzvIgAy9gg3QvUXsLZUXfSN0KNdgbI+lBMiG9R9Mc7XtMizsinL6eohpU=  # wisp3rwind
+    on_success: never
+    on_failure: change
 
 language: python
 
