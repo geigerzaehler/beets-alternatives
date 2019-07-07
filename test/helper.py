@@ -150,6 +150,15 @@ class Assertions(object):
                                 displayable_path(target)
                             ))
 
+    def assertIsNotSymlink(self, link):
+        # This is not redundant with assertIsFile, because the latter follows
+        # symlinks. Note that os.path.exists would return False for a broken
+        # symlink.
+        self.assertFalse(os.path.lexists(syspath(link)),
+                         msg=u'Path is a file or symbolic link: {0}'.format(
+                             displayable_path(link)
+                         ))
+
 
 class MediaFileAssertions(object):
 

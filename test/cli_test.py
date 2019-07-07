@@ -69,7 +69,11 @@ class DocTest(TestHelper):
         self.assertFalse(os.path.isfile(external_from_ogg))
         self.assertFileTag(external_beet, b'ISAAC')
 
-    def test_symlink_view(self):
+
+class SymlinkViewTest(TestHelper):
+
+    def setUp(self):
+        super(SymlinkViewTest, self).setUp()
         self.set_paths_config({
             'default': '$artist/$album/$title'
         })
@@ -79,15 +83,29 @@ class DocTest(TestHelper):
                 'formats': 'link',
             }
         }
+        self.alt_config = self.config['alternatives']['by-year']
 
-        self.add_album(artist='Michael Jackson', album='Thriller', year='1982')
+    def test_add_move_remove_album(self):
+        self.add_album(artist='Michael Jackson', album='Thriller',
+                       year='1990', original_year='1982')
 
         self.runcli('alt', 'update', 'by-year')
 
-        self.assertSymlink(
-            self.lib_path(b'by-year/1982/Thriller/track 1.mp3'),
-            self.lib_path(b'Michael Jackson/Thriller/track 1.mp3'),
-        )
+        by_year_path = self.lib_path(b'by-year/1990/Thriller/track 1.mp3')
+        target_path = self.lib_path(b'Michael Jackson/Thriller/track 1.mp3')
+        self.assertSymlink(by_year_path, target_path)
+
+        self.alt_config['paths']['default'] = '$original_year/$album/$title'
+        self.runcli('alt', 'update', 'by-year')
+
+        by_orig_year_path = self.lib_path(b'by-year/1982/Thriller/track 1.mp3')
+        self.assertIsNotSymlink(by_year_path)
+        self.assertSymlink(by_orig_year_path, target_path)
+
+        self.alt_config['query'] = u'some_field::foobar'
+        self.runcli('alt', 'update', 'by-year')
+
+        self.assertIsNotSymlink(by_orig_year_path)
 
 
 class ExternalCopyTest(TestHelper):
