@@ -184,13 +184,24 @@ class MediaFileAssertions(object):
         self.assertIsNone(mediafile.art,
                           msg=u'MediaFile has embedded artwork')
 
+    def assertMediaFileFields(self, path, **kwargs):
+        mediafile = MediaFile(syspath(path))
+        for k, v in kwargs.items():
+            actual = getattr(mediafile, k)
+            self.assertTrue(actual == v,
+                            msg=u"MediaFile has tag {k}='{actual}' "
+                                u"instead of '{expected}'".format(
+                                    k=k, actual=actual, expected=v)
+                            )
+
 
 class TestHelper(TestCase, Assertions, MediaFileAssertions):
 
-    def setUp(self):
-        patcher = patch('beetsplug.alternatives.Worker', new=MockedWorker)
-        patcher.start()
-        self.addCleanup(patcher.stop)
+    def setUp(self, mock_worker=True):
+        if mock_worker:
+            patcher = patch('beetsplug.alternatives.Worker', new=MockedWorker)
+            patcher.start()
+            self.addCleanup(patcher.stop)
 
         self._tempdirs = []
         plugins._classes = set([alternatives.AlternativesPlugin,
@@ -267,6 +278,11 @@ class TestHelper(TestCase, Assertions, MediaFileAssertions):
         return os.path.join(self.libdir,
                             path.replace(b'/', bytestring_path(os.sep)))
 
+    def item_fixture_path(self, fmt):
+        assert(fmt in 'mp3 m4a ogg'.split())
+        return os.path.join(self.fixture_dir,
+                            bytestring_path('min.' + fmt.lower()))
+
     def add_album(self, **kwargs):
         values = {
             'title': 'track 1',
@@ -275,9 +291,7 @@ class TestHelper(TestCase, Assertions, MediaFileAssertions):
             'format': 'mp3',
         }
         values.update(kwargs)
-        ext = values.pop('format').lower()
-        item = Item.from_path(os.path.join(self.fixture_dir,
-                                           bytestring_path('min.' + ext)))
+        item = Item.from_path(self.item_fixture_path(values.pop('format')))
         item.add(self.lib)
         item.update(values)
         item.move(MoveOperation.COPY)
@@ -295,12 +309,8 @@ class TestHelper(TestCase, Assertions, MediaFileAssertions):
             'format': 'mp3',
         }
         values.update(kwargs)
-        assert(values['format'] in 'mp3 m4a ogg'.split())
 
-        item = Item.from_path(os.path.join(
-            self.fixture_dir,
-            bytestring_path('min.' + values['format'])
-        ))
+        item = Item.from_path(self.item_fixture_path(values.pop('format')))
         item.add(self.lib)
         item.update(values)
         item.move(MoveOperation.COPY)

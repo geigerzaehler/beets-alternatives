@@ -391,6 +391,39 @@ class ExternalConvertTest(TestHelper):
         self.assertFileTag(converted_path, b'ISMP3')
 
 
+class ExternalConvertWorkerTest(TestHelper):
+
+    def setUp(self):
+        super(ExternalConvertWorkerTest, self).setUp(mock_worker=False)
+        external_dir = self.mkdtemp()
+        self.config['convert']['formats'] = {
+            'ogg': 'bash -c "cp \'{source}\' \'$dest\'"'.format(
+                # The convert plugin will encode this again using arg_encoding
+                source=self.item_fixture_path('ogg').decode(
+                    util.arg_encoding()))
+        }
+        self.config['alternatives'] = {
+            'myexternal': {
+                'directory': external_dir,
+                'query': u'myexternal:true',
+                'formats': 'ogg'
+            }
+        }
+
+    def test_convert_multiple(self):
+        items = [self.add_track(title="track {}".format(i),
+                                myexternal='true',
+                                format='m4a',
+                                ) for i in range(24)
+                 ]
+        self.runcli('alt', 'update', 'myexternal')
+        for item in items:
+            item.load()
+            converted_path = self.get_path(item)
+            self.assertMediaFileFields(converted_path,
+                                       type='ogg', title=item.title)
+
+
 class ExternalRemovableTest(TestHelper):
 
     def setUp(self):
