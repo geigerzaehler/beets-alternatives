@@ -10,6 +10,9 @@ from beets.util import bytestring_path, syspath
 
 
 class DocTest(TestHelper):
+    """Test alternatives in a larger-scale scenario with transcoding and
+    multiple changes to the library.
+    """
 
     def test_external(self):
         external_dir = os.path.join(self.mkdtemp(), 'myplayer')
@@ -71,6 +74,8 @@ class DocTest(TestHelper):
 
 
 class SymlinkViewTest(TestHelper):
+    """Test alternatives with the ``link`` format producing symbolic links.
+    """
 
     def setUp(self):
         super(SymlinkViewTest, self).setUp()
@@ -86,6 +91,12 @@ class SymlinkViewTest(TestHelper):
         self.alt_config = self.config['alternatives']['by-year']
 
     def test_add_move_remove_album(self):
+        """Test the symlinks are created and deleted
+        * An album is added
+        * The path of the alternative collection is changed
+        * The query of the alternative collection is changed such that the
+          album does not match it anymore.
+        """
         self.add_album(artist='Michael Jackson', album='Thriller',
                        year='1990', original_year='1982')
 
@@ -109,6 +120,9 @@ class SymlinkViewTest(TestHelper):
 
 
 class ExternalCopyTest(TestHelper):
+    """Test alternatives with empty ``format `` option, i.e. only copying
+    without transcoding.
+    """
 
     def setUp(self):
         super(ExternalCopyTest, self).setUp()
@@ -306,6 +320,9 @@ class ExternalCopyTest(TestHelper):
 
 
 class ExternalConvertTest(TestHelper):
+    """Test alternatives with non-empty ``format `` option, i.e. transcoding
+    some of the files.
+    """
 
     def setUp(self):
         super(ExternalConvertTest, self).setUp()
@@ -392,6 +409,10 @@ class ExternalConvertTest(TestHelper):
 
 
 class ExternalConvertWorkerTest(TestHelper):
+    """Test alternatives with non-empty ``format `` option, i.e. transcoding
+    some of the files. In contrast to the previous test, these test do not
+    work the parallelizing Worker.
+    """
 
     def setUp(self):
         super(ExternalConvertWorkerTest, self).setUp(mock_worker=False)
@@ -425,6 +446,9 @@ class ExternalConvertWorkerTest(TestHelper):
 
 
 class ExternalRemovableTest(TestHelper):
+    """Test whether alternatives properly detects ``removable`` collections
+    and performs the expected user queries before doing anything.
+    """
 
     def setUp(self):
         super(ExternalRemovableTest, self).setUp()

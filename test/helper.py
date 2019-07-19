@@ -198,6 +198,15 @@ class MediaFileAssertions(object):
 class TestHelper(TestCase, Assertions, MediaFileAssertions):
 
     def setUp(self, mock_worker=True):
+        """Setup required for running test. Must be called before
+        running any tests.
+
+        If ``mock_worker`` is ``True`` the simple non-threaded
+        ``MockedWorker`` is used to run file conversion commands. In
+        particular, in contrast to the actual conversion routine from the
+        ``convert`` plugin, it will not attempt to write tags to the output
+        files. Thus, the 'converted' files need not be valid audio files.
+        """
         if mock_worker:
             patcher = patch('beetsplug.alternatives.Worker', new=MockedWorker)
             patcher.start()
