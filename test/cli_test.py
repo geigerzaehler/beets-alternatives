@@ -320,7 +320,7 @@ class ExternalCopyTest(TestHelper):
 
 
 class ExternalConvertTest(TestHelper):
-    """Test alternatives with non-empty ``format `` option, i.e. transcoding
+    """Test alternatives with non-empty ``format`` option, i.e. transcoding
     some of the files.
     """
 
@@ -409,9 +409,9 @@ class ExternalConvertTest(TestHelper):
 
 
 class ExternalConvertWorkerTest(TestHelper):
-    """Test alternatives with non-empty ``format `` option, i.e. transcoding
-    some of the files. In contrast to the previous test, these test do not
-    work the parallelizing Worker.
+    """Test alternatives with non-empty ``format`` option, i.e. transcoding
+    some of the files. In contrast to the previous test, these test do use
+    the parallelizing ``beetsplug.alternatives.Worker``.
     """
 
     def setUp(self):
