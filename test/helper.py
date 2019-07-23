@@ -128,8 +128,16 @@ class Assertions(object):
                         ))
 
     def assertIsNotFile(self, path):
+        """Asserts that `path` is neither a regular file (``os.path.isfile``,
+        follows symlinks and returns False for a broken symlink) nor a symlink
+        (``os.path.islink``, returns True for both valid and broken symlinks).
+        """
         self.assertFalse(os.path.isfile(syspath(path)),
                          msg=u'Path is a file: {0}'.format(
+                             displayable_path(path)
+                        ))
+        self.assertFalse(os.path.islink(syspath(path)),
+                         msg=u'Path is a symlink: {0}'.format(
                              displayable_path(path)
                         ))
 
@@ -149,15 +157,6 @@ class Assertions(object):
                                 displayable_path(link_target),
                                 displayable_path(target)
                             ))
-
-    def assertIsNotSymlink(self, link):
-        # This is not redundant with assertIsFile, because the latter follows
-        # symlinks. Note that os.path.exists would return False for a broken
-        # symlink.
-        self.assertFalse(os.path.lexists(syspath(link)),
-                         msg=u'Path is a file or symbolic link: {0}'.format(
-                             displayable_path(link)
-                         ))
 
 
 class MediaFileAssertions(object):

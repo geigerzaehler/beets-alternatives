@@ -110,13 +110,13 @@ class SymlinkViewTest(TestHelper):
         self.runcli('alt', 'update', 'by-year')
 
         by_orig_year_path = self.lib_path(b'by-year/1982/Thriller/track 1.mp3')
-        self.assertIsNotSymlink(by_year_path)
+        self.assertIsNotFile(by_year_path)
         self.assertSymlink(by_orig_year_path, target_path)
 
         self.alt_config['query'] = u'some_field::foobar'
         self.runcli('alt', 'update', 'by-year')
 
-        self.assertIsNotSymlink(by_orig_year_path)
+        self.assertIsNotFile(by_orig_year_path)
 
 
 class ExternalCopyTest(TestHelper):
