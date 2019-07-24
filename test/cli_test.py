@@ -10,6 +10,9 @@ from beets.util import bytestring_path, syspath
 
 
 class DocTest(TestHelper):
+    """Test alternatives in a larger-scale scenario with transcoding and
+    multiple changes to the library.
+    """
 
     def test_external(self):
         external_dir = os.path.join(self.mkdtemp(), 'myplayer')
@@ -69,7 +72,13 @@ class DocTest(TestHelper):
         self.assertFalse(os.path.isfile(external_from_ogg))
         self.assertFileTag(external_beet, b'ISAAC')
 
-    def test_symlink_view(self):
+
+class SymlinkViewTest(TestHelper):
+    """Test alternatives with the ``link`` format producing symbolic links.
+    """
+
+    def setUp(self):
+        super(SymlinkViewTest, self).setUp()
         self.set_paths_config({
             'default': '$artist/$album/$title'
         })
@@ -79,18 +88,41 @@ class DocTest(TestHelper):
                 'formats': 'link',
             }
         }
+        self.alt_config = self.config['alternatives']['by-year']
 
-        self.add_album(artist='Michael Jackson', album='Thriller', year='1982')
+    def test_add_move_remove_album(self):
+        """Test the symlinks are created and deleted
+        * An album is added
+        * The path of the alternative collection is changed
+        * The query of the alternative collection is changed such that the
+          album does not match it anymore.
+        """
+        self.add_album(artist='Michael Jackson', album='Thriller',
+                       year='1990', original_year='1982')
 
         self.runcli('alt', 'update', 'by-year')
 
-        self.assertSymlink(
-            self.lib_path(b'by-year/1982/Thriller/track 1.mp3'),
-            self.lib_path(b'Michael Jackson/Thriller/track 1.mp3'),
-        )
+        by_year_path = self.lib_path(b'by-year/1990/Thriller/track 1.mp3')
+        target_path = self.lib_path(b'Michael Jackson/Thriller/track 1.mp3')
+        self.assertSymlink(by_year_path, target_path)
+
+        self.alt_config['paths']['default'] = '$original_year/$album/$title'
+        self.runcli('alt', 'update', 'by-year')
+
+        by_orig_year_path = self.lib_path(b'by-year/1982/Thriller/track 1.mp3')
+        self.assertIsNotFile(by_year_path)
+        self.assertSymlink(by_orig_year_path, target_path)
+
+        self.alt_config['query'] = u'some_field::foobar'
+        self.runcli('alt', 'update', 'by-year')
+
+        self.assertIsNotFile(by_orig_year_path)
 
 
 class ExternalCopyTest(TestHelper):
+    """Test alternatives with empty ``format `` option, i.e. only copying
+    without transcoding.
+    """
 
     def setUp(self):
         super(ExternalCopyTest, self).setUp()
@@ -288,6 +320,9 @@ class ExternalCopyTest(TestHelper):
 
 
 class ExternalConvertTest(TestHelper):
+    """Test alternatives with non-empty ``format`` option, i.e. transcoding
+    some of the files.
+    """
 
     def setUp(self):
         super(ExternalConvertTest, self).setUp()
@@ -373,7 +408,47 @@ class ExternalConvertTest(TestHelper):
         self.assertFileTag(converted_path, b'ISMP3')
 
 
+class ExternalConvertWorkerTest(TestHelper):
+    """Test alternatives with non-empty ``format`` option, i.e. transcoding
+    some of the files. In contrast to the previous test, these test do use
+    the parallelizing ``beetsplug.alternatives.Worker``.
+    """
+
+    def setUp(self):
+        super(ExternalConvertWorkerTest, self).setUp(mock_worker=False)
+        external_dir = self.mkdtemp()
+        self.config['convert']['formats'] = {
+            'ogg': 'bash -c "cp \'{source}\' \'$dest\'"'.format(
+                # The convert plugin will encode this again using arg_encoding
+                source=self.item_fixture_path('ogg').decode(
+                    util.arg_encoding()))
+        }
+        self.config['alternatives'] = {
+            'myexternal': {
+                'directory': external_dir,
+                'query': u'myexternal:true',
+                'formats': 'ogg'
+            }
+        }
+
+    def test_convert_multiple(self):
+        items = [self.add_track(title="track {}".format(i),
+                                myexternal='true',
+                                format='m4a',
+                                ) for i in range(24)
+                 ]
+        self.runcli('alt', 'update', 'myexternal')
+        for item in items:
+            item.load()
+            converted_path = self.get_path(item)
+            self.assertMediaFileFields(converted_path,
+                                       type='ogg', title=item.title)
+
+
 class ExternalRemovableTest(TestHelper):
+    """Test whether alternatives properly detects ``removable`` collections
+    and performs the expected user queries before doing anything.
+    """
 
     def setUp(self):
         super(ExternalRemovableTest, self).setUp()
