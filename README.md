@@ -152,6 +152,27 @@ example
 -> /music/Michael Jackson/Thriller/Beat It.mp3
 ```
 
+You can also specify if you want absolute symlinks (default) or relative ones
+with `link_type`. The option `link_type` must be `absolute` or `relative`
+
+```yaml
+alternatives:
+  by-year:
+    directory: by-year
+    paths:
+      default: $year/$album/$title
+    formats: link
+    link_type: relative
+```
+
+With this config, the `beet alt update by-year` command will create relative symlinks. E.g:
+```
+/music/by-year/1982/Thriller/Beat It.mp3
+-> ../../../Michael Jackson/Thriller/Beat It.mp3
+```
+
+Now, if you move the `/music/` folder to another location, the links
+will continue working
 
 CLI Reference
 -------------
@@ -210,7 +231,7 @@ following settings.
   [`convert.formats`][convert plugin] configuration. This configuration
   controls the transcoding process.
 
-  The special format ‘link’ is used to create symbolik links instead of
+  The special format ‘link’ is used to create symbolic links instead of
   transcoding the file. It can not be combined with other formats.
 
   By default no transcoding is done.
@@ -218,6 +239,10 @@ following settings.
 * **`removable`** If this is `true` (the default) and `directory` does
   not exist, the `update` command will ask you to confirm the creation
   of the external collection. (optional)
+
+* **`link_type`** Can be `absolute` (default) or `relative`. If
+  **`formats`** is `link`, it sets the type of links to create. For 
+  differences between link types and examples see [Symlink Views](#symlink-views).
 
 
 Feature Requests

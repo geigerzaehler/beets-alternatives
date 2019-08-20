@@ -295,10 +295,19 @@ class ExternalConvert(External):
 
 
 class SymlinkView(External):
+    LINK_ABSOLUTE = 0
+    LINK_RELATIVE = 1
 
     def parse_config(self, config):
         if 'query' not in config:
             config['query'] = u''  # This is a TrueQuery()
+        if 'link_type' not in config:
+            # Default as absolute so it doesn't break previous implementation
+            config['link_type'] = 'absolute'
+
+        self.relativelinks = config['link_type'].as_choice(
+            {"relative": self.LINK_RELATIVE, "absolute": self.LINK_ABSOLUTE})
+
         super(SymlinkView, self).parse_config(config)
 
     def update(self, create=None):
@@ -326,7 +335,10 @@ class SymlinkView(External):
     def create_symlink(self, item):
         dest = self.destination(item)
         util.mkdirall(dest)
-        util.link(item.path, dest)
+        link = (
+            os.path.relpath(item.path, os.path.dirname(dest))
+            if self.relativelinks == self.LINK_RELATIVE else item.path)
+        util.link(link, dest)
 
 
 class Worker(futures.ThreadPoolExecutor):

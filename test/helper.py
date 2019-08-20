@@ -141,7 +141,7 @@ class Assertions(object):
                              displayable_path(path)
                         ))
 
-    def assertSymlink(self, link, target):
+    def assertSymlink(self, link, target, absolute=True):
         self.assertTrue(os.path.islink(syspath(link)),
                         msg=u'Path is not a symbolic link: {0}'.format(
                             displayable_path(link)
@@ -150,13 +150,24 @@ class Assertions(object):
                         msg=u'Path is not a file: {0}'.format(
                             displayable_path(link)
                         ))
-        link_target = bytestring_path(os.readlink(syspath(link)))
-        link_target = os.path.join(os.path.dirname(link), link_target)
+        pre_link_target = bytestring_path(os.readlink(syspath(link)))
+        link_target = os.path.join(os.path.dirname(link), pre_link_target)
         self.assertTrue(util.samefile(target, link_target),
                         msg=u'Symlink points to {} instead of {}'.format(
                                 displayable_path(link_target),
                                 displayable_path(target)
                             ))
+
+        if absolute:
+            self.assertTrue(os.path.isabs(pre_link_target),
+                            msg=u'Symlink {} is not absolute'.format(
+                               displayable_path(pre_link_target)
+                            ))
+        else:
+            self.assertFalse(os.path.isabs(pre_link_target),
+                             msg=u'Symlink {} is not relative'.format(
+                                displayable_path(pre_link_target)
+                             ))
 
 
 class MediaFileAssertions(object):
