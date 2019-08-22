@@ -65,7 +65,9 @@ class AlternativesCommand(Subcommand):
 
     def __init__(self, plugin):
         parser = ArgumentParser()
-        subparsers = parser.add_subparsers()
+        subparsers = parser.add_subparsers(prog=parser.prog + ' alt')
+        subparsers.required = True
+        subparsers.dest = 'update'
         update = subparsers.add_parser('update')
         update.set_defaults(func=plugin.update)
         update.add_argument('name')
