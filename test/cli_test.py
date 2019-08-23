@@ -8,6 +8,8 @@ from beets.mediafile import MediaFile
 from beets import util
 from beets.util import bytestring_path, syspath
 
+from beets.util.confit import ConfigValueError
+
 
 class DocTest(TestHelper):
     """Test alternatives in a larger-scale scenario with transcoding and
@@ -90,12 +92,13 @@ class SymlinkViewTest(TestHelper):
         }
         self.alt_config = self.config['alternatives']['by-year']
 
-    def test_add_move_remove_album(self):
+    def test_add_move_remove_album(self, absolute=True):
         """Test the symlinks are created and deleted
         * An album is added
         * The path of the alternative collection is changed
         * The query of the alternative collection is changed such that the
           album does not match it anymore.
+        * The links are absolute
         """
         self.add_album(artist='Michael Jackson', album='Thriller',
                        year='1990', original_year='1982')
@@ -104,19 +107,56 @@ class SymlinkViewTest(TestHelper):
 
         by_year_path = self.lib_path(b'by-year/1990/Thriller/track 1.mp3')
         target_path = self.lib_path(b'Michael Jackson/Thriller/track 1.mp3')
-        self.assertSymlink(by_year_path, target_path)
+        self.assertSymlink(by_year_path, target_path, absolute)
 
         self.alt_config['paths']['default'] = '$original_year/$album/$title'
         self.runcli('alt', 'update', 'by-year')
 
         by_orig_year_path = self.lib_path(b'by-year/1982/Thriller/track 1.mp3')
         self.assertIsNotFile(by_year_path)
-        self.assertSymlink(by_orig_year_path, target_path)
+        self.assertSymlink(by_orig_year_path, target_path, absolute)
 
         self.alt_config['query'] = u'some_field::foobar'
         self.runcli('alt', 'update', 'by-year')
 
         self.assertIsNotFile(by_orig_year_path)
+
+    def test_add_move_remove_album_absolute(self):
+        """ Test the absolute symlinks are created and deleted
+        * Config link type is absolute
+        * An album is added
+        * The path of the alternative collection is changed
+        * The query of the alternative collection is changed such that the
+          album does not match it anymore.
+        * The links are absolute
+        """
+        self.alt_config['link_type'] = 'absolute'
+        self.test_add_move_remove_album(absolute=True)
+
+    def test_add_move_remove_album_relative(self):
+        """ Test the relative symlinks are created and deleted
+        * Config link type is relative
+        * An album is added
+        * The path of the alternative collection is changed
+        * The query of the alternative collection is changed such that the
+          album does not match it anymore.
+        * The links are relative
+        """
+        self.alt_config['link_type'] = 'relative'
+        self.test_add_move_remove_album(absolute=False)
+
+    def test_valid_options(self):
+        """ Test that an error is raised when option is invalid
+        * Config link type is invalid
+        * An album is added
+        * A confuse.ConfigValueError is raised
+        """
+        self.alt_config['link_type'] = 'Hylian'
+        self.add_album(artist='Michael Jackson', album='Thriller',
+                       year='1990', original_year='1982')
+
+        self.assertRaises(ConfigValueError,
+                          self.runcli, 'alt', 'update', 'by-year')
 
 
 class ExternalCopyTest(TestHelper):
