@@ -1,6 +1,11 @@
 Change Log
 ==========
 
+## v0.10.0 - 2019-08-25
+
+* Symlink views now support relative symlinks (@daviddavo)
+* Running just `beet alt` does not throw an error anymore (@daviddavo)
+
 ## v0.9.0 - 2018-11-24
 * The package is now on PyPI
 * Require at least beets v1.4.7
