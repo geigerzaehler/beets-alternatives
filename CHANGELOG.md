@@ -1,8 +1,12 @@
 Change Log
 ==========
 
-## v0.10.0 - 2019-08-25
+## Upcoming
+* Running `beet completion` does not crash anymore [#38][]
 
+[#38]: https://github.com/geigerzaehler/beets-alternatives/issues/38
+
+## v0.10.0 - 2019-08-25
 * Symlink views now support relative symlinks (@daviddavo)
 * Running just `beet alt` does not throw an error anymore (@daviddavo)
 
