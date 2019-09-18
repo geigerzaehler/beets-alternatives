@@ -13,7 +13,7 @@
 
 import os.path
 import threading
-from argparse import ArgumentParser
+import argparse
 from concurrent import futures
 import six
 
@@ -82,6 +82,16 @@ class AlternativesCommand(Subcommand):
 
     def parse_args(self, args):
         return self.parser.parse_args(args), []
+
+
+class ArgumentParser(argparse.ArgumentParser):
+    """
+    Facade for ``argparse.ArgumentParser`` so that beets can call
+    `_get_all_options()` to generate shell completion.
+    """
+    def _get_all_options(self):
+        # FIXME return options like ``OptionParser._get_all_options``.
+        return []
 
 
 class External(object):

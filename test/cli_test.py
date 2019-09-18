@@ -537,3 +537,12 @@ class ExternalRemovableTest(TestHelper):
             self.assertNotIn('Do you want to create the collection?', out)
         item.load()
         self.assertIn('alt.myexternal', item)
+
+
+class CompletionTest(TestHelper):
+    """Test invocation of ``beet completion`` with this plugin.
+
+    Only ensures that command does not fail.
+    """
+    def test_completion(self):
+        self.runcli('completion')
