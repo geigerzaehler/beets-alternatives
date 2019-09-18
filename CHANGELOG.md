@@ -1,7 +1,7 @@
 Change Log
 ==========
 
-## Upcoming
+## v0.10.1 - 2019-09-18
 * Running `beet completion` does not crash anymore [#38][]
 
 [#38]: https://github.com/geigerzaehler/beets-alternatives/issues/38
