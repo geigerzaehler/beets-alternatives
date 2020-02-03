@@ -41,13 +41,13 @@ class DocTest(TestHelper):
         self.add_album(artist='Beethoven', title='was ogg', format='ogg')
 
         external_from_mp3 = bytestring_path(
-                os.path.join(external_dir, 'Bach', 'was mp3.mp3'))
+            os.path.join(external_dir, 'Bach', 'was mp3.mp3'))
         external_from_m4a = bytestring_path(
-                os.path.join(external_dir, 'Bach', 'was m4a.m4a'))
+            os.path.join(external_dir, 'Bach', 'was m4a.m4a'))
         external_from_ogg = bytestring_path(
-                os.path.join(external_dir, 'Bach', 'was ogg.m4a'))
+            os.path.join(external_dir, 'Bach', 'was ogg.m4a'))
         external_beet = bytestring_path(
-                os.path.join(external_dir, 'Beethoven', 'was ogg.m4a'))
+            os.path.join(external_dir, 'Beethoven', 'was ogg.m4a'))
 
         self.runcli('modify', '--yes', 'onplayer=true', 'artist:Bach')
         with control_stdin('y'):
@@ -60,6 +60,12 @@ class DocTest(TestHelper):
         self.assertFalse(os.path.isfile(external_beet))
 
         self.runcli('modify', '--yes', 'composer=JSB', 'artist:Bach')
+
+        list_output = self.runcli(
+            'alt', 'list-tracks', 'myplayer', '--format', '$artist $title')
+        self.assertEqual(list_output, '\n'.join(
+            ['Bach was mp3', 'Bach was m4a', 'Bach was ogg', '']))
+
         self.runcli('alt', 'update', 'myplayer')
         mediafile = MediaFile(syspath(external_from_ogg))
         self.assertEqual(mediafile.composer, 'JSB')
@@ -68,6 +74,10 @@ class DocTest(TestHelper):
         self.runcli('modify', '--album', '--yes',
                     'onplayer=true', 'albumartist:Beethoven')
         self.runcli('alt', 'update', 'myplayer')
+
+        list_output = self.runcli(
+            'alt', 'list-tracks', 'myplayer', '--format', '$artist')
+        self.assertEqual(list_output, 'Beethoven\n')
 
         self.assertFalse(os.path.isfile(external_from_mp3))
         self.assertFalse(os.path.isfile(external_from_m4a))
@@ -544,5 +554,6 @@ class CompletionTest(TestHelper):
 
     Only ensures that command does not fail.
     """
+
     def test_completion(self):
         self.runcli('completion')
