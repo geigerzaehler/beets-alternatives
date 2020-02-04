@@ -210,7 +210,7 @@ Lists all tracks that are currently included in the collection.
 The `--format` option accepts a [beets path format][path-format] string that is
 used to format each track.
 
-[path-format]: https://beets.readthedocs.io/en/v1.4.9/reference/pathformat.html
+[path-format]: https://beets.readthedocs.io/en/latest/reference/pathformat.html
 
 Configuration
 -------------
