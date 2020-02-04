@@ -20,7 +20,8 @@ import six
 import beets
 from beets import util, art
 from beets.plugins import BeetsPlugin
-from beets.ui import Subcommand, get_path_formats, input_yn, UserError, print_
+from beets.ui import Subcommand, get_path_formats, input_yn, UserError, \
+    print_, decargs
 from beets.library import parse_query_string, Item
 from beets.util import syspath, displayable_path, cpu_count, bytestring_path
 
@@ -45,8 +46,8 @@ class AlternativesPlugin(BeetsPlugin):
 
     def list_tracks(self, lib, options):
         if options.format is not None:
-            beets.config[beets.library.Item._format_config_key].set(
-                options.format)
+            fmt, = decargs([options.format])
+            beets.config[beets.library.Item._format_config_key].set(fmt)
 
         alt = self.alternative(options.name, lib)
 
