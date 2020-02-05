@@ -20,7 +20,8 @@ import six
 import beets
 from beets import util, art
 from beets.plugins import BeetsPlugin
-from beets.ui import Subcommand, get_path_formats, input_yn, UserError, print_
+from beets.ui import Subcommand, get_path_formats, input_yn, UserError, \
+    print_, decargs
 from beets.library import parse_query_string, Item
 from beets.util import syspath, displayable_path, cpu_count, bytestring_path
 
@@ -42,6 +43,19 @@ class AlternativesPlugin(BeetsPlugin):
             raise UserError(u"Alternative collection '{0}' not found."
                             .format(e.args[0]))
         alt.update(create=options.create)
+
+    def list_tracks(self, lib, options):
+        if options.format is not None:
+            fmt, = decargs([options.format])
+            beets.config[beets.library.Item._format_config_key].set(fmt)
+
+        alt = self.alternative(options.name, lib)
+
+        # This is slow but we cannot use a native SQL query since the
+        # path key is a flexible attribute
+        for item in lib.items():
+            if alt.path_key in item:
+                print_(format(item))
 
     def alternative(self, name, lib):
         conf = self.config[name]
@@ -67,14 +81,36 @@ class AlternativesCommand(Subcommand):
         parser = ArgumentParser()
         subparsers = parser.add_subparsers(prog=parser.prog + ' alt')
         subparsers.required = True
-        subparsers.dest = 'update'
+
         update = subparsers.add_parser('update')
         update.set_defaults(func=plugin.update)
-        update.add_argument('name')
+        update.add_argument('name', metavar='NAME')
         update.add_argument('--create', action='store_const',
                             dest='create', const=True)
         update.add_argument('--no-create', action='store_const',
                             dest='create', const=False)
+
+        list_tracks = subparsers.add_parser(
+            'list-tracks',
+            description="""
+                List all tracks that are currently part of an alternative
+                collection""",
+        )
+        list_tracks.set_defaults(func=plugin.list_tracks)
+        list_tracks.add_argument(
+            'name',
+            metavar='NAME',
+            help='Name of the alternative',
+        )
+        list_tracks.add_argument(
+            '-f',
+            '--format',
+            metavar='FORMAT',
+            dest='format',
+            help="""Format string to print for each track. See beets’
+                Path Formats for more information.""",
+        )
+
         super(AlternativesCommand, self).__init__(self.name, parser, self.help)
 
     def func(self, lib, opts, _):
@@ -89,6 +125,7 @@ class ArgumentParser(argparse.ArgumentParser):
     Facade for ``argparse.ArgumentParser`` so that beets can call
     `_get_all_options()` to generate shell completion.
     """
+
     def _get_all_options(self):
         # FIXME return options like ``OptionParser._get_all_options``.
         return []

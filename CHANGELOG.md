@@ -1,6 +1,9 @@
 Change Log
 ==========
 
+## Upcoming
+* Add `beet alt list-tracks` command
+
 ## v0.10.1 - 2019-09-18
 * Running `beet completion` does not crash anymore [#38][]
 

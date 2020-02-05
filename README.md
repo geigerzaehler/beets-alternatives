@@ -201,6 +201,17 @@ The command accepts the following option.
   command will ask you to confirm the creation of the external
   collection. These options specify the answer as a cli option.
 
+```
+beet alt list-tracks [--format=FORMAT] NAME
+```
+
+Lists all tracks that are currently included in the collection.
+
+The `--format` option accepts a [beets path format][path-format] string that is
+used to format each track.
+
+[path-format]: https://beets.readthedocs.io/en/latest/reference/pathformat.html
+
 Configuration
 -------------
 
@@ -241,7 +252,7 @@ following settings.
   of the external collection. (optional)
 
 * **`link_type`** Can be `absolute` (default) or `relative`. If
-  **`formats`** is `link`, it sets the type of links to create. For 
+  **`formats`** is `link`, it sets the type of links to create. For
   differences between link types and examples see [Symlink Views](#symlink-views).
 
 
