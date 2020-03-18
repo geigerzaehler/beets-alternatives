@@ -390,6 +390,10 @@ class SymlinkView(External):
             if self.relativelinks == self.LINK_RELATIVE else item.path)
         util.link(link, dest)
 
+    def sync_art(self, item, path):
+        # FIXME: symlink art
+        pass
+
 
 class Worker(futures.ThreadPoolExecutor):
 
