@@ -155,6 +155,44 @@ class SymlinkViewTest(TestHelper):
         self.alt_config['link_type'] = 'relative'
         self.test_add_move_remove_album(absolute=False)
 
+    def test_add_update_move_album(self):
+        """ Test that symlinks are properly updated and no broken links left
+        when an item's path in the library changes.
+        Since moving the items causes the links in the symlink view to be
+        broken, this situation used to be incorrectly detected as
+        addition of new items, such that the old links weren't removed.
+        Contrast this to the `test_add_move_remove_album` test, in which the
+        old links do not break upon changing the path format.
+        * An album is added.
+        * The album name is changed, which also causes the tracks to be moved.
+        * The symlink view is updated.
+        """
+        self.add_album(artist='Michael Jackson', album='Thriller', year='1990')
+
+        self.runcli('alt', 'update', 'by-year')
+
+        by_year_path = self.lib_path(b'by-year/1990/Thriller/track 1.mp3')
+        self.assertSymlink(
+            link=by_year_path,
+            target=self.lib_path(b'Michael Jackson/Thriller/track 1.mp3'),
+            absolute=True,
+        )
+
+        # `-y` skips the prompt, `-a` updates album-level fields, `-m` forces
+        # actually moving the files
+        self.runcli('mod', '-y', '-a', '-m',
+                    'Thriller', 'album=Thriller (Remastered)')
+        self.runcli('alt', 'update', 'by-year')
+
+        self.assertIsNotFile(by_year_path)
+        self.assertSymlink(
+            link=self.lib_path(
+                b'by-year/1990/Thriller (Remastered)/track 1.mp3'),
+            target=self.lib_path(
+                b'Michael Jackson/Thriller (Remastered)/track 1.mp3'),
+            absolute=True,
+        )
+
     def test_valid_options(self):
         """ Test that an error is raised when option is invalid
         * Config link type is invalid
