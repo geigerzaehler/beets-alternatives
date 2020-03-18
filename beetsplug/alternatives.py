@@ -184,6 +184,29 @@ class External(object):
             dir = os.path.join(self.lib.directory, dir)
         self.directory = dir
 
+    def item_change_actions(self, item, path, dest):
+        """ Returns the necessary actions for items that were previously in the
+        external collection, but might require metadata updates.
+        """
+        actions = []
+
+        if not util.samefile(path, dest):
+            actions.append(self.MOVE)
+
+        item_mtime_alt = os.path.getmtime(syspath(path))
+        if (item_mtime_alt < os.path.getmtime(syspath(item.path))):
+            actions.append(self.WRITE)
+        album = item.get_album()
+
+        if album:
+            if (album.artpath and
+                    os.path.isfile(syspath(album.artpath)) and
+                    (item_mtime_alt
+                     < os.path.getmtime(syspath(album.artpath)))):
+                actions.append(self.SYNC_ART)
+
+        return actions
+
     def matched_item_action(self, item):
         path = self.get_path(item)
         if path and os.path.lexists(syspath(path)):
@@ -193,20 +216,8 @@ class External(object):
             if not path_ext == dest_ext:
                 # formats config option changed
                 return (item, [self.REMOVE, self.ADD])
-            actions = []
-            if not util.samefile(path, dest):
-                actions.append(self.MOVE)
-            item_mtime_alt = os.path.getmtime(syspath(path))
-            if (item_mtime_alt < os.path.getmtime(syspath(item.path))):
-                actions.append(self.WRITE)
-            album = item.get_album()
-            if album:
-                if (album.artpath and
-                        os.path.isfile(syspath(album.artpath)) and
-                        (item_mtime_alt
-                         < os.path.getmtime(syspath(album.artpath)))):
-                    actions.append(self.SYNC_ART)
-            return (item, actions)
+            else:
+                return (item, self.item_change_actions(item, path, dest))
         else:
             return (item, [self.ADD])
 
@@ -376,6 +387,21 @@ class SymlinkView(External):
             {"relative": self.LINK_RELATIVE, "absolute": self.LINK_ABSOLUTE})
 
         super(SymlinkView, self).parse_config(config)
+
+    def item_change_actions(self, item, path, dest):
+        """ Returns the necessary actions for items that were previously in the
+        external collection, but might require metadata updates.
+        """
+        actions = []
+
+        if not path == dest:
+            # The path of the link itself changed
+            actions.append(self.MOVE)
+        elif not util.samefile(path, item.path):
+            # link target changed
+            actions.append(self.MOVE)
+
+        return actions
 
     def update(self, create=None):
         for (item, actions) in self.items_actions():
