@@ -186,7 +186,7 @@ class External(object):
 
     def matched_item_action(self, item):
         path = self.get_path(item)
-        if path and os.path.isfile(syspath(path)):
+        if path and os.path.lexists(syspath(path)):
             dest = self.destination(item)
             _, path_ext = os.path.splitext(path)
             _, dest_ext = os.path.splitext(dest)
