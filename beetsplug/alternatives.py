@@ -17,6 +17,7 @@ import threading
 import argparse
 from concurrent import futures
 import six
+import traceback
 
 import beets
 from beets import util, art
@@ -24,9 +25,25 @@ from beets.plugins import BeetsPlugin
 from beets.ui import Subcommand, get_path_formats, input_yn, UserError, \
     print_, decargs
 from beets.library import parse_query_string, Item
-from beets.util import syspath, displayable_path, cpu_count, bytestring_path
+from beets.util import syspath, displayable_path, cpu_count, bytestring_path, \
+        FilesystemError
 
 from beetsplug import convert
+
+
+def _remove(path, soft=True):
+    """Remove the file. If `soft`, then no error will be raised if the
+    file does not exist.
+    In contrast to beets' util.remove, this uses lexists such that it can
+    actually remove symlink links.
+    """
+    path = syspath(path)
+    if soft and not os.path.lexists(path):
+        return
+    try:
+        os.remove(path)
+    except (OSError, IOError) as exc:
+        raise FilesystemError(exc, 'delete', (path,), traceback.format_exc())
 
 
 class AlternativesPlugin(BeetsPlugin):
@@ -277,7 +294,7 @@ class External(object):
 
     def remove_item(self, item):
         path = self.get_path(item)
-        util.remove(path)
+        _remove(path)
         util.prune_dirs(path, root=self.directory)
         del item[self.path_key]
 
