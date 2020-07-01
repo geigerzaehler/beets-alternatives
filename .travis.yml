@@ -32,6 +32,9 @@ matrix:
     - env: TOX_ENV=py38-flake8
       python: 3.8
 
+  allow_failures:
+    - python: 3.9-dev
+
 install:
   - "pip install tox"
   - "[ ! -z $COVERAGE ] && pip install coveralls || true"
