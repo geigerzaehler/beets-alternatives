@@ -17,6 +17,7 @@ import threading
 import argparse
 from concurrent import futures
 import six
+import traceback
 
 import beets
 from beets import util, art
@@ -24,9 +25,25 @@ from beets.plugins import BeetsPlugin
 from beets.ui import Subcommand, get_path_formats, input_yn, UserError, \
     print_, decargs
 from beets.library import parse_query_string, Item
-from beets.util import syspath, displayable_path, cpu_count, bytestring_path
+from beets.util import syspath, displayable_path, cpu_count, bytestring_path, \
+        FilesystemError
 
 from beetsplug import convert
+
+
+def _remove(path, soft=True):
+    """Remove the file. If `soft`, then no error will be raised if the
+    file does not exist.
+    In contrast to beets' util.remove, this uses lexists such that it can
+    actually remove symlink links.
+    """
+    path = syspath(path)
+    if soft and not os.path.lexists(path):
+        return
+    try:
+        os.remove(path)
+    except (OSError, IOError) as exc:
+        raise FilesystemError(exc, 'delete', (path,), traceback.format_exc())
 
 
 class AlternativesPlugin(BeetsPlugin):
@@ -167,29 +184,40 @@ class External(object):
             dir = os.path.join(self.lib.directory, dir)
         self.directory = dir
 
+    def item_change_actions(self, item, path, dest):
+        """ Returns the necessary actions for items that were previously in the
+        external collection, but might require metadata updates.
+        """
+        actions = []
+
+        if not util.samefile(path, dest):
+            actions.append(self.MOVE)
+
+        item_mtime_alt = os.path.getmtime(syspath(path))
+        if (item_mtime_alt < os.path.getmtime(syspath(item.path))):
+            actions.append(self.WRITE)
+        album = item.get_album()
+
+        if album:
+            if (album.artpath and
+                    os.path.isfile(syspath(album.artpath)) and
+                    (item_mtime_alt
+                     < os.path.getmtime(syspath(album.artpath)))):
+                actions.append(self.SYNC_ART)
+
+        return actions
+
     def matched_item_action(self, item):
         path = self.get_path(item)
-        if path and os.path.isfile(syspath(path)):
+        if path and os.path.lexists(syspath(path)):
             dest = self.destination(item)
             _, path_ext = os.path.splitext(path)
             _, dest_ext = os.path.splitext(dest)
             if not path_ext == dest_ext:
                 # formats config option changed
                 return (item, [self.REMOVE, self.ADD])
-            actions = []
-            if not util.samefile(path, dest):
-                actions.append(self.MOVE)
-            item_mtime_alt = os.path.getmtime(syspath(path))
-            if (item_mtime_alt < os.path.getmtime(syspath(item.path))):
-                actions.append(self.WRITE)
-            album = item.get_album()
-            if album:
-                if (album.artpath and
-                        os.path.isfile(syspath(album.artpath)) and
-                        (item_mtime_alt
-                         < os.path.getmtime(syspath(album.artpath)))):
-                    actions.append(self.SYNC_ART)
-            return (item, actions)
+            else:
+                return (item, self.item_change_actions(item, path, dest))
         else:
             return (item, [self.ADD])
 
@@ -277,7 +305,7 @@ class External(object):
 
     def remove_item(self, item):
         path = self.get_path(item)
-        util.remove(path)
+        _remove(path)
         util.prune_dirs(path, root=self.directory)
         del item[self.path_key]
 
@@ -360,6 +388,21 @@ class SymlinkView(External):
 
         super(SymlinkView, self).parse_config(config)
 
+    def item_change_actions(self, item, path, dest):
+        """ Returns the necessary actions for items that were previously in the
+        external collection, but might require metadata updates.
+        """
+        actions = []
+
+        if not path == dest:
+            # The path of the link itself changed
+            actions.append(self.MOVE)
+        elif not util.samefile(path, item.path):
+            # link target changed
+            actions.append(self.MOVE)
+
+        return actions
+
     def update(self, create=None):
         for (item, actions) in self.items_actions():
             dest = self.destination(item)
@@ -389,6 +432,10 @@ class SymlinkView(External):
             os.path.relpath(item.path, os.path.dirname(dest))
             if self.relativelinks == self.LINK_RELATIVE else item.path)
         util.link(link, dest)
+
+    def sync_art(self, item, path):
+        # FIXME: symlink art
+        pass
 
 
 class Worker(futures.ThreadPoolExecutor):
