@@ -3,6 +3,10 @@ Change Log
 
 ## Upcoming
 * Add `beet alt list-tracks` command
+* SymlinkView: Fix stale symlinks not being removed when files are moved in the
+  main library [#47][]
+
+[#47]: https://github.com/geigerzaehler/beets-alternatives/issues/47
 
 ## v0.10.1 - 2019-09-18
 * Running `beet completion` does not crash anymore [#38][]
