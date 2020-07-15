@@ -1,7 +1,7 @@
 Change Log
 ==========
 
-## Upcoming
+## v0.10.2 - 2020-07-15
 * Add `beet alt list-tracks` command
 * SymlinkView: Fix stale symlinks not being removed when files are moved in the
   main library [#47][]
