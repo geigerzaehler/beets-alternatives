@@ -47,18 +47,22 @@ alternatives:
     paths:
       default: $album/$title
     formats: aac mp3
+    embed: true
     query: "onplayer:true"
     removable: true
 ```
 
 The first two options determine the location of the external files and
 correspond to the global [`directory`][config-directory] and
-[`paths`][config-paths] settings.  The `format` option specifies the
-formats we transcode the files to (more on that below).  Finally, the
-`query` option tells the plugin which files you want to put in the
-external location. The value is a [query string][] as used for the
-beets command line. In our case we use a flexible attribute to make the
-selection transparent.
+[`paths`][config-paths] settings.  The `formats` option specifies the
+formats we transcode the files to (more on that below). The `embed`
+option specifies that album art should be embedded in the transcoded
+files. The `query` option tells the plugin which files you want
+to put in the external location. The value is a [query string][] as used
+for the beets command line. In our case we use a flexible attribute to
+make the selection transparent. Finally, the `removable` option tells
+the plugin that that target directory is on a removable storage (details
+see below).
 
 Let’s add some files to our selection by setting the flexible attribute
 from the `query` option. (Since we use boolean values for the
@@ -104,7 +108,7 @@ $ beet modify composer="Johann Sebastian Bach" artist:Bach
 $ beet alt update myplayer
 ```
 
-After going for a run you mitght realize that Bach is probably not the
+After going for a run you might realize that Bach is probably not the
 right thing to work out to. So you decide to put Beethoven on your
 player.
 
@@ -246,6 +250,14 @@ following settings.
   transcoding the file. It can not be combined with other formats.
 
   By default no transcoding is done.
+
+* **`embed`** If set to `true`, album art is embedded in the external
+  files. Updates to cover images in the main collection are synced. No
+  embedding takes place if `embed` is set to `false` (expect if the
+  transcoder embeds the album art).
+
+  This option is optional and defaults to the value of the `embed`
+  option of the convert plugin (default: `true`)
 
 * **`removable`** If this is `true` (the default) and `directory` does
   not exist, the `update` command will ask you to confirm the creation
