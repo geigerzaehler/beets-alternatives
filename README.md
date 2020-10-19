@@ -253,7 +253,7 @@ following settings.
 
 * **`embed`** If set to `true`, album art is embedded in the external
   files. Updates to cover images in the main collection are synced. No
-  embedding takes place if `embed` is set to `false` (expect if the
+  embedding takes place if `embed` is set to `false` (except if the
   transcoder embeds the album art).
 
   This option is optional and defaults to the value of the `embed`
