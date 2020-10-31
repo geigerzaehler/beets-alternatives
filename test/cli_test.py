@@ -3,10 +3,10 @@ import os.path
 import shutil
 
 from beets import util
-from beets.mediafile import MediaFile
 from beets.util import bytestring_path, syspath
-from beets.util.confit import ConfigValueError
+from confuse import ConfigValueError
 from helper import TestHelper, control_stdin
+from mediafile import MediaFile
 
 
 class DocTest(TestHelper):
