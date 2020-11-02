@@ -24,16 +24,16 @@ matrix:
     - env: TOX_ENV=py38-beets_release
       python: 3.8
 
-    - env: TOX_ENV=py39-beets_master
-      python: 3.9-dev
-    - env: TOX_ENV=py39-beets_release
-      python: 3.9-dev
+    - env: TOX_ENV=py310-beets_master
+      python: 3.10-dev
+    - env: TOX_ENV=py310-beets_release
+      python: 3.10-dev
 
     - env: TOX_ENV=py38-flake8
       python: 3.8
 
   allow_failures:
-    - python: 3.9-dev
+    - python: 3.10-dev
 
 install:
   - "pip install tox"
