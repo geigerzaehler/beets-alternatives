@@ -23,6 +23,6 @@ To release a new version of this project follow these steps:
 7. Upload the new version to PyPI with the following commands
    ```
    rm dist
-   python3 setup.py sdist bdist_wheel
+   python3 setup.py sdist
    twine upload dist/*
    ```
