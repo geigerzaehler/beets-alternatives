@@ -162,6 +162,7 @@ class External(object):
         self.name = name
         self.lib = lib
         self.path_key = u'alt.{0}'.format(name)
+        self.convert_plugin = convert.ConvertPlugin()
         self.parse_config(config)
 
     def parse_config(self, config):
@@ -174,6 +175,10 @@ class External(object):
         self.query, _ = parse_query_string(query, Item)
 
         self.removable = config.get(dict).get('removable', True)
+        self._embed = config.get(dict).get(
+                'embed',
+                self.convert_plugin.config["embed"].get(bool)
+                )
 
         if 'directory' in config:
             dir = config['directory'].as_str()
@@ -196,9 +201,9 @@ class External(object):
         item_mtime_alt = os.path.getmtime(syspath(path))
         if (item_mtime_alt < os.path.getmtime(syspath(item.path))):
             actions.append(self.WRITE)
-        album = item.get_album()
 
-        if album:
+        album = item.get_album()
+        if self._embed and album:
             if (album.artpath and
                     os.path.isfile(syspath(album.artpath)) and
                     (item_mtime_alt
@@ -334,9 +339,7 @@ class ExternalConvert(External):
 
     def __init__(self, log, name, formats, lib, config):
         super(ExternalConvert, self).__init__(log, name, lib, config)
-        convert_plugin = convert.ConvertPlugin()
-        self._encode = convert_plugin.encode
-        self._embed = convert_plugin.config['embed'].get(bool)
+        self._encode = self.convert_plugin.encode
         formats = [f.lower() for f in formats]
         self.formats = [convert.ALIASES.get(f, f) for f in formats]
         self.convert_cmd, self.ext = convert.get_format(self.formats[0])
