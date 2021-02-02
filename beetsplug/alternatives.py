@@ -156,6 +156,7 @@ class External(object):
     WRITE = 3
     MOVE = 4
     SYNC_ART = 5
+    COPY_ART = 6
 
     def __init__(self, log, name, lib, config):
         self._log = log
@@ -174,6 +175,7 @@ class External(object):
         self.query, _ = parse_query_string(query, Item)
 
         self.removable = config.get(dict).get('removable', True)
+        self.copy_album_art = config.get(dict).get('copy_album_art', False)
 
         if 'directory' in config:
             dir = config['directory'].as_str()
@@ -234,6 +236,22 @@ class External(object):
             elif self.get_path(item):
                 yield (item, [self.REMOVE])
 
+    def matched_album_action(self, album):
+        dest_dir = self.album_destination(album)
+        if not dest_dir:
+            return (album, [])
+        if self.copy_album_art and album.artpath and os.path.isfile(syspath(album.artpath)):
+            path = album.artpath
+            dest = album.art_destination(path, dest_dir)
+            if (not os.path.isfile(dest)) or (os.path.getmtime(path) > os.path.getmtime(dest)):
+                return (album, [self.COPY_ART])
+        return (album, [])
+
+    def albums_actions(self):
+        for album in self.lib.albums():
+            if self.query.match(album):
+                yield self.matched_album_action(album)
+
     def ask_create(self, create=None):
         if not self.removable:
             return True
@@ -286,9 +304,27 @@ class External(object):
             item.store()
         converter.shutdown()
 
+        for (album, actions) in self.albums_actions():
+            for action in actions:
+                dest_dir = self.album_destination(album)
+                if action == self.COPY_ART:
+                    path = album.artpath
+                    dest = album.art_destination(path, dest_dir)
+                    util.copy(path, dest, replace=True)
+                    print_(u'$~{0}'.format(displayable_path(dest)))
+                    print_(u'$!{0}'.format(displayable_path(path)))
+
     def destination(self, item):
         return item.destination(basedir=self.directory,
                                 path_formats=self.path_formats)
+
+    def album_destination(self, album):
+        items = album.items()
+        if len(items) > 0:
+            head, tail = os.path.split(self.destination(items[0]))
+            return head
+        else:
+            return None
 
     def set_path(self, item, path):
         item[self.path_key] = six.text_type(path, 'utf8')
