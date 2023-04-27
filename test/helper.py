@@ -298,7 +298,7 @@ class TestHelper(TestCase, Assertions, MediaFileAssertions):
                             path.replace(b'/', bytestring_path(os.sep)))
 
     def item_fixture_path(self, fmt):
-        assert(fmt in 'mp3 m4a ogg'.split())
+        assert fmt in 'mp3 m4a ogg'.split()
         return os.path.join(self.fixture_dir,
                             bytestring_path('min.' + fmt.lower()))
 
