@@ -2,7 +2,7 @@ from setuptools import setup
 
 setup(
     name='beets-alternatives',
-    version='0.10.2',
+    version='0.11.0-dev0',
     description='beets plugin to manage multiple files',
     long_description=open('README.md').read(),
     long_description_content_type='text/markdown',
@@ -17,8 +17,7 @@ setup(
     packages=['beetsplug'],
 
     install_requires=[
-        'beets>=1.4.7',
-        'futures; python_version<"3"',
+        'beets>=1.6.0',
         'six',
     ],
 
@@ -27,13 +26,6 @@ setup(
         'Topic :: Multimedia :: Sound/Audio :: Players :: MP3',
         'License :: OSI Approved :: MIT License',
         'Environment :: Console',
-        'Programming Language :: Python :: 2',
-        'Programming Language :: Python :: 2.7',
-        'Programming Language :: Python :: 3',
-        'Programming Language :: Python :: 3.4',
-        'Programming Language :: Python :: 3.5',
-        'Programming Language :: Python :: 3.6',
-        'Programming Language :: Python :: 3.7',
-        'Programming Language :: Python :: 3.8',
+        'Programming Language :: Python',
     ],
 )
