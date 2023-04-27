@@ -12,6 +12,9 @@ symlink your audio to other locations?
 With this [beets][beets-docs] plugin every file in you music library have
 multiple alternate versions in separate locations.
 
+If you’re interested in contributing to this project, check out the [developer
+documentation](./DEVELOPING.md).
+
 Getting Started
 ---------------
 

@@ -1,0 +1,39 @@
+[tool.poetry]
+name = "beets-alternatives"
+version = "0.11.0-dev0"
+description = "beets plugin to manage multiple files"
+authors = [
+  "Thomas Scholtes <geigerzaehler@axiom.fm>",
+  "wisp3rwind <wisp3rwind@posteo.eu>",
+]
+license = "MIT"
+readme = "README.md"
+include = ["CHANGELOG.md"]
+packages = [{ include = "beetsplug" }]
+homepage = "http://www.github.com/geigerzaehler/beets-alternatives"
+repository = "http://www.github.com/geigerzaehler/beets-alternatives"
+classifiers = [
+  "Topic :: Multimedia :: Sound/Audio",
+  "Topic :: Multimedia :: Sound/Audio :: Players :: MP3",
+  "License :: OSI Approved :: MIT License",
+  "Environment :: Console",
+  "Programming Language :: Python",
+]
+
+[tool.poetry.dependencies]
+python = "^3.8.1"
+beets = "^1.6.0"
+six = "^1.16.0"
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^7.3.1"
+pytest-cov = "^4.0.0"
+mock = "^5.0.2"
+flake8 = "^6.0.0"
+
+[tool.pytest.ini_options]
+addopts = "--cov --cov-report=term --cov-report=html"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
