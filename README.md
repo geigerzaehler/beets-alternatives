@@ -1,7 +1,7 @@
 beets-alternatives
 ==================
 
-[![Build Status](https://travis-ci.org/geigerzaehler/beets-alternatives.svg?branch=master)](https://travis-ci.org/geigerzaehler/beets-alternatives)
+[![Check and test](https://github.com/geigerzaehler/beets-alternatives/actions/workflows/main.yaml/badge.svg)](https://github.com/geigerzaehler/beets-alternatives/actions/workflows/main.yaml)
 [![Coverage Status](https://coveralls.io/repos/github/geigerzaehler/beets-alternatives/badge.svg?branch=master)](https://coveralls.io/github/geigerzaehler/beets-alternatives?branch=master)
 
 You want to manage multiple versions of your audio files with beets?
