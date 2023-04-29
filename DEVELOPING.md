@@ -4,6 +4,8 @@ This project uses [Poetry][] for packaging and dependency management.
 
 We’re using the following tools to ensure consistency and quality
 
+- [black](https://github.com/psf/black)
+- [isort](https://github.com/PyCQA/isort)
 - [flake8](https://github.com/PyCQA/flake8)
 - [pytest](https://docs.pytest.org/)
 
