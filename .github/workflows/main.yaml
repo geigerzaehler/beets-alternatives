@@ -6,7 +6,10 @@ jobs:
   build:
     strategy:
       matrix:
-        python-version: ["3.8", "3.9", "3.10", "3.11"]
+        python-version:
+        - "3.8" # minimum required
+        - "3.11" # latest
+        - "3.12-dev" # next
 
     runs-on: ubuntu-latest
 
