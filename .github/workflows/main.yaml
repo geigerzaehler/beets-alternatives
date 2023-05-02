@@ -20,6 +20,7 @@ jobs:
       with:
         python-version: ${{ matrix.python-version }}
         cache: poetry
+    - run: poetry env use $(which python)
     - run: poetry install
     - run: poetry run black --check .
     - run: poetry run isort --check .
@@ -38,6 +39,7 @@ jobs:
       with:
         python-version: 3.8
         cache: poetry
+    - run: poetry env use $(which python)
     - run: poetry install
     # We cannot use `poetry add` because poetry does not install beets
     # dependencies properly
