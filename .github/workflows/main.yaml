@@ -1,0 +1,47 @@
+name: Check and test
+
+on: [push, pull_request]
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        python-version:
+        - "3.8" # minimum required
+        - "3.11" # latest
+        - "3.12-dev" # next
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v3
+    - run: pip install poetry
+    - uses: actions/setup-python@v3
+      with:
+        python-version: ${{ matrix.python-version }}
+        cache: poetry
+    - run: poetry env use $(which python)
+    - run: poetry install
+    - run: poetry run black --check .
+    - run: poetry run isort --check .
+    - run: poetry run flake8
+    - run: poetry run pytest
+    - uses: coverallsapp/github-action@v2
+      if: github.event_name == 'pull_request' && matrix.python-version == '3.8'
+
+  build-beets-master:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v3
+    - run: pip install poetry
+    - uses: actions/setup-python@v3
+      with:
+        python-version: 3.8
+        cache: poetry
+    - run: poetry env use $(which python)
+    - run: poetry install
+    # We cannot use `poetry add` because poetry does not install beets
+    # dependencies properly
+    - run: poetry run pip install "git+https://github.com/beetbox/beets#master"
+    - run: poetry run pytest

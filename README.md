@@ -1,7 +1,7 @@
 beets-alternatives
 ==================
 
-[![Build Status](https://travis-ci.org/geigerzaehler/beets-alternatives.svg?branch=master)](https://travis-ci.org/geigerzaehler/beets-alternatives)
+[![Check and test](https://github.com/geigerzaehler/beets-alternatives/actions/workflows/main.yaml/badge.svg)](https://github.com/geigerzaehler/beets-alternatives/actions/workflows/main.yaml)
 [![Coverage Status](https://coveralls.io/repos/github/geigerzaehler/beets-alternatives/badge.svg?branch=master)](https://coveralls.io/github/geigerzaehler/beets-alternatives?branch=master)
 
 You want to manage multiple versions of your audio files with beets?
@@ -12,13 +12,17 @@ symlink your audio to other locations?
 With this [beets][beets-docs] plugin every file in you music library have
 multiple alternate versions in separate locations.
 
+If you’re interested in contributing to this project, check out the [developer
+documentation](./DEVELOPING.md).
+
 Getting Started
 ---------------
 
-You will also need at least version 1.4.7 of beets.
+Install the plugin and make sure you using at least version 1.6.0 of beets and
+Python 3.8.
 
-```
-pip install --upgrade beets>=1.4.7 beets-alternatives
+```bash
+pip install --upgrade beets>=1.6.0 beets-alternatives
 ```
 
 Then, [enable the plugin][using plugins]. You may use the `beet config --edit`
@@ -65,15 +69,15 @@ from the `query` option. (Since we use boolean values for the
 ‘onplayer’ field it might be a good idea to set the type of this field
 to `bool` using the *types* plugin)
 
-```
-$ beet modify onplayer=true artist:Bach
+```bash
+beet modify onplayer=true artist:Bach
 ```
 
 The configured query also matches all tracks that are part of an album
 where the `onplayer` attribute is ‘true’. We could also use
 
-```
-$ beet modify -a onplayer=true albumartist:Bach
+```bash
+beet modify -a onplayer=true albumartist:Bach
 ```
 
 We then tell beets to create the external files.
@@ -88,30 +92,29 @@ The question makes sure that you don’t recreate a external collection
 if the device is not mounted. Since this is our first go, we answer the
 question with yes.
 
-The command will copy all files with the artist ‘Bach’ and format
-either ‘AAC’ or ‘MP3’ to the `/player` directory. All other formats
-will be transcodec to the ‘AAC’ format unsing the [*convert* plugin][].
-The transcoding process can be configured through [*convert’s*
-configuration][convert config].
+The command will copy all files with the artist ‘Bach’ and format either ‘AAC’
+or ‘MP3’ to the `/player` directory. All other formats will be transcodec to the
+‘AAC’ format unsing the [*convert* plugin][convert plugin]. The transcoding
+process can be configured through [*convert’s* configuration][convert config].
 
 If you update some tracks in your main collection, the `alt update`
 command will propagate the changes to your external collection.  Since
 we don’t need to convert the files but just update the tags, this will
 be much faster the second time.
 
-```
-$ beet modify composer="Johann Sebastian Bach" artist:Bach
-$ beet alt update myplayer
+```bash
+beet modify composer="Johann Sebastian Bach" artist:Bach
+beet alt update myplayer
 ```
 
 After going for a run you mitght realize that Bach is probably not the
 right thing to work out to. So you decide to put Beethoven on your
 player.
 
-```
-$ beet modify onplayer! artist:Bach
-$ beet modify onplayer=true artist:Beethoven
-$ beet alt update myplayer
+```bash
+beet modify onplayer! artist:Bach
+beet modify onplayer=true artist:Beethoven
+beet alt update myplayer
 ```
 
 This removes all Bach tracks from the player and adds Beethoven’s.
@@ -147,7 +150,7 @@ still add a query to select only parts of your collection.
 The `beet alt update by-year` command will now create the symlinks. For
 example
 
-```
+```plain
 /music/by-year/1982/Thriller/Beat It.mp3
 -> /music/Michael Jackson/Thriller/Beat It.mp3
 ```
@@ -166,7 +169,8 @@ alternatives:
 ```
 
 With this config, the `beet alt update by-year` command will create relative symlinks. E.g:
-```
+
+```plain
 /music/by-year/1982/Thriller/Beat It.mp3
 -> ../../../Michael Jackson/Thriller/Beat It.mp3
 ```
@@ -177,7 +181,7 @@ will continue working
 CLI Reference
 -------------
 
-```
+```plain
 beet alt update [--create|--no-create] NAME
 ```
 
@@ -271,7 +275,7 @@ The following is a list of things I might add in the feature.
 License
 -------
 
-Copyright (c) 2014 Thomas Scholtes.
+Copyright (c) 2014-2023 Thomas Scholtes.
 
 Permission is hereby granted, free of charge, to any person obtaining a
 copy of this software and associated documentation files (the "Software"), to

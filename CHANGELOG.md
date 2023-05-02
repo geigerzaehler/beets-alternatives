@@ -1,6 +1,10 @@
 Change Log
 ==========
 
+## Upcoming
+* Drop support for Python 2. Require Python >= 3.8
+* Require beets >= 1.6.0
+
 ## v0.10.2 - 2020-07-15
 * Add `beet alt list-tracks` command
 * SymlinkView: Fix stale symlinks not being removed when files are moved in the
