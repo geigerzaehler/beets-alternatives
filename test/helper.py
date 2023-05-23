@@ -11,8 +11,8 @@ import beets
 import six
 from beets import logging, plugins, ui, util
 from beets.library import Item
-from beets.mediafile import MediaFile
 from beets.util import MoveOperation, bytestring_path, displayable_path, syspath
+from mediafile import MediaFile
 from mock import patch
 from six import StringIO
 
