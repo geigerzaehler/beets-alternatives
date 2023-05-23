@@ -162,6 +162,7 @@ class External(object):
         self.name = name
         self.lib = lib
         self.path_key = "alt.{0}".format(name)
+        self.max_workers = int(str(beets.config['convert']['threads']))
         self.parse_config(config)
 
     def parse_config(self, config):
@@ -364,7 +365,7 @@ class ExternalConvert(External):
                 self.sync_art(item, dest)
             return item, dest
 
-        return Worker(_convert)
+        return Worker(_convert, self.max_workers)
 
     def destination(self, item):
         dest = super(ExternalConvert, self).destination(item)
