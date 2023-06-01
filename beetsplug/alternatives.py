@@ -161,7 +161,7 @@ class External(object):
         self.name = name
         self.lib = lib
         self.path_key = "alt.{0}".format(name)
-        self.max_workers = int(str(beets.config['convert']['threads']))
+        self.max_workers = int(str(beets.config["convert"]["threads"]))
         self.parse_config(config)
 
     def parse_config(self, config):
