@@ -27,7 +27,6 @@ from beets.ui import Subcommand, UserError, decargs, get_path_formats, input_yn,
 from beets.util import (
     FilesystemError,
     bytestring_path,
-    cpu_count,
     displayable_path,
     syspath,
 )
@@ -451,8 +450,8 @@ class SymlinkView(External):
 
 
 class Worker(futures.ThreadPoolExecutor):
-    def __init__(self, fn, max_workers=None):
-        super(Worker, self).__init__(max_workers or cpu_count())
+    def __init__(self, fn, max_workers):
+        super(Worker, self).__init__(max_workers)
         self._tasks = set()
         self._fn = fn
 
