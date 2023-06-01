@@ -321,7 +321,7 @@ class External(object):
             util.copy(item.path, dest, replace=True)
             return item, dest
 
-        return Worker(_convert)
+        return Worker(_convert, self.max_workers)
 
     def sync_art(self, item, path):
         """Embed artwork in the destination file."""
