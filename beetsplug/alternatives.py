@@ -24,12 +24,7 @@ from beets import art, util
 from beets.library import Item, parse_query_string
 from beets.plugins import BeetsPlugin
 from beets.ui import Subcommand, UserError, decargs, get_path_formats, input_yn, print_
-from beets.util import (
-    FilesystemError,
-    bytestring_path,
-    displayable_path,
-    syspath,
-)
+from beets.util import FilesystemError, bytestring_path, displayable_path, syspath
 
 from beetsplug import convert
 
