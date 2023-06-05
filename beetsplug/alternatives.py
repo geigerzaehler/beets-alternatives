@@ -24,13 +24,7 @@ from beets import art, util
 from beets.library import Item, parse_query_string
 from beets.plugins import BeetsPlugin
 from beets.ui import Subcommand, UserError, decargs, get_path_formats, input_yn, print_
-from beets.util import (
-    FilesystemError,
-    bytestring_path,
-    cpu_count,
-    displayable_path,
-    syspath,
-)
+from beets.util import FilesystemError, bytestring_path, displayable_path, syspath
 
 from beetsplug import convert
 
@@ -162,6 +156,7 @@ class External(object):
         self.name = name
         self.lib = lib
         self.path_key = "alt.{0}".format(name)
+        self.max_workers = int(str(beets.config["convert"]["threads"]))
         self.parse_config(config)
 
     def parse_config(self, config):
@@ -320,7 +315,7 @@ class External(object):
             util.copy(item.path, dest, replace=True)
             return item, dest
 
-        return Worker(_convert)
+        return Worker(_convert, self.max_workers)
 
     def sync_art(self, item, path):
         """Embed artwork in the destination file."""
@@ -364,7 +359,7 @@ class ExternalConvert(External):
                 self.sync_art(item, dest)
             return item, dest
 
-        return Worker(_convert)
+        return Worker(_convert, self.max_workers)
 
     def destination(self, item):
         dest = super(ExternalConvert, self).destination(item)
@@ -450,8 +445,8 @@ class SymlinkView(External):
 
 
 class Worker(futures.ThreadPoolExecutor):
-    def __init__(self, fn, max_workers=None):
-        super(Worker, self).__init__(max_workers or cpu_count())
+    def __init__(self, fn, max_workers):
+        super(Worker, self).__init__(max_workers)
         self._tasks = set()
         self._fn = fn
 
