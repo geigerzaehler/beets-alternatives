@@ -1,9 +1,13 @@
 Change Log
 ==========
 
-## Upcoming
+## v0.11.0 - 2023-06-06
+* Use the convert’s plugin [`thread` configuration][convert-config] when
+  transcoding files. ([@johnyerhot](https://github.com/johnyerhot))
 * Drop support for Python 2. Require Python >= 3.8
 * Require beets >= 1.6.0
+
+[convert-config]: https://beets.readthedocs.io/en/latest/plugins/convert.html#configuration
 
 ## v0.10.2 - 2020-07-15
 * Add `beet alt list-tracks` command
