@@ -12,6 +12,7 @@ jobs:
         - "3.12-dev" # next
 
     runs-on: ubuntu-latest
+    continue-on-error: ${{ matrix.python-version == '3.12-dev' }}
 
     steps:
     - uses: actions/checkout@v3
