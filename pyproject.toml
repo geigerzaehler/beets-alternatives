@@ -37,7 +37,12 @@ mediafile = "^0.12.0"
 
 [tool.pytest.ini_options]
 addopts = "--cov --cov-report=term --cov-report=html"
-
+filterwarnings = [
+  "error",
+  "ignore:.*imghdr.*:DeprecationWarning:mediafile",
+  "ignore:.*setlocale.*:DeprecationWarning:beets.util",
+  "ignore:.*pkgutil.get_loader.*:DeprecationWarning:confuse.util",
+]
 [tool.isort]
 profile = "black"
 
