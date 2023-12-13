@@ -8,11 +8,11 @@ jobs:
       matrix:
         python-version:
         - "3.8" # minimum required
-        - "3.11" # latest
-        - "3.12-dev" # next
+        - "3.12" # latest
+        - "3.13-dev" # next
 
     runs-on: ubuntu-latest
-    continue-on-error: ${{ matrix.python-version == '3.12-dev' }}
+    continue-on-error: ${{ matrix.python-version == '3.13-dev' }}
 
     steps:
     - uses: actions/checkout@v3
