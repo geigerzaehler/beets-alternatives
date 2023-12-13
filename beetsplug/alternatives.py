@@ -21,7 +21,6 @@ from enum import Enum
 from typing import Iterator, List, Optional, Tuple
 
 import beets
-import six
 from beets import art, util
 from beets.library import Item, parse_query_string
 from beets.plugins import BeetsPlugin
@@ -297,8 +296,8 @@ class External(object):
         assert isinstance(path, bytes)
         return path
 
-    def set_path(self, item, path):
-        item[self.path_key] = six.text_type(path, "utf8")
+    def set_path(self, item, path: bytes):
+        item[self.path_key] = str(path, "utf8")
 
     @staticmethod
     def _get_path(item, path_key) -> Optional[bytes]:

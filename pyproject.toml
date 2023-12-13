@@ -23,7 +23,6 @@ classifiers = [
 [tool.poetry.dependencies]
 python = "^3.8.1"
 beets = "^1.6.0"
-six = "^1.16.0"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^7.3.1"

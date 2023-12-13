@@ -4,19 +4,18 @@ import sys
 import tempfile
 from concurrent import futures
 from contextlib import contextmanager
+from io import StringIO
 from typing import Optional
 from unittest import TestCase
 from zlib import crc32
 
 import beets
 import beets.library
-import six
 from beets import logging, plugins, ui, util
 from beets.library import Item
 from beets.util import MoveOperation, bytestring_path, displayable_path, syspath
 from mediafile import MediaFile
 from mock import patch
-from six import StringIO
 
 import beetsplug.alternatives as alternatives
 import beetsplug.convert as convert
@@ -30,7 +29,7 @@ class LogCapture(logging.Handler):
         self.messages = []
 
     def emit(self, record):
-        self.messages.append(six.text_type(record.msg))
+        self.messages.append(str(record.msg))
 
 
 @contextmanager
@@ -56,8 +55,6 @@ def capture_stdout():
     """
     org = sys.stdout
     sys.stdout = capture = StringIO()
-    if six.PY2:  # StringIO encoding attr isn't writable in python >= 3
-        sys.stdout.encoding = "utf-8"
     try:
         yield sys.stdout
     finally:
@@ -75,27 +72,10 @@ def control_stdin(input=None):
     """
     org = sys.stdin
     sys.stdin = StringIO(input)
-    if six.PY2:  # StringIO encoding attr isn't writable in python >= 3
-        sys.stdin.encoding = "utf-8"
     try:
         yield sys.stdin
     finally:
         sys.stdin = org
-
-
-def _convert_args(args):
-    """Convert args to bytestrings for Python 2 and convert them to strings
-    on Python 3.
-    """
-    for i, elem in enumerate(args):
-        if six.PY2:
-            if isinstance(elem, six.text_type):
-                args[i] = elem.encode(util.arg_encoding())
-        else:
-            if isinstance(elem, bytes):
-                args[i] = elem.decode(util.arg_encoding())
-
-    return args
 
 
 class Assertions(TestCase):
@@ -278,7 +258,7 @@ class TestHelper(Assertions, MediaFileAssertions):
         # TODO mock stdin
         with capture_stdout() as out:
             try:
-                ui._raw_main(_convert_args(list(args)), self.lib)
+                ui._raw_main(list(args), self.lib)
             except ui.UserError as u:
                 # TODO remove this and handle exceptions in tests
                 print(u.args[0])
