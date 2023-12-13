@@ -34,6 +34,8 @@ isort = "^5.12.0"
 black = "^23.3.0"
 confuse = "^2.0.1"
 mediafile = "^0.12.0"
+typeguard = "^4.1.5"
+pyright = "^1.1.340"
 
 [tool.pytest.ini_options]
 addopts = "--cov --cov-report=term --cov-report=html"
@@ -43,8 +45,12 @@ filterwarnings = [
   "ignore:.*setlocale.*:DeprecationWarning:beets.util",
   "ignore:.*pkgutil.get_loader.*:DeprecationWarning:confuse.util",
 ]
+
 [tool.isort]
 profile = "black"
+
+[tool.pyright]
+typeCheckingMode = "basic"
 
 [build-system]
 requires = ["poetry-core"]

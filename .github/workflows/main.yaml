@@ -26,6 +26,7 @@ jobs:
     - run: poetry run black --check .
     - run: poetry run isort --check .
     - run: poetry run flake8
+    - run: poetry run pyright --warnings
     - run: poetry run pytest
     - uses: coverallsapp/github-action@v2
       if: github.event_name == 'pull_request' && matrix.python-version == '3.8'

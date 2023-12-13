@@ -18,6 +18,7 @@ import threading
 import traceback
 from concurrent import futures
 from enum import Enum
+from typing import Iterator, List, Optional, Tuple
 
 import beets
 import six
@@ -27,7 +28,7 @@ from beets.plugins import BeetsPlugin
 from beets.ui import Subcommand, UserError, decargs, get_path_formats, input_yn, print_
 from beets.util import FilesystemError, bytestring_path, displayable_path, syspath
 
-from beetsplug import convert
+import beetsplug.convert as convert
 
 
 def _remove(path, soft=True):
@@ -62,7 +63,7 @@ class AlternativesPlugin(BeetsPlugin):
     def list_tracks(self, lib, options):
         if options.format is not None:
             (fmt,) = decargs([options.format])
-            beets.config[beets.library.Item._format_config_key].set(fmt)
+            beets.config[Item._format_config_key].set(fmt)
 
         alt = self.alternative(options.name, lib)
 
@@ -79,6 +80,7 @@ class AlternativesPlugin(BeetsPlugin):
 
         if conf["formats"].exists():
             fmt = conf["formats"].as_str()
+            assert isinstance(fmt, str)
             if fmt == "link":
                 return SymlinkView(self._log, name, lib, conf)
             else:
@@ -220,7 +222,7 @@ class External(object):
         else:
             return (item, [Action.ADD])
 
-    def items_actions(self):
+    def items_actions(self) -> Iterator[Tuple[Item, List[Action]]]:
         matched_ids = set()
         for album in self.lib.albums():
             if self.query.match(album):
@@ -266,6 +268,7 @@ class External(object):
                     )
                     util.mkdirall(dest)
                     util.move(path, dest)
+                    assert path is not None
                     util.prune_dirs(os.path.dirname(path), root=self.directory)
                     self.set_path(item, dest)
                     item.store()
@@ -289,20 +292,22 @@ class External(object):
             item.store()
         converter.shutdown()
 
-    def destination(self, item):
-        return item.destination(basedir=self.directory, path_formats=self.path_formats)
+    def destination(self, item: Item) -> bytes:
+        path = item.destination(basedir=self.directory, path_formats=self.path_formats)
+        assert isinstance(path, bytes)
+        return path
 
     def set_path(self, item, path):
         item[self.path_key] = six.text_type(path, "utf8")
 
     @staticmethod
-    def _get_path(item, path_key):
+    def _get_path(item, path_key) -> Optional[bytes]:
         try:
             return item[path_key].encode("utf8")
         except KeyError:
             return None
 
-    def get_path(self, item):
+    def get_path(self, item) -> Optional[bytes]:
         return self._get_path(item, self.path_key)
 
     def remove_item(self, item):
@@ -364,7 +369,7 @@ class ExternalConvert(External):
 
         return Worker(_convert, self.max_workers)
 
-    def destination(self, item):
+    def destination(self, item: Item):
         dest = super(ExternalConvert, self).destination(item)
         if self.should_transcode(item):
             return os.path.splitext(dest)[0] + b"." + self.ext
@@ -450,7 +455,7 @@ class SymlinkView(External):
 
 
 class Worker(futures.ThreadPoolExecutor):
-    def __init__(self, fn, max_workers):
+    def __init__(self, fn, max_workers: Optional[int]):
         super(Worker, self).__init__(max_workers)
         self._tasks = set()
         self._fn = fn
