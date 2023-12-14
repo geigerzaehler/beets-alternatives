@@ -273,7 +273,7 @@ class ExternalCopyTest(TestHelper):
         mediafile = MediaFile(syspath(self.get_path(item)))
         self.assertEqual(mediafile.composer, "JSB")
 
-    def test_no_udpdate_newer(self):
+    def test_no_update_newer(self):
         item = self.add_external_track("myexternal")
         item["composer"] = "JSB"
         item.store()
