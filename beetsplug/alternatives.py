@@ -193,6 +193,12 @@ class External(object):
             actions.append(Action.MOVE)
 
         item_mtime_alt = os.path.getmtime(syspath(path))
+        if item_mtime_alt % 1 == 0:
+            # On Some filesystems (e.g. FAT32) the modification time resolution is
+            # a second. This means external files can look one second older than
+            # they actually are, which leads to unnecessary writes.
+            item_mtime_alt += 1
+
         if item_mtime_alt < os.path.getmtime(syspath(item.path)):
             actions.append(Action.WRITE)
         album = item.get_album()

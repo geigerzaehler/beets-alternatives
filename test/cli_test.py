@@ -273,11 +273,31 @@ class ExternalCopyTest(TestHelper):
         mediafile = MediaFile(syspath(self.get_path(item)))
         self.assertEqual(mediafile.composer, "JSB")
 
-    def test_no_udpdate_newer(self):
+    def test_no_update(self):
         item = self.add_external_track("myexternal")
         item["composer"] = "JSB"
         item.store()
         # We omit write to keep old mtime
+
+        self.runcli("alt", "update", "myexternal")
+        item.load()
+        mediafile = MediaFile(syspath(self.get_path(item)))
+        self.assertNotEqual(mediafile.composer, "JSB")
+
+    def test_no_update_mtime_second_resolution(self):
+        """Assert that we don’t update the external file if the file system it is
+        on has a modification time resolution of only a second."""
+        item = self.add_external_track("myexternal")
+
+        mtime = 10000.5
+        os.utime(item.path, (os.path.getatime(item.path), mtime))
+        # Set modification time of external path to the integral part of the
+        # actual modification time. This makes the file appear older than it
+        # actually is.
+        os.utime(self.get_path(item), (os.path.getatime(item.path), int(mtime)))
+
+        item["composer"] = "JSB"
+        item.store()
 
         self.runcli("alt", "update", "myexternal")
         item.load()

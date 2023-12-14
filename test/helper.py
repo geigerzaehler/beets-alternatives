@@ -5,7 +5,6 @@ import tempfile
 from concurrent import futures
 from contextlib import contextmanager
 from io import StringIO
-from typing import Optional
 from unittest import TestCase
 from zlib import crc32
 
@@ -320,8 +319,10 @@ class TestHelper(Assertions, MediaFileAssertions):
         album.load()
         return album
 
-    def get_path(self, item, path_key="alt.myexternal") -> Optional[bytes]:
-        return alternatives.External._get_path(item, path_key)
+    def get_path(self, item, path_key="alt.myexternal") -> bytes:
+        path = alternatives.External._get_path(item, path_key)
+        assert path is not None
+        return path
 
 
 class MockedWorker(alternatives.Worker):
