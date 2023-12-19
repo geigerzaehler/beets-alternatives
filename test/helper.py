@@ -4,19 +4,21 @@ import sys
 import tempfile
 from concurrent import futures
 from contextlib import contextmanager
+from io import StringIO
+from typing import Optional
 from unittest import TestCase
 from zlib import crc32
 
 import beets
-import six
+import beets.library
 from beets import logging, plugins, ui, util
 from beets.library import Item
 from beets.util import MoveOperation, bytestring_path, displayable_path, syspath
 from mediafile import MediaFile
 from mock import patch
-from six import StringIO
 
-from beetsplug import alternatives, convert
+import beetsplug.alternatives as alternatives
+import beetsplug.convert as convert
 
 logging.getLogger("beets").propagate = True
 
@@ -27,7 +29,7 @@ class LogCapture(logging.Handler):
         self.messages = []
 
     def emit(self, record):
-        self.messages.append(six.text_type(record.msg))
+        self.messages.append(str(record.msg))
 
 
 @contextmanager
@@ -53,8 +55,6 @@ def capture_stdout():
     """
     org = sys.stdout
     sys.stdout = capture = StringIO()
-    if six.PY2:  # StringIO encoding attr isn't writable in python >= 3
-        sys.stdout.encoding = "utf-8"
     try:
         yield sys.stdout
     finally:
@@ -72,30 +72,13 @@ def control_stdin(input=None):
     """
     org = sys.stdin
     sys.stdin = StringIO(input)
-    if six.PY2:  # StringIO encoding attr isn't writable in python >= 3
-        sys.stdin.encoding = "utf-8"
     try:
         yield sys.stdin
     finally:
         sys.stdin = org
 
 
-def _convert_args(args):
-    """Convert args to bytestrings for Python 2 and convert them to strings
-    on Python 3.
-    """
-    for i, elem in enumerate(args):
-        if six.PY2:
-            if isinstance(elem, six.text_type):
-                args[i] = elem.encode(util.arg_encoding())
-        else:
-            if isinstance(elem, bytes):
-                args[i] = elem.decode(util.arg_encoding())
-
-    return args
-
-
-class Assertions(object):
+class Assertions(TestCase):
     def assertFileTag(self, path, tag):
         self.assertIsFile(path)
         with open(syspath(path), "rb") as f:
@@ -162,13 +145,15 @@ class Assertions(object):
             )
 
 
-class MediaFileAssertions(object):
+class MediaFileAssertions(TestCase):
     def assertHasEmbeddedArtwork(self, path, compare_file=None):
         mediafile = MediaFile(syspath(path))
         self.assertIsNotNone(mediafile.art, msg="MediaFile has no embedded artwork")
         if compare_file:
             with open(syspath(compare_file), "rb") as compare_fh:
-                crc_is = crc32(mediafile.art)
+                crc_is = crc32(
+                    mediafile.art  # pyright: ignore[reportGeneralTypeIssues]
+                )
                 crc_expected = crc32(compare_fh.read())
                 self.assertEqual(
                     crc_is,
@@ -193,7 +178,7 @@ class MediaFileAssertions(object):
             )
 
 
-class TestHelper(TestCase, Assertions, MediaFileAssertions):
+class TestHelper(Assertions, MediaFileAssertions):
     def setUp(self, mock_worker=True):
         """Setup required for running test. Must be called before
         running any tests.
@@ -243,7 +228,9 @@ class TestHelper(TestCase, Assertions, MediaFileAssertions):
         self.config["directory"] = libdir
         self.libdir = bytestring_path(libdir)
 
-        self.lib = beets.library.Library(":memory:", self.libdir)
+        self.lib = beets.library.Library(
+            ":memory:", self.libdir  # pyright: ignore[reportGeneralTypeIssues]
+        )
         self.fixture_dir = os.path.join(
             bytestring_path(os.path.dirname(__file__)), b"fixtures"
         )
@@ -271,7 +258,7 @@ class TestHelper(TestCase, Assertions, MediaFileAssertions):
         # TODO mock stdin
         with capture_stdout() as out:
             try:
-                ui._raw_main(_convert_args(list(args)), self.lib)
+                ui._raw_main(list(args), self.lib)
             except ui.UserError as u:
                 # TODO remove this and handle exceptions in tests
                 print(u.args[0])
@@ -333,7 +320,7 @@ class TestHelper(TestCase, Assertions, MediaFileAssertions):
         album.load()
         return album
 
-    def get_path(self, item, path_key="alt.myexternal"):
+    def get_path(self, item, path_key="alt.myexternal") -> Optional[bytes]:
         return alternatives.External._get_path(item, path_key)
 
 
@@ -355,5 +342,5 @@ class MockedWorker(alternatives.Worker):
         self._tasks.add(fut)
         return fut
 
-    def shutdown(wait=True):
+    def shutdown(self, wait=True):
         pass

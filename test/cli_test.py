@@ -7,6 +7,7 @@ from beets.util import bytestring_path, syspath
 from confuse import ConfigValueError
 from helper import TestHelper, control_stdin
 from mediafile import MediaFile
+from typeguard import check_type
 
 
 class DocTest(TestHelper):
@@ -315,7 +316,7 @@ class ExternalCopyTest(TestHelper):
 
     def test_prune_after_move(self):
         item = self.add_external_track("myexternal")
-        artist_dir = os.path.dirname(self.get_path(item))
+        artist_dir = os.path.dirname(check_type(self.get_path(item), bytes))
         self.assertTrue(os.path.isdir(artist_dir))
 
         item["artist"] = "a new artist"
@@ -391,7 +392,7 @@ class ExternalCopyTest(TestHelper):
         # affect the repository.
         image_dir = bytestring_path(self.mkdtemp())
         image_path = os.path.join(image_dir, b"image")
-        shutil.copy(self.IMAGE_FIXTURE1, syspath(image_path))
+        shutil.copy(self.IMAGE_FIXTURE1, check_type(syspath(image_path), bytes))
         touch_art(item, image_path)
 
         # Add a cover image, assert that it is being embedded.
