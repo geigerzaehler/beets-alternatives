@@ -25,16 +25,16 @@ python = "^3.8.1"
 beets = "^1.6.0"
 
 [tool.poetry.group.dev.dependencies]
-pytest = "^7.3.1"
-pytest-cov = "^4.0.0"
-mock = "^5.0.2"
-flake8 = "^6.0.0"
-isort = "^5.12.0"
-black = "^23.3.0"
+black = "^24.2.0"
 confuse = "^2.0.1"
+flake8 = "^7.0.0"
+isort = "^5.12.0"
 mediafile = "^0.12.0"
-typeguard = "^4.1.5"
+mock = "^5.0.2"
 pyright = "^1.1.340"
+pytest = "^8.0.2"
+pytest-cov = "^4.0.0"
+typeguard = "^4.1.5"
 typing-extensions = "^4.9.0"
 
 [tool.pytest.ini_options]
