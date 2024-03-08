@@ -205,7 +205,13 @@ The command accepts the following option.
   command will ask you to confirm the creation of the external
   collection. These options specify the answer as a cli option.
 
+```plain
+beet alt update [--create|--no-create] --all
 ```
+
+Update all external collections defined in `alternatives` configuration.
+
+```plain
 beet alt list-tracks [--format=FORMAT] NAME
 ```
 

@@ -53,12 +53,21 @@ class AlternativesPlugin(BeetsPlugin):
     def commands(self):
         return [AlternativesCommand(self)]
 
-    def update(self, lib: Library, options):
-        try:
-            alt = self.alternative(options.name, lib)
-        except KeyError as e:
-            raise UserError("Alternative collection '{0}' not found.".format(e.args[0]))
-        alt.update(create=options.create)
+    def update(self, lib: Library, options: argparse.Namespace):
+        if options.name is None:
+            if not options.all:
+                raise UserError("Please specify a collection name or the --all flag")
+
+            for name in self.config.keys():
+                self.alternative(name, lib).update(create=options.create)
+        else:
+            try:
+                alt = self.alternative(options.name, lib)
+            except KeyError as e:
+                raise UserError(
+                    "Alternative collection '{0}' not found.".format(e.args[0])
+                )
+            alt.update(create=options.create)
 
     def list_tracks(self, lib, options):
         if options.format is not None:
@@ -100,10 +109,21 @@ class AlternativesCommand(Subcommand):
 
         update = subparsers.add_parser("update")
         update.set_defaults(func=plugin.update)
-        update.add_argument("name", metavar="NAME")
+        update.add_argument(
+            "name",
+            metavar="NAME",
+            nargs="?",
+            help="Name of the collection. Must be  provided unless --all is given",
+        )
         update.add_argument("--create", action="store_const", dest="create", const=True)
         update.add_argument(
             "--no-create", action="store_const", dest="create", const=False
+        )
+        update.add_argument(
+            "--all",
+            action="store_true",
+            default=False,
+            help="Update all alternative collections that are defined in the configuration",
         )
 
         list_tracks = subparsers.add_parser(

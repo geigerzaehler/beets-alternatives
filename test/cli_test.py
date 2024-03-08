@@ -415,6 +415,39 @@ class ExternalCopyTest(TestHelper):
         item = album.items().get()
         self.assertHasEmbeddedArtwork(self.get_path(item), self.IMAGE_FIXTURE2)
 
+    def test_update_all(self):
+        dir_a = self.mkdtemp()
+        dir_b = self.mkdtemp()
+        self.config["alternatives"].get().clear()  # type: ignore
+        self.config["alternatives"] = {
+            "a": {
+                "directory": dir_a,
+                "query": "myexternal:true",
+            },
+            "b": {
+                "directory": dir_b,
+                "query": "myexternal:true",
+            },
+        }
+
+        with self.assertRaises(UserError) as c:
+            self.runcli("alt", "update")
+        assert str(c.exception) == "Please specify a collection name or the --all flag"
+
+        item = self.add_track(title="a", myexternal="true")
+        self.runcli("alt", "update", "--all")
+        item.load()
+        path_a = self.get_path(item, path_key="alt.a")
+        assert path_a and dir_a in path_a.decode()
+        self.assertIsFile(path_a)
+
+        path_b = self.get_path(item, path_key="alt.b")
+        assert path_b and dir_b in path_b.decode()
+        self.assertIsFile(path_b)
+
+        # Don’t update files on second run
+        assert self.runcli("alt", "update", "--all") == ""
+
 
 class ExternalConvertTest(TestHelper):
     """Test alternatives with non-empty ``format`` option, i.e. transcoding
