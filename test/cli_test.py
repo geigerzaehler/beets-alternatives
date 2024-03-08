@@ -3,6 +3,7 @@ import os.path
 import shutil
 
 from beets import util
+from beets.ui import UserError
 from beets.util import bytestring_path, syspath
 from confuse import ConfigValueError
 from helper import TestHelper, control_stdin
@@ -353,8 +354,9 @@ class ExternalCopyTest(TestHelper):
         self.assertIsNotFile(old_path)
 
     def test_unkown_collection(self):
-        out = self.runcli("alt", "update", "unkown")
-        self.assertIn("Alternative collection 'unkown' not found.", out)
+        with self.assertRaises(UserError) as c:
+            self.runcli("alt", "update", "unkown")
+        assert str(c.exception) == "Alternative collection 'unkown' not found."
 
     def test_embed_art(self):
         """Test that artwork is embedded and updated to match the source file.

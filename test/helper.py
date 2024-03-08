@@ -257,11 +257,7 @@ class TestHelper(Assertions, MediaFileAssertions):
     def runcli(self, *args):
         # TODO mock stdin
         with capture_stdout() as out:
-            try:
-                ui._raw_main(list(args), self.lib)
-            except ui.UserError as u:
-                # TODO remove this and handle exceptions in tests
-                print(u.args[0])
+            ui._raw_main(list(args), self.lib)
         return out.getvalue()
 
     def lib_path(self, path):
