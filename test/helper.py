@@ -321,7 +321,10 @@ class TestHelper(Assertions, MediaFileAssertions):
         return album
 
     def get_path(self, item, path_key="alt.myexternal") -> Optional[bytes]:
-        return alternatives.External._get_path(item, path_key)
+        try:
+            return item[path_key].encode("utf8")
+        except KeyError:
+            return None
 
 
 class MockedWorker(alternatives.Worker):

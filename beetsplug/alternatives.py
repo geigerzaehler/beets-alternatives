@@ -22,10 +22,11 @@ from typing import Iterator, List, Optional, Tuple
 
 import beets
 from beets import art, util
-from beets.library import Item, parse_query_string
+from beets.library import Item, Library, parse_query_string
 from beets.plugins import BeetsPlugin
 from beets.ui import Subcommand, UserError, decargs, get_path_formats, input_yn, print_
 from beets.util import FilesystemError, bytestring_path, displayable_path, syspath
+from typing_extensions import override
 
 import beetsplug.convert as convert
 
@@ -52,7 +53,7 @@ class AlternativesPlugin(BeetsPlugin):
     def commands(self):
         return [AlternativesCommand(self)]
 
-    def update(self, lib, options):
+    def update(self, lib: Library, options):
         try:
             alt = self.alternative(options.name, lib)
         except KeyError as e:
@@ -72,7 +73,7 @@ class AlternativesPlugin(BeetsPlugin):
             if alt.path_key in item:
                 print_(format(item))
 
-    def alternative(self, name, lib):
+    def alternative(self, name: str, lib: Library):
         conf = self.config[name]
         if not conf.exists():
             raise KeyError(name)
@@ -183,7 +184,7 @@ class External(object):
             dir = os.path.join(self.lib.directory, dir)
         self.directory = dir
 
-    def item_change_actions(self, item, path, dest):
+    def item_change_actions(self, item: Item, path: bytes, dest: bytes) -> List[Action]:
         """Returns the necessary actions for items that were previously in the
         external collection, but might require metadata updates.
         """
@@ -207,21 +208,21 @@ class External(object):
 
         return actions
 
-    def matched_item_action(self, item):
-        path = self.get_path(item)
+    def _matched_item_action(self, item: Item) -> List[Action]:
+        path = self._get_stored_path(item)
         if path and os.path.lexists(syspath(path)):
             dest = self.destination(item)
             _, path_ext = os.path.splitext(path)
             _, dest_ext = os.path.splitext(dest)
             if not path_ext == dest_ext:
                 # formats config option changed
-                return (item, [Action.REMOVE, Action.ADD])
+                return [Action.REMOVE, Action.ADD]
             else:
-                return (item, self.item_change_actions(item, path, dest))
+                return self.item_change_actions(item, path, dest)
         else:
-            return (item, [Action.ADD])
+            return [Action.ADD]
 
-    def items_actions(self) -> Iterator[Tuple[Item, List[Action]]]:
+    def _items_actions(self) -> Iterator[Tuple[Item, List[Action]]]:
         matched_ids = set()
         for album in self.lib.albums():
             if self.query.match(album):
@@ -230,11 +231,11 @@ class External(object):
 
         for item in self.lib.items():
             if item.id in matched_ids or self.query.match(item):
-                yield self.matched_item_action(item)
-            elif self.get_path(item):
+                yield (item, self._matched_item_action(item))
+            elif self._get_stored_path(item):
                 yield (item, [Action.REMOVE])
 
-    def ask_create(self, create=None):
+    def ask_create(self, create: Optional[bool] = None) -> bool:
         if not self.removable:
             return True
         if create is not None:
@@ -249,15 +250,15 @@ class External(object):
         )
         return input_yn(msg, require=True)
 
-    def update(self, create=None):
+    def update(self, create: Optional[bool] = None):
         if not os.path.isdir(syspath(self.directory)) and not self.ask_create(create):
             print_("Skipping creation of {0}".format(displayable_path(self.directory)))
             return
 
-        converter = self.converter()
-        for item, actions in self.items_actions():
+        converter = self._converter()
+        for item, actions in self._items_actions():
             dest = self.destination(item)
-            path = self.get_path(item)
+            path = self._get_stored_path(item)
             for action in actions:
                 if action == Action.MOVE:
                     print_(
@@ -269,7 +270,7 @@ class External(object):
                     util.move(path, dest)
                     assert path is not None
                     util.prune_dirs(os.path.dirname(path), root=self.directory)
-                    self.set_path(item, dest)
+                    self._set_stored_path(item, dest)
                     item.store()
                     path = dest
                 elif action == Action.WRITE:
@@ -277,45 +278,48 @@ class External(object):
                     item.write(path=path)
                 elif action == Action.SYNC_ART:
                     print_("~{0}".format(displayable_path(path)))
-                    self.sync_art(item, path)
+                    assert path is not None
+                    self._sync_art(item, path)
                 elif action == Action.ADD:
                     print_("+{0}".format(displayable_path(dest)))
                     converter.submit(item)
                 elif action == Action.REMOVE:
                     print_("-{0}".format(displayable_path(path)))
-                    self.remove_item(item)
+                    self._remove_file(item)
                     item.store()
 
         for item, dest in converter.as_completed():
-            self.set_path(item, dest)
+            self._set_stored_path(item, dest)
             item.store()
         converter.shutdown()
 
     def destination(self, item: Item) -> bytes:
+        """Returns the path for `item` in the external collection."""
         path = item.destination(basedir=self.directory, path_formats=self.path_formats)
         assert isinstance(path, bytes)
         return path
 
-    def set_path(self, item, path: bytes):
+    def _set_stored_path(self, item: Item, path: bytes):
         item[self.path_key] = str(path, "utf8")
 
-    @staticmethod
-    def _get_path(item, path_key) -> Optional[bytes]:
+    def _get_stored_path(self, item: Item) -> Optional[bytes]:
         try:
-            return item[path_key].encode("utf8")
+            path = item[self.path_key]
         except KeyError:
             return None
+        if path:
+            return path.encode("utf8")
+        else:
+            return None
 
-    def get_path(self, item) -> Optional[bytes]:
-        return self._get_path(item, self.path_key)
-
-    def remove_item(self, item):
-        path = self.get_path(item)
+    def _remove_file(self, item: Item):
+        """Remove the external file for `item`."""
+        path = self._get_stored_path(item)
         _remove(path)
         util.prune_dirs(path, root=self.directory)
         del item[self.path_key]
 
-    def converter(self):
+    def _converter(self) -> "Worker":
         def _convert(item):
             dest = self.destination(item)
             util.mkdirall(dest)
@@ -324,8 +328,8 @@ class External(object):
 
         return Worker(_convert, self.max_workers)
 
-    def sync_art(self, item, path):
-        """Embed artwork in the destination file."""
+    def _sync_art(self, item: Item, path: bytes):
+        """Embed artwork in the file at `path`."""
         album = item.get_album()
         if album:
             if album.artpath and os.path.isfile(syspath(album.artpath)):
@@ -347,7 +351,8 @@ class ExternalConvert(External):
         self.formats = [convert.ALIASES.get(f, f) for f in formats]
         self.convert_cmd, self.ext = convert.get_format(self.formats[0])
 
-    def converter(self):
+    @override
+    def _converter(self) -> "Worker":
         fs_lock = threading.Lock()
 
         def _convert(item):
@@ -355,7 +360,7 @@ class ExternalConvert(External):
             with fs_lock:
                 util.mkdirall(dest)
 
-            if self.should_transcode(item):
+            if self._should_transcode(item):
                 self._encode(self.convert_cmd, item.path, dest)
                 # Don't rely on the converter to write correct/complete tags.
                 item.write(path=dest)
@@ -363,19 +368,20 @@ class ExternalConvert(External):
                 self._log.debug("copying {0}".format(displayable_path(dest)))
                 util.copy(item.path, dest, replace=True)
             if self._embed:
-                self.sync_art(item, dest)
+                self._sync_art(item, dest)
             return item, dest
 
         return Worker(_convert, self.max_workers)
 
-    def destination(self, item: Item):
-        dest = super(ExternalConvert, self).destination(item)
-        if self.should_transcode(item):
+    @override
+    def destination(self, item: Item) -> bytes:
+        dest = super().destination(item)
+        if self._should_transcode(item):
             return os.path.splitext(dest)[0] + b"." + self.ext
         else:
             return dest
 
-    def should_transcode(self, item):
+    def _should_transcode(self, item):
         return item.format.lower() not in self.formats
 
 
@@ -385,6 +391,7 @@ class SymlinkType(Enum):
 
 
 class SymlinkView(External):
+    @override
     def parse_config(self, config):
         if "query" not in config:
             config["query"] = ""  # This is a TrueQuery()
@@ -398,7 +405,8 @@ class SymlinkView(External):
 
         super(SymlinkView, self).parse_config(config)
 
-    def item_change_actions(self, item, path, dest):
+    @override
+    def item_change_actions(self, item: Item, path: bytes, dest: bytes):
         """Returns the necessary actions for items that were previously in the
         external collection, but might require metadata updates.
         """
@@ -413,10 +421,11 @@ class SymlinkView(External):
 
         return actions
 
+    @override
     def update(self, create=None):
-        for item, actions in self.items_actions():
+        for item, actions in self._items_actions():
             dest = self.destination(item)
-            path = self.get_path(item)
+            path = self._get_stored_path(item)
             for action in actions:
                 if action == Action.MOVE:
                     print_(
@@ -424,21 +433,21 @@ class SymlinkView(External):
                             displayable_path(path), displayable_path(dest)
                         )
                     )
-                    self.remove_item(item)
-                    self.create_symlink(item)
-                    self.set_path(item, dest)
+                    self._remove_file(item)
+                    self._create_symlink(item)
+                    self._set_stored_path(item, dest)
                 elif action == Action.ADD:
                     print_("+{0}".format(displayable_path(dest)))
-                    self.create_symlink(item)
-                    self.set_path(item, dest)
+                    self._create_symlink(item)
+                    self._set_stored_path(item, dest)
                 elif action == Action.REMOVE:
                     print_("-{0}".format(displayable_path(path)))
-                    self.remove_item(item)
+                    self._remove_file(item)
                 else:
                     continue
                 item.store()
 
-    def create_symlink(self, item):
+    def _create_symlink(self, item: Item):
         dest = self.destination(item)
         util.mkdirall(dest)
         link = (
@@ -448,8 +457,8 @@ class SymlinkView(External):
         )
         util.link(link, dest)
 
-    def sync_art(self, item, path):
-        # FIXME: symlink art
+    @override
+    def _sync_art(self, item: Item, path: bytes):
         pass
 
 
