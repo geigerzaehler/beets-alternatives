@@ -151,9 +151,7 @@ class MediaFileAssertions(TestCase):
         self.assertIsNotNone(mediafile.art, msg="MediaFile has no embedded artwork")
         if compare_file:
             with open(syspath(compare_file), "rb") as compare_fh:
-                crc_is = crc32(
-                    mediafile.art  # pyright: ignore[reportGeneralTypeIssues]
-                )
+                crc_is = crc32(mediafile.art)  # pyright: ignore[reportArgumentType]
                 crc_expected = crc32(compare_fh.read())
                 self.assertEqual(
                     crc_is,
@@ -229,7 +227,7 @@ class TestHelper(Assertions, MediaFileAssertions):
         self.libdir = bytestring_path(libdir)
 
         self.lib = beets.library.Library(
-            ":memory:", self.libdir  # pyright: ignore[reportGeneralTypeIssues]
+            ":memory:", self.libdir  # pyright: ignore[reportArgumentType]
         )
         self.fixture_dir = os.path.join(
             bytestring_path(os.path.dirname(__file__)), b"fixtures"
@@ -257,11 +255,7 @@ class TestHelper(Assertions, MediaFileAssertions):
     def runcli(self, *args):
         # TODO mock stdin
         with capture_stdout() as out:
-            try:
-                ui._raw_main(list(args), self.lib)
-            except ui.UserError as u:
-                # TODO remove this and handle exceptions in tests
-                print(u.args[0])
+            ui._raw_main(list(args), self.lib)
         return out.getvalue()
 
     def lib_path(self, path):
