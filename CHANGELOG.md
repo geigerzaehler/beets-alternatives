@@ -1,7 +1,7 @@
 Change Log
 ==========
 
-## Upcoming
+## v0.11.1 - 2024-04-24
 * Add `--all` flag to update command which will update all configured
   collections.
 

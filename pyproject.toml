@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "beets-alternatives"
-version = "0.11.0"
+version = "0.11.1"
 description = "beets plugin to manage multiple files"
 authors = [
   "Thomas Scholtes <geigerzaehler@axiom.fm>",
