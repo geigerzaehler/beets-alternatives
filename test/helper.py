@@ -24,26 +24,6 @@ import beetsplug.convert as convert
 logging.getLogger("beets").propagate = True
 
 
-class LogCapture(logging.Handler):
-    def __init__(self):
-        super().__init__()
-        self.messages = []
-
-    def emit(self, record):
-        self.messages.append(str(record.msg))
-
-
-@contextmanager
-def capture_log(logger="beets"):
-    capture = LogCapture()
-    log = logging.getLogger(logger)
-    log.addHandler(capture)
-    try:
-        yield capture.messages
-    finally:
-        log.removeHandler(capture)
-
-
 @contextmanager
 def capture_stdout():
     """Save stdout in a StringIO.
