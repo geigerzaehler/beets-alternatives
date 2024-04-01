@@ -1,5 +1,4 @@
 # Copyright (c) 2014 Thomas Scholtes
-# -*- coding: utf-8 -*-
 
 # Permission is hereby granted, free of charge, to any person obtaining a
 # copy of this software and associated documentation files (the "Software"), to
@@ -42,13 +41,13 @@ def _remove(path, soft=True):
         return
     try:
         os.remove(path)
-    except (OSError, IOError) as exc:
-        raise FilesystemError(exc, "delete", (path,), traceback.format_exc())
+    except OSError as exc:
+        raise FilesystemError(exc, "delete", (path,), traceback.format_exc()) from exc
 
 
 class AlternativesPlugin(BeetsPlugin):
     def __init__(self):
-        super(AlternativesPlugin, self).__init__()
+        super().__init__()
 
     def commands(self):
         return [AlternativesCommand(self)]
@@ -58,15 +57,15 @@ class AlternativesPlugin(BeetsPlugin):
             if not options.all:
                 raise UserError("Please specify a collection name or the --all flag")
 
-            for name in self.config.keys():
+            for name in self.config.keys():  # noqa: SIM118
                 self.alternative(name, lib).update(create=options.create)
         else:
             try:
                 alt = self.alternative(options.name, lib)
             except KeyError as e:
                 raise UserError(
-                    "Alternative collection '{0}' not found.".format(e.args[0])
-                )
+                    f"Alternative collection '{e.args[0]}' not found."
+                ) from e
             alt.update(create=options.create)
 
     def list_tracks(self, lib, options):
@@ -147,7 +146,7 @@ class AlternativesCommand(Subcommand):
                 Path Formats for more information.""",
         )
 
-        super(AlternativesCommand, self).__init__(self.name, parser, self.help)
+        super().__init__(self.name, parser, self.help)
 
     def func(self, lib, opts, _):
         opts.func(lib, opts)
@@ -175,12 +174,12 @@ class Action(Enum):
     SYNC_ART = 5
 
 
-class External(object):
+class External:
     def __init__(self, log, name, lib, config):
         self._log = log
         self.name = name
         self.lib = lib
-        self.path_key = "alt.{0}".format(name)
+        self.path_key = f"alt.{name}"
         self.max_workers = int(str(beets.config["convert"]["threads"]))
         self.parse_config(config)
 
@@ -218,13 +217,12 @@ class External(object):
             actions.append(Action.WRITE)
         album = item.get_album()
 
-        if album:
-            if (
-                album.artpath
-                and os.path.isfile(syspath(album.artpath))
-                and (item_mtime_alt < os.path.getmtime(syspath(album.artpath)))
-            ):
-                actions.append(Action.SYNC_ART)
+        if album and (
+            album.artpath
+            and os.path.isfile(syspath(album.artpath))
+            and (item_mtime_alt < os.path.getmtime(syspath(album.artpath)))
+        ):
+            actions.append(Action.SYNC_ART)
 
         return actions
 
@@ -234,7 +232,7 @@ class External(object):
             dest = self.destination(item)
             _, path_ext = os.path.splitext(path)
             _, dest_ext = os.path.splitext(dest)
-            if not path_ext == dest_ext:
+            if path_ext != dest_ext:
                 # formats config option changed
                 return [Action.REMOVE, Action.ADD]
             else:
@@ -262,17 +260,15 @@ class External(object):
             return create
 
         msg = (
-            "Collection at '{0}' does not exists. "
+            f"Collection at '{displayable_path(self.directory)}' does not exists. "
             "Maybe you forgot to mount it.\n"
-            "Do you want to create the collection? (y/n)".format(
-                displayable_path(self.directory)
-            )
+            "Do you want to create the collection? (y/n)"
         )
         return input_yn(msg, require=True)
 
     def update(self, create: Optional[bool] = None):
         if not os.path.isdir(syspath(self.directory)) and not self.ask_create(create):
-            print_("Skipping creation of {0}".format(displayable_path(self.directory)))
+            print_(f"Skipping creation of {displayable_path(self.directory)}")
             return
 
         converter = self._converter()
@@ -281,11 +277,7 @@ class External(object):
             path = self._get_stored_path(item)
             for action in actions:
                 if action == Action.MOVE:
-                    print_(
-                        ">{0} -> {1}".format(
-                            displayable_path(path), displayable_path(dest)
-                        )
-                    )
+                    print_(f">{displayable_path(path)} -> {displayable_path(dest)}")
                     util.mkdirall(dest)
                     util.move(path, dest)
                     assert path is not None
@@ -294,17 +286,17 @@ class External(object):
                     item.store()
                     path = dest
                 elif action == Action.WRITE:
-                    print_("*{0}".format(displayable_path(path)))
+                    print_(f"*{displayable_path(path)}")
                     item.write(path=path)
                 elif action == Action.SYNC_ART:
-                    print_("~{0}".format(displayable_path(path)))
+                    print_(f"~{displayable_path(path)}")
                     assert path is not None
                     self._sync_art(item, path)
                 elif action == Action.ADD:
-                    print_("+{0}".format(displayable_path(dest)))
+                    print_(f"+{displayable_path(dest)}")
                     converter.submit(item)
                 elif action == Action.REMOVE:
-                    print_("-{0}".format(displayable_path(path)))
+                    print_(f"-{displayable_path(path)}")
                     self._remove_file(item)
                     item.store()
 
@@ -351,19 +343,16 @@ class External(object):
     def _sync_art(self, item: Item, path: bytes):
         """Embed artwork in the file at `path`."""
         album = item.get_album()
-        if album:
-            if album.artpath and os.path.isfile(syspath(album.artpath)):
-                self._log.debug(
-                    "Embedding art from {} into {}".format(
-                        displayable_path(album.artpath), displayable_path(path)
-                    )
-                )
-                art.embed_item(self._log, item, album.artpath, itempath=path)
+        if album and album.artpath and os.path.isfile(syspath(album.artpath)):
+            self._log.debug(
+                f"Embedding art from {displayable_path(album.artpath)} into {displayable_path(path)}"
+            )
+            art.embed_item(self._log, item, album.artpath, itempath=path)
 
 
 class ExternalConvert(External):
     def __init__(self, log, name, formats, lib, config):
-        super(ExternalConvert, self).__init__(log, name, lib, config)
+        super().__init__(log, name, lib, config)
         convert_plugin = convert.ConvertPlugin()
         self._encode = convert_plugin.encode
         self._embed = convert_plugin.config["embed"].get(bool)
@@ -385,7 +374,7 @@ class ExternalConvert(External):
                 # Don't rely on the converter to write correct/complete tags.
                 item.write(path=dest)
             else:
-                self._log.debug("copying {0}".format(displayable_path(dest)))
+                self._log.debug(f"copying {displayable_path(dest)}")
                 util.copy(item.path, dest, replace=True)
             if self._embed:
                 self._sync_art(item, dest)
@@ -419,11 +408,12 @@ class SymlinkView(External):
             # Default as absolute so it doesn't break previous implementation
             config["link_type"] = "absolute"
 
-        self.relativelinks = config["link_type"].as_choice(
-            {"relative": SymlinkType.RELATIVE, "absolute": SymlinkType.ABSOLUTE}
-        )
+        self.relativelinks = config["link_type"].as_choice({
+            "relative": SymlinkType.RELATIVE,
+            "absolute": SymlinkType.ABSOLUTE,
+        })
 
-        super(SymlinkView, self).parse_config(config)
+        super().parse_config(config)
 
     @override
     def item_change_actions(self, item: Item, path: bytes, dest: bytes):
@@ -432,7 +422,7 @@ class SymlinkView(External):
         """
         actions = []
 
-        if not path == dest:
+        if path != dest:
             # The path of the link itself changed
             actions.append(Action.MOVE)
         elif not util.samefile(path, item.path):
@@ -448,20 +438,16 @@ class SymlinkView(External):
             path = self._get_stored_path(item)
             for action in actions:
                 if action == Action.MOVE:
-                    print_(
-                        ">{0} -> {1}".format(
-                            displayable_path(path), displayable_path(dest)
-                        )
-                    )
+                    print_(f">{displayable_path(path)} -> {displayable_path(dest)}")
                     self._remove_file(item)
                     self._create_symlink(item)
                     self._set_stored_path(item, dest)
                 elif action == Action.ADD:
-                    print_("+{0}".format(displayable_path(dest)))
+                    print_(f"+{displayable_path(dest)}")
                     self._create_symlink(item)
                     self._set_stored_path(item, dest)
                 elif action == Action.REMOVE:
-                    print_("-{0}".format(displayable_path(path)))
+                    print_(f"-{displayable_path(path)}")
                     self._remove_file(item)
                 else:
                     continue
@@ -484,12 +470,12 @@ class SymlinkView(External):
 
 class Worker(futures.ThreadPoolExecutor):
     def __init__(self, fn, max_workers: Optional[int]):
-        super(Worker, self).__init__(max_workers)
+        super().__init__(max_workers)
         self._tasks = set()
         self._fn = fn
 
     def submit(self, *args, **kwargs):
-        fut = super(Worker, self).submit(self._fn, *args, **kwargs)
+        fut = super().submit(self._fn, *args, **kwargs)
         self._tasks.add(fut)
         return fut
 

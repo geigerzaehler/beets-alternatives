@@ -23,9 +23,8 @@ jobs:
         cache: poetry
     - run: poetry env use $(which python)
     - run: poetry install
-    - run: poetry run black --check .
-    - run: poetry run isort --check .
-    - run: poetry run flake8
+    - run: poetry run ruff format --check
+    - run: poetry run ruff check
     - run: poetry run pyright --warnings
     - run: poetry run pytest
     - uses: coverallsapp/github-action@v2

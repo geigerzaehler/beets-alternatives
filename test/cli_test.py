@@ -2,6 +2,7 @@ import os
 import os.path
 import shutil
 
+import pytest
 from beets import util
 from beets.ui import UserError
 from beets.util import bytestring_path, syspath
@@ -56,25 +57,28 @@ class DocTest(TestHelper):
         self.runcli("modify", "--yes", "onplayer=true", "artist:Bach")
         with control_stdin("y"):
             out = self.runcli("alt", "update", "myplayer")
-            self.assertIn("Do you want to create the collection?", out)
+            assert "Do you want to create the collection?" in out
 
         self.assertNotFileTag(external_from_mp3, b"ISAAC")
         self.assertNotFileTag(external_from_m4a, b"ISAAC")
         self.assertFileTag(external_from_ogg, b"ISAAC")
-        self.assertFalse(os.path.isfile(external_beet))
+        assert not os.path.isfile(external_beet)
 
         self.runcli("modify", "--yes", "composer=JSB", "artist:Bach")
 
         list_output = self.runcli(
             "alt", "list-tracks", "myplayer", "--format", "$artist $title"
         )
-        self.assertEqual(
-            list_output, "\n".join(["Bach was mp3", "Bach was m4a", "Bach was ogg", ""])
-        )
+        assert list_output == "\n".join([
+            "Bach was mp3",
+            "Bach was m4a",
+            "Bach was ogg",
+            "",
+        ])
 
         self.runcli("alt", "update", "myplayer")
         mediafile = MediaFile(syspath(external_from_ogg))
-        self.assertEqual(mediafile.composer, "JSB")
+        assert mediafile.composer == "JSB"
 
         self.runcli("modify", "--yes", "onplayer!", "artist:Bach")
         self.runcli(
@@ -85,11 +89,11 @@ class DocTest(TestHelper):
         list_output = self.runcli(
             "alt", "list-tracks", "myplayer", "--format", "$artist"
         )
-        self.assertEqual(list_output, "Beethoven\n")
+        assert list_output == "Beethoven\n"
 
-        self.assertFalse(os.path.isfile(external_from_mp3))
-        self.assertFalse(os.path.isfile(external_from_m4a))
-        self.assertFalse(os.path.isfile(external_from_ogg))
+        assert not os.path.isfile(external_from_mp3)
+        assert not os.path.isfile(external_from_m4a)
+        assert not os.path.isfile(external_from_ogg)
         self.assertFileTag(external_beet, b"ISAAC")
 
 
@@ -97,7 +101,7 @@ class SymlinkViewTest(TestHelper):
     """Test alternatives with the ``link`` format producing symbolic links."""
 
     def setUp(self):
-        super(SymlinkViewTest, self).setUp()
+        super().setUp()
         self.set_paths_config({"default": "$artist/$album/$title"})
         self.config["alternatives"] = {
             "by-year": {
@@ -213,7 +217,8 @@ class SymlinkViewTest(TestHelper):
             original_year="1982",
         )
 
-        self.assertRaises(ConfigValueError, self.runcli, "alt", "update", "by-year")
+        with pytest.raises(ConfigValueError):
+            self.runcli("alt", "update", "by-year")
 
 
 class ExternalCopyTest(TestHelper):
@@ -222,7 +227,7 @@ class ExternalCopyTest(TestHelper):
     """
 
     def setUp(self):
-        super(ExternalCopyTest, self).setUp()
+        super().setUp()
         external_dir = self.mkdtemp()
         self.config["alternatives"] = {
             "myexternal": {
@@ -261,7 +266,7 @@ class ExternalCopyTest(TestHelper):
 
         self.runcli("alt", "update", "myexternal")
         item.load()
-        self.assertIn("alt.myexternal", item)
+        assert "alt.myexternal" in item
 
     def test_update_older(self):
         item = self.add_external_track("myexternal")
@@ -272,7 +277,7 @@ class ExternalCopyTest(TestHelper):
         self.runcli("alt", "update", "myexternal")
         item.load()
         mediafile = MediaFile(syspath(self.get_path(item)))
-        self.assertEqual(mediafile.composer, "JSB")
+        assert mediafile.composer == "JSB"
 
     def test_no_update_newer(self):
         item = self.add_external_track("myexternal")
@@ -283,7 +288,7 @@ class ExternalCopyTest(TestHelper):
         self.runcli("alt", "update", "myexternal")
         item.load()
         mediafile = MediaFile(syspath(self.get_path(item)))
-        self.assertNotEqual(mediafile.composer, "JSB")
+        assert mediafile.composer != "JSB"
 
     def test_move_after_path_format_update(self):
         item = self.add_external_track("myexternal")
@@ -313,18 +318,18 @@ class ExternalCopyTest(TestHelper):
         self.assertIsNotFile(old_path)
         self.assertIsFile(new_path)
         mediafile = MediaFile(syspath(new_path))
-        self.assertEqual(mediafile.title, "a new title")
+        assert mediafile.title == "a new title"
 
     def test_prune_after_move(self):
         item = self.add_external_track("myexternal")
         artist_dir = os.path.dirname(check_type(self.get_path(item), bytes))
-        self.assertTrue(os.path.isdir(artist_dir))
+        assert os.path.isdir(artist_dir)
 
         item["artist"] = "a new artist"
         item.store()
         self.runcli("alt", "update", "myexternal")
 
-        self.assertFalse(os.path.exists(syspath(artist_dir)))
+        assert not os.path.exists(syspath(artist_dir))
 
     def test_remove_item(self):
         item = self.add_external_track("myexternal")
@@ -336,7 +341,7 @@ class ExternalCopyTest(TestHelper):
         self.runcli("alt", "update", "myexternal")
 
         item.load()
-        self.assertNotIn("alt.myexternal", item)
+        assert "alt.myexternal" not in item
         self.assertIsNotFile(old_path)
 
     def test_remove_album(self):
@@ -350,13 +355,13 @@ class ExternalCopyTest(TestHelper):
         self.runcli("alt", "update", "myexternal")
 
         item.load()
-        self.assertNotIn("alt.myexternal", item)
+        assert "alt.myexternal" not in item
         self.assertIsNotFile(old_path)
 
     def test_unkown_collection(self):
-        with self.assertRaises(UserError) as c:
+        with pytest.raises(UserError) as e:
             self.runcli("alt", "update", "unkown")
-        assert str(c.exception) == "Alternative collection 'unkown' not found."
+        assert str(e.value) == "Alternative collection 'unkown' not found."
 
     def test_embed_art(self):
         """Test that artwork is embedded and updated to match the source file.
@@ -430,19 +435,21 @@ class ExternalCopyTest(TestHelper):
             },
         }
 
-        with self.assertRaises(UserError) as c:
+        with pytest.raises(UserError) as e:
             self.runcli("alt", "update")
-        assert str(c.exception) == "Please specify a collection name or the --all flag"
+        assert str(e.value) == "Please specify a collection name or the --all flag"
 
         item = self.add_track(title="a", myexternal="true")
         self.runcli("alt", "update", "--all")
         item.load()
         path_a = self.get_path(item, path_key="alt.a")
-        assert path_a and dir_a in path_a.decode()
+        assert path_a
+        assert dir_a in path_a.decode()
         self.assertIsFile(path_a)
 
         path_b = self.get_path(item, path_key="alt.b")
-        assert path_b and dir_b in path_b.decode()
+        assert path_b
+        assert dir_b in path_b.decode()
         self.assertIsFile(path_b)
 
         # Don’t update files on second run
@@ -455,7 +462,7 @@ class ExternalConvertTest(TestHelper):
     """
 
     def setUp(self):
-        super(ExternalConvertTest, self).setUp()
+        super().setUp()
         external_dir = self.mkdtemp()
         self.config["convert"]["formats"] = {
             "ogg": "bash -c \"cp '$source' '$dest';" + "printf ISOGG >> '$dest'\""
@@ -500,7 +507,7 @@ class ExternalConvertTest(TestHelper):
         item.load()
 
         alt_mediafile = MediaFile(syspath(self.get_path(item)))
-        self.assertEqual(alt_mediafile.title, "TITLE")
+        assert alt_mediafile.title == "TITLE"
 
     def test_skip_convert_for_same_format(self):
         item = self.add_track(myexternal="true")
@@ -543,7 +550,7 @@ class ExternalConvertWorkerTest(TestHelper):
     """
 
     def setUp(self):
-        super(ExternalConvertWorkerTest, self).setUp(mock_worker=False)
+        super().setUp(mock_worker=False)
         external_dir = self.mkdtemp()
         self.config["convert"]["formats"] = {
             "ogg": "bash -c \"cp '{source}' '$dest'\"".format(
@@ -562,7 +569,7 @@ class ExternalConvertWorkerTest(TestHelper):
     def test_convert_multiple(self):
         items = [
             self.add_track(
-                title="track {}".format(i),
+                title=f"track {i}",
                 myexternal="true",
                 format="m4a",
             )
@@ -581,7 +588,7 @@ class ExternalRemovableTest(TestHelper):
     """
 
     def setUp(self):
-        super(ExternalRemovableTest, self).setUp()
+        super().setUp()
         external_dir = os.path.join(self.mkdtemp(), "\u00e9xt")
         self.config["alternatives"] = {
             "myexternal": {
@@ -595,38 +602,38 @@ class ExternalRemovableTest(TestHelper):
         item = self.add_track()
         with control_stdin("y"):
             out = self.runcli("alt", "update", "myexternal")
-            self.assertIn("Do you want to create the collection?", out)
+            assert "Do you want to create the collection?" in out
         item.load()
-        self.assertIn("alt.myexternal", item)
+        assert "alt.myexternal" in item
 
     def test_ask_create_no(self):
         item = self.add_track()
         with control_stdin("n"):
             out = self.runcli("alt", "update", "myexternal")
-            self.assertIn("Skipping creation of", out)
+            assert "Skipping creation of" in out
         item.load()
-        self.assertNotIn("alt.myexternal", item)
+        assert "alt.myexternal" not in item
 
     def test_create_option(self):
         item = self.add_track()
         self.runcli("alt", "update", "--create", "myexternal")
         item.load()
-        self.assertIn("alt.myexternal", item)
+        assert "alt.myexternal" in item
 
     def test_no_create_option(self):
         item = self.add_track()
         self.runcli("alt", "update", "--no-create", "myexternal")
         item.load()
-        self.assertNotIn("alt.myexternal", item)
+        assert "alt.myexternal" not in item
 
     def test_not_removable(self):
         item = self.add_track()
         self.external_config["removable"] = False
         with control_stdin("y"):
             out = self.runcli("alt", "update", "myexternal")
-            self.assertNotIn("Do you want to create the collection?", out)
+            assert "Do you want to create the collection?" not in out
         item.load()
-        self.assertIn("alt.myexternal", item)
+        assert "alt.myexternal" in item
 
 
 class CompletionTest(TestHelper):
