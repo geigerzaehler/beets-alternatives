@@ -322,7 +322,7 @@ class TestExternalCopy(TestHelper):
 
         item["title"] = "a new title"
         item.store()
-        item.try_write()  # Required to update mtime.
+        item.write()
         self.runcli("alt", "update", "myexternal")
 
         item.load()
