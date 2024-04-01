@@ -173,53 +173,33 @@ class TestSymlinkView(TestHelper):
         self.alt_config["link_type"] = "relative"
         self.test_add_move_remove_album(absolute=False)
 
-    def test_add_update_move_album(self):
-        """Test that symlinks are properly updated and no broken links left
-        when an item's path in the library changes.
-        Since moving the items causes the links in the symlink view to be
-        broken, this situation used to be incorrectly detected as
-        addition of new items, such that the old links weren't removed.
-        Contrast this to the `test_add_move_remove_album` test, in which the
-        old links do not break upon changing the path format.
-        * An album is added.
-        * The album name is changed, which also causes the tracks to be moved.
-        * The symlink view is updated.
-        """
+    def test_update_link_target(self, tmp_path: Path):
+        """Link targets are updated when the item has moved in the library"""
+
         self.add_album(artist="Michael Jackson", album="Thriller", year="1990")
 
         self.runcli("alt", "update", "by-year")
 
-        by_year_path = self.libdir / "by-year/1990/Thriller/track 1.mp3"
+        alt_path = self.libdir / "by-year/1990/Thriller/track 1.mp3"
         assert_symlink(
-            link=by_year_path,
+            link=alt_path,
             target=self.libdir / "Michael Jackson/Thriller/track 1.mp3",
             absolute=True,
         )
 
-        # `-y` skips the prompt, `-a` updates album-level fields, `-m` forces
-        # actually moving the files
-        self.runcli("mod", "-y", "-a", "-m", "Thriller", "album=Thriller (Remastered)")
+        new_libdir = tmp_path / "newlib"
+        new_libdir.mkdir()
+        self.runcli("move", "-a", "-d", str(new_libdir), "Thriller")
         self.runcli("alt", "update", "by-year")
 
         assert_symlink(
-            link=self.libdir / "by-year/1990/Thriller (Remastered)/track 1.mp3",
-            target=self.libdir / "Michael Jackson/Thriller (Remastered)/track 1.mp3",
+            link=alt_path,
+            target=new_libdir / "Michael Jackson/Thriller/track 1.mp3",
             absolute=True,
         )
 
-    def test_valid_options(self):
-        """Test that an error is raised when option is invalid
-        * Config link type is invalid
-        * An album is added
-        * A confuse.ConfigValueError is raised
-        """
+    def test_invalid_link_type(self):
         self.alt_config["link_type"] = "Hylian"
-        self.add_album(
-            artist="Michael Jackson",
-            album="Thriller",
-            year="1990",
-            original_year="1982",
-        )
 
         with pytest.raises(ConfigValueError):
             self.runcli("alt", "update", "by-year")
