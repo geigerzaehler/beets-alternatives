@@ -1,4 +1,5 @@
 import os
+import platform
 import sys
 from concurrent import futures
 from contextlib import contextmanager
@@ -261,3 +262,20 @@ class MockedWorker(alternatives.Worker):
 
     def shutdown(self, wait=True):
         pass
+
+
+def convert_command(tag: str) -> str:
+    """Return a convert shell command that copies the file and adds a tag to the files end."""
+
+    system = platform.system()
+    if system == "Windows":
+        return (
+            'powershell -Command "'
+            "Copy-Item -Path '$source' -Destination '$dest';"
+            f"Add-Content -Path '$dest' -Value {tag} -NoNewline"
+            '"'
+        )
+    elif system == "Linux":
+        return f"bash -c \"cp '$source' '$dest'; printf {tag} >> '$dest'\""
+    else:
+        raise Exception(f"Unsupported system: {system}")

@@ -2,41 +2,52 @@ name: Check and test
 
 on: [push, pull_request]
 
+env:
+  FORCE_COLOR: 1
+
 jobs:
   build:
     strategy:
       matrix:
+        os: ["ubuntu-latest"]
         python-version:
         - "3.8" # minimum required
         - "3.12" # latest
         - "3.13-dev" # next
+        include:
+        - python-version: 3.8
+          os: windows-2022
 
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
     continue-on-error: ${{ matrix.python-version == '3.13-dev' }}
 
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     - run: pip install poetry
-    - uses: actions/setup-python@v3
+    - uses: actions/setup-python@v5
+      id: setup-python
       with:
         python-version: ${{ matrix.python-version }}
         cache: poetry
-    - run: poetry env use $(which python)
+    - run: poetry env use ${{ steps.setup-python.outputs.python-path }}
     - run: poetry install
     - run: poetry run ruff format --check
     - run: poetry run ruff check
     - run: poetry run pyright --warnings
     - run: poetry run pytest
     - uses: coverallsapp/github-action@v2
-      if: github.event_name == 'pull_request' && matrix.python-version == '3.8'
+      if: >
+        github.event_name == 'pull_request' &&
+        matrix.python-version == '3.8' &&
+        matrix.os == 'ubuntu-latest'
 
   build-beets-master:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     - run: pip install poetry
-    - uses: actions/setup-python@v3
+    - uses: actions/setup-python@v5
       with:
         python-version: 3.8
         cache: poetry
