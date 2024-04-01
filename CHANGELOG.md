@@ -1,6 +1,15 @@
 Change Log
 ==========
 
+## Upcoming
+
+* Don’t recreate symlinks when there are no changes to the track or album.
+* Consistently use Unicode paths to alternative items. This may result and
+  collection updates and orphaned files in alternatives. It may also improve
+  usability on non-standard file systems (see [#74]).
+
+[#74]: https://github.com/geigerzaehler/beets-alternatives/issues/74
+
 ## v0.11.1 - 2024-04-24
 * Add `--all` flag to update command which will update all configured
   collections.
