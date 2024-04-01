@@ -5,7 +5,6 @@ import tempfile
 from concurrent import futures
 from contextlib import contextmanager
 from io import StringIO
-from pathlib import Path
 from typing import Optional
 from unittest import TestCase
 from unittest.mock import patch
@@ -58,85 +57,89 @@ def control_stdin(input=None):
         sys.stdin = org
 
 
-class Assertions(TestCase):
-    def assertFileTag(self, path, tag):
-        self.assertIsFile(path)
-        with open(syspath(path), "rb") as f:
-            f.seek(-5, os.SEEK_END)
-            assert f.read() == tag
-
-    def assertNotFileTag(self, path, tag):
-        self.assertIsFile(path)
-        with open(syspath(path), "rb") as f:
-            f.seek(-5, os.SEEK_END)
-            assert f.read() != tag
-
-    def assertIsFile(self, path):
-        assert os.path.isfile(
-            syspath(path)
-        ), f"Path is not a file: {displayable_path(path)}"
-
-    def assertIsNotFile(self, path):
-        """Asserts that `path` is neither a regular file (``os.path.isfile``,
-        follows symlinks and returns False for a broken symlink) nor a symlink
-        (``os.path.islink``, returns True for both valid and broken symlinks).
-        """
-        assert not os.path.isfile(
-            syspath(path)
-        ), f"Path is a file: {displayable_path(path)}"
-        assert not os.path.islink(
-            syspath(path)
-        ), f"Path is a symlink: {displayable_path(path)}"
-
-    def assertSymlink(self, link, target, absolute=True):
-        assert os.path.islink(
-            syspath(link)
-        ), f"Path is not a symbolic link: {displayable_path(link)}"
-        assert os.path.isfile(
-            syspath(target)
-        ), f"Path is not a file: {displayable_path(link)}"
-        pre_link_target = bytestring_path(os.readlink(syspath(link)))
-        link_target = os.path.join(os.path.dirname(link), pre_link_target)
-        assert util.samefile(
-            target, link_target
-        ), f"Symlink points to {displayable_path(link_target)} instead of {displayable_path(target)}"
-
-        if absolute:
-            assert os.path.isabs(
-                pre_link_target
-            ), f"Symlink {displayable_path(pre_link_target)} is not absolute"
-        else:
-            assert not os.path.isabs(
-                pre_link_target
-            ), f"Symlink {displayable_path(pre_link_target)} is not relative"
+def assert_file_tag(path, tag: bytes):
+    assert_is_file(path)
+    with open(syspath(path), "rb") as f:
+        f.seek(-5, os.SEEK_END)
+        assert f.read() == tag
 
 
-class MediaFileAssertions(TestCase):
-    def assertHasEmbeddedArtwork(self, path, compare_file=None):
-        mediafile = MediaFile(syspath(path))
-        assert mediafile.art is not None, "MediaFile has no embedded artwork"
-        if compare_file:
-            with open(syspath(compare_file), "rb") as compare_fh:  # noqa: FURB101
-                crc_is = crc32(mediafile.art)  # pyright: ignore[reportArgumentType]
-                crc_expected = crc32(compare_fh.read())
-                assert crc_is == crc_expected, (
-                    "MediaFile has embedded artwork, but "
-                    f"content (CRC32: {crc_is}) doesn't match "
-                    f"expectations (CRC32: {crc_expected})."
-                )
-
-    def assertHasNoEmbeddedArtwork(self, path):
-        mediafile = MediaFile(syspath(path))
-        assert mediafile.art is None, "MediaFile has embedded artwork"
-
-    def assertMediaFileFields(self, path, **kwargs):
-        mediafile = MediaFile(syspath(path))
-        for k, v in kwargs.items():
-            actual = getattr(mediafile, k)
-            assert actual == v, f"MediaFile has tag {k}='{actual}' " f"instead of '{v}'"
+def assert_not_file_tag(path, tag: bytes):
+    assert_is_file(path)
+    with open(syspath(path), "rb") as f:
+        f.seek(-5, os.SEEK_END)
+        assert f.read() != tag
 
 
-class TestHelper(Assertions, MediaFileAssertions):
+def assert_is_file(path):
+    assert os.path.isfile(
+        syspath(path)
+    ), f"Path is not a file: {displayable_path(path)}"
+
+
+def assert_is_not_file(path):
+    """Asserts that `path` is neither a regular file (``os.path.isfile``,
+    follows symlinks and returns False for a broken symlink) nor a symlink
+    (``os.path.islink``, returns True for both valid and broken symlinks).
+    """
+    assert not os.path.isfile(
+        syspath(path)
+    ), f"Path is a file: {displayable_path(path)}"
+    assert not os.path.islink(
+        syspath(path)
+    ), f"Path is a symlink: {displayable_path(path)}"
+
+
+def assert_symlink(link, target, absolute: bool = True):
+    assert os.path.islink(
+        syspath(link)
+    ), f"Path is not a symbolic link: {displayable_path(link)}"
+    assert os.path.isfile(
+        syspath(target)
+    ), f"Path is not a file: {displayable_path(link)}"
+    pre_link_target = bytestring_path(os.readlink(syspath(link)))
+    link_target = os.path.join(os.path.dirname(link), pre_link_target)
+    assert util.samefile(
+        target, link_target
+    ), f"Symlink points to {displayable_path(link_target)} instead of {displayable_path(target)}"
+
+    if absolute:
+        assert os.path.isabs(
+            pre_link_target
+        ), f"Symlink {displayable_path(pre_link_target)} is not absolute"
+    else:
+        assert not os.path.isabs(
+            pre_link_target
+        ), f"Symlink {displayable_path(pre_link_target)} is not relative"
+
+
+def assert_has_embedded_artwork(path, compare_file=None):
+    mediafile = MediaFile(syspath(path))
+    assert mediafile.art is not None, "MediaFile has no embedded artwork"
+    if compare_file:
+        with open(syspath(compare_file), "rb") as compare_fh:  # noqa: FURB101
+            crc_is = crc32(mediafile.art)  # pyright: ignore[reportArgumentType]
+            crc_expected = crc32(compare_fh.read())
+            assert crc_is == crc_expected, (
+                "MediaFile has embedded artwork, but "
+                f"content (CRC32: {crc_is}) doesn't match "
+                f"expectations (CRC32: {crc_expected})."
+            )
+
+
+def assert_has_not_embedded_artwork(path):
+    mediafile = MediaFile(syspath(path))
+    assert mediafile.art is None, "MediaFile has embedded artwork"
+
+
+def assert_media_file_fields(path, **kwargs):
+    mediafile = MediaFile(syspath(path))
+    for k, v in kwargs.items():
+        actual = getattr(mediafile, k)
+        assert actual == v, f"MediaFile has tag {k}='{actual}' " f"instead of '{v}'"
+
+
+class TestHelper(TestCase):
     def setUp(self, mock_worker=True):
         """Setup required for running test. Must be called before
         running any tests.
