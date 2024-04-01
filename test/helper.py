@@ -1,17 +1,15 @@
 import os
-import shutil
 import sys
-import tempfile
 from concurrent import futures
 from contextlib import contextmanager
 from io import StringIO
+from pathlib import Path
 from typing import Optional
-from unittest import TestCase
-from unittest.mock import patch
 from zlib import crc32
 
 import beets
 import beets.library
+import pytest
 from beets import logging, plugins, ui, util
 from beets.library import Item
 from beets.util import MoveOperation, bytestring_path, displayable_path, syspath
@@ -20,7 +18,10 @@ from mediafile import MediaFile
 import beetsplug.alternatives as alternatives
 import beetsplug.convert as convert
 
-logging.getLogger("beets").propagate = True
+beetsLogger = logging.getLogger("beets")
+beetsLogger.propagate = True
+for h in beetsLogger.handlers:
+    beetsLogger.removeHandler(h)
 
 
 @contextmanager
@@ -139,41 +140,12 @@ def assert_media_file_fields(path, **kwargs):
         assert actual == v, f"MediaFile has tag {k}='{actual}' " f"instead of '{v}'"
 
 
-class TestHelper(TestCase):
-    def setUp(self, mock_worker=True):
-        """Setup required for running test. Must be called before
-        running any tests.
+class TestHelper:
+    @pytest.fixture(autouse=True)
+    def _setup(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+        monkeypatch.setattr("beetsplug.alternatives.Worker", MockedWorker)
 
-        If ``mock_worker`` is ``True`` the simple non-threaded
-        ``MockedWorker`` is used to run file conversion commands. In
-        particular, in contrast to the actual conversion routine from the
-        ``convert`` plugin, it will not attempt to write tags to the output
-        files. Thus, the 'converted' files need not be valid audio files.
-        """
-        if mock_worker:
-            patcher = patch("beetsplug.alternatives.Worker", new=MockedWorker)
-            patcher.start()
-            self.addCleanup(patcher.stop)
-
-        self._tempdirs = []
         plugins._classes = {alternatives.AlternativesPlugin, convert.ConvertPlugin}
-        self.setup_beets()
-
-    def tearDown(self):
-        self.unload_plugins()
-        for tempdir in self._tempdirs:
-            shutil.rmtree(syspath(tempdir))
-
-    def mkdtemp(self):
-        # This return a str path, i.e. Unicode on Python 3. We need this in
-        # order to put paths into the configuration.
-        path = tempfile.mkdtemp()
-        self._tempdirs.append(path)
-        return path
-
-    def setup_beets(self):
-        self.addCleanup(self.teardown_beets)
-        os.environ["BEETSDIR"] = self.mkdtemp()
 
         self.config = beets.config
         self.config.clear()
@@ -185,7 +157,8 @@ class TestHelper(TestCase):
         self.config["threaded"] = False
         self.config["import"]["copy"] = False
 
-        libdir = self.mkdtemp()
+        libdir = str(tmp_path / "beets_lib")
+        os.environ["BEETSDIR"] = libdir
         self.config["directory"] = libdir
         self.libdir = bytestring_path(libdir)
 
@@ -199,18 +172,7 @@ class TestHelper(TestCase):
 
         self.IMAGE_FIXTURE1 = os.path.join(self.fixture_dir, b"image.png")
         self.IMAGE_FIXTURE2 = os.path.join(self.fixture_dir, b"image_black.png")
-
-    def teardown_beets(self):
-        del self.lib._connections
-        if "BEETSDIR" in os.environ:
-            del os.environ["BEETSDIR"]
-        self.config.clear()
-        beets.config.read(user=False, defaults=True)
-
-    def set_paths_config(self, conf):
-        self.lib.path_formats = conf.items()
-
-    def unload_plugins(self):
+        yield
         for plugin in plugins._classes:
             plugin.listeners = None
             plugins._classes = set()
@@ -294,12 +256,6 @@ class MockedWorker(alternatives.Worker):
         fut = futures.Future()
         res = self._fn(*args, **kwargs)
         fut.set_result(res)
-        # try:
-        #     res = fn(*args, **kwargs)
-        # except Exception as e:
-        #     fut.set_exception(e)
-        # else:
-        #     fut.set_result(res)
         self._tasks.add(fut)
         return fut
 

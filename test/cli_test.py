@@ -1,6 +1,7 @@
 import os
 import os.path
 import shutil
+from pathlib import Path
 
 import pytest
 from beets import util
@@ -24,13 +25,13 @@ from .helper import (
 )
 
 
-class DocTest(TestHelper):
+class TestDoc(TestHelper):
     """Test alternatives in a larger-scale scenario with transcoding and
     multiple changes to the library.
     """
 
-    def test_external(self):
-        external_dir = os.path.join(self.mkdtemp(), "myplayer")
+    def test_external(self, tmp_path: Path):
+        external_dir = str(tmp_path / "myplayer")
         self.config["convert"]["formats"] = {
             "aac": {
                 "command": "bash -c \"cp '$source' '$dest';"
@@ -109,12 +110,12 @@ class DocTest(TestHelper):
         assert_file_tag(external_beet, b"ISAAC")
 
 
-class SymlinkViewTest(TestHelper):
+class TestSymlinkView(TestHelper):
     """Test alternatives with the ``link`` format producing symbolic links."""
 
-    def setUp(self):
-        super().setUp()
-        self.set_paths_config({"default": "$artist/$album/$title"})
+    @pytest.fixture(autouse=True)
+    def _symlink_view(self):
+        self.lib.path_formats = (("default", "$artist/$album/$title"),)
         self.config["alternatives"] = {
             "by-year": {
                 "paths": {"default": "$year/$album/$title"},
@@ -233,17 +234,16 @@ class SymlinkViewTest(TestHelper):
             self.runcli("alt", "update", "by-year")
 
 
-class ExternalCopyTest(TestHelper):
+class TestExternalCopy(TestHelper):
     """Test alternatives with empty ``format `` option, i.e. only copying
     without transcoding.
     """
 
-    def setUp(self):
-        super().setUp()
-        external_dir = self.mkdtemp()
+    @pytest.fixture(autouse=True)
+    def _external_copy(self, tmp_path: Path, _setup: None):
         self.config["alternatives"] = {
             "myexternal": {
-                "directory": external_dir,
+                "directory": str(tmp_path),
                 "query": "myexternal:true",
             }
         }
@@ -375,7 +375,7 @@ class ExternalCopyTest(TestHelper):
             self.runcli("alt", "update", "unkown")
         assert str(e.value) == "Alternative collection 'unkown' not found."
 
-    def test_embed_art(self):
+    def test_embed_art(self, tmp_path: Path):
         """Test that artwork is embedded and updated to match the source file.
 
         There used to be a bug that meant that albumart was only embedded
@@ -409,8 +409,7 @@ class ExternalCopyTest(TestHelper):
 
         # Make a copy of the artwork, so that changing mtime/content won't
         # affect the repository.
-        image_dir = bytestring_path(self.mkdtemp())
-        image_path = os.path.join(image_dir, b"image")
+        image_path = bytes(tmp_path / "image")
         shutil.copy(self.IMAGE_FIXTURE1, check_type(syspath(image_path), bytes))
         touch_art(item, image_path)
 
@@ -432,9 +431,13 @@ class ExternalCopyTest(TestHelper):
         item = album.items().get()
         assert_has_embedded_artwork(self.get_path(item), self.IMAGE_FIXTURE2)
 
-    def test_update_all(self):
-        dir_a = self.mkdtemp()
-        dir_b = self.mkdtemp()
+    def test_update_all(self, tmp_path: Path):
+        dir_a = tmp_path / "a"
+        dir_a.mkdir()
+        dir_a = str(dir_a)
+        dir_b = tmp_path / "b"
+        dir_b.mkdir()
+        dir_b = str(dir_b)
         self.config["alternatives"].get().clear()  # type: ignore
         self.config["alternatives"] = {
             "a": {
@@ -468,14 +471,14 @@ class ExternalCopyTest(TestHelper):
         assert self.runcli("alt", "update", "--all") == ""
 
 
-class ExternalConvertTest(TestHelper):
+class TestExternalConvert(TestHelper):
     """Test alternatives with non-empty ``format`` option, i.e. transcoding
     some of the files.
     """
 
-    def setUp(self):
-        super().setUp()
-        external_dir = self.mkdtemp()
+    @pytest.fixture(autouse=True)
+    def _external_convert(self, tmp_path: Path, _setup: None):
+        external_dir = str(tmp_path)
         self.config["convert"]["formats"] = {
             "ogg": "bash -c \"cp '$source' '$dest';" + "printf ISOGG >> '$dest'\""
         }
@@ -555,15 +558,15 @@ class ExternalConvertTest(TestHelper):
         assert_file_tag(converted_path, b"ISMP3")
 
 
-class ExternalConvertWorkerTest(TestHelper):
+class TestExternalConvertWorker(TestHelper):
     """Test alternatives with non-empty ``format`` option, i.e. transcoding
     some of the files. In contrast to the previous test, these test do use
     the parallelizing ``beetsplug.alternatives.Worker``.
     """
 
-    def setUp(self):
-        super().setUp(mock_worker=False)
-        external_dir = self.mkdtemp()
+    def test_convert_multiple(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+        monkeypatch.undo()
+        external_dir = str(tmp_path)
         self.config["convert"]["formats"] = {
             "ogg": "bash -c \"cp '{source}' '$dest'\"".format(
                 # The convert plugin will encode this again using arg_encoding
@@ -578,7 +581,6 @@ class ExternalConvertWorkerTest(TestHelper):
             }
         }
 
-    def test_convert_multiple(self):
         items = [
             self.add_track(
                 title=f"track {i}",
@@ -594,14 +596,14 @@ class ExternalConvertWorkerTest(TestHelper):
             assert_media_file_fields(converted_path, type="ogg", title=item.title)
 
 
-class ExternalRemovableTest(TestHelper):
+class TestExternalRemovable(TestHelper):
     """Test whether alternatives properly detects ``removable`` collections
     and performs the expected user queries before doing anything.
     """
 
-    def setUp(self):
-        super().setUp()
-        external_dir = os.path.join(self.mkdtemp(), "\u00e9xt")
+    @pytest.fixture(autouse=True)
+    def _external_removable(self, tmp_path: Path, _setup: None):
+        external_dir = str(tmp_path / "\u00e9xt")
         self.config["alternatives"] = {
             "myexternal": {
                 "directory": external_dir,
@@ -648,7 +650,7 @@ class ExternalRemovableTest(TestHelper):
         assert "alt.myexternal" in item
 
 
-class CompletionTest(TestHelper):
+class TestCompletion(TestHelper):
     """Test invocation of ``beet completion`` with this plugin.
 
     Only ensures that command does not fail.
