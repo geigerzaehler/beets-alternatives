@@ -1,18 +1,15 @@
 import os
-import shutil
 import sys
-import tempfile
 from concurrent import futures
 from contextlib import contextmanager
 from io import StringIO
 from pathlib import Path
 from typing import Optional
-from unittest import TestCase
-from unittest.mock import patch
 from zlib import crc32
 
 import beets
 import beets.library
+import pytest
 from beets import logging, plugins, ui, util
 from beets.library import Item
 from beets.util import MoveOperation, bytestring_path, displayable_path, syspath
@@ -21,27 +18,10 @@ from mediafile import MediaFile
 import beetsplug.alternatives as alternatives
 import beetsplug.convert as convert
 
-logging.getLogger("beets").propagate = True
-
-
-class LogCapture(logging.Handler):
-    def __init__(self):
-        super().__init__()
-        self.messages = []
-
-    def emit(self, record):
-        self.messages.append(str(record.msg))
-
-
-@contextmanager
-def capture_log(logger="beets"):
-    capture = LogCapture()
-    log = logging.getLogger(logger)
-    log.addHandler(capture)
-    try:
-        yield capture.messages
-    finally:
-        log.removeHandler(capture)
+beetsLogger = logging.getLogger("beets")
+beetsLogger.propagate = True
+for h in beetsLogger.handlers:
+    beetsLogger.removeHandler(h)
 
 
 @contextmanager
@@ -78,119 +58,94 @@ def control_stdin(input=None):
         sys.stdin = org
 
 
-class Assertions(TestCase):
-    def assertFileTag(self, path, tag):
-        self.assertIsFile(path)
-        with open(syspath(path), "rb") as f:
-            f.seek(-5, os.SEEK_END)
-            assert f.read() == tag
-
-    def assertNotFileTag(self, path, tag):
-        self.assertIsFile(path)
-        with open(syspath(path), "rb") as f:
-            f.seek(-5, os.SEEK_END)
-            assert f.read() != tag
-
-    def assertIsFile(self, path):
-        assert os.path.isfile(
-            syspath(path)
-        ), f"Path is not a file: {displayable_path(path)}"
-
-    def assertIsNotFile(self, path):
-        """Asserts that `path` is neither a regular file (``os.path.isfile``,
-        follows symlinks and returns False for a broken symlink) nor a symlink
-        (``os.path.islink``, returns True for both valid and broken symlinks).
-        """
-        assert not os.path.isfile(
-            syspath(path)
-        ), f"Path is a file: {displayable_path(path)}"
-        assert not os.path.islink(
-            syspath(path)
-        ), f"Path is a symlink: {displayable_path(path)}"
-
-    def assertSymlink(self, link, target, absolute=True):
-        assert os.path.islink(
-            syspath(link)
-        ), f"Path is not a symbolic link: {displayable_path(link)}"
-        assert os.path.isfile(
-            syspath(target)
-        ), f"Path is not a file: {displayable_path(link)}"
-        pre_link_target = bytestring_path(os.readlink(syspath(link)))
-        link_target = os.path.join(os.path.dirname(link), pre_link_target)
-        assert util.samefile(
-            target, link_target
-        ), f"Symlink points to {displayable_path(link_target)} instead of {displayable_path(target)}"
-
-        if absolute:
-            assert os.path.isabs(
-                pre_link_target
-            ), f"Symlink {displayable_path(pre_link_target)} is not absolute"
-        else:
-            assert not os.path.isabs(
-                pre_link_target
-            ), f"Symlink {displayable_path(pre_link_target)} is not relative"
+def assert_file_tag(path, tag: bytes):
+    assert_is_file(path)
+    with open(syspath(path), "rb") as f:
+        f.seek(-5, os.SEEK_END)
+        assert f.read() == tag
 
 
-class MediaFileAssertions(TestCase):
-    def assertHasEmbeddedArtwork(self, path, compare_file=None):
-        mediafile = MediaFile(syspath(path))
-        assert mediafile.art is not None, "MediaFile has no embedded artwork"
-        if compare_file:
-            with open(syspath(compare_file), "rb") as compare_fh:  # noqa: FURB101
-                crc_is = crc32(mediafile.art)  # pyright: ignore[reportArgumentType]
-                crc_expected = crc32(compare_fh.read())
-                assert crc_is == crc_expected, (
-                    "MediaFile has embedded artwork, but "
-                    f"content (CRC32: {crc_is}) doesn't match "
-                    f"expectations (CRC32: {crc_expected})."
-                )
-
-    def assertHasNoEmbeddedArtwork(self, path):
-        mediafile = MediaFile(syspath(path))
-        assert mediafile.art is None, "MediaFile has embedded artwork"
-
-    def assertMediaFileFields(self, path, **kwargs):
-        mediafile = MediaFile(syspath(path))
-        for k, v in kwargs.items():
-            actual = getattr(mediafile, k)
-            assert actual == v, f"MediaFile has tag {k}='{actual}' " f"instead of '{v}'"
+def assert_not_file_tag(path, tag: bytes):
+    assert_is_file(path)
+    with open(syspath(path), "rb") as f:
+        f.seek(-5, os.SEEK_END)
+        assert f.read() != tag
 
 
-class TestHelper(Assertions, MediaFileAssertions):
-    def setUp(self, mock_worker=True):
-        """Setup required for running test. Must be called before
-        running any tests.
+def assert_is_file(path):
+    assert os.path.isfile(
+        syspath(path)
+    ), f"Path is not a file: {displayable_path(path)}"
 
-        If ``mock_worker`` is ``True`` the simple non-threaded
-        ``MockedWorker`` is used to run file conversion commands. In
-        particular, in contrast to the actual conversion routine from the
-        ``convert`` plugin, it will not attempt to write tags to the output
-        files. Thus, the 'converted' files need not be valid audio files.
-        """
-        if mock_worker:
-            patcher = patch("beetsplug.alternatives.Worker", new=MockedWorker)
-            patcher.start()
-            self.addCleanup(patcher.stop)
 
-        self._tempdirs = []
+def assert_is_not_file(path):
+    """Asserts that `path` is neither a regular file (``os.path.isfile``,
+    follows symlinks and returns False for a broken symlink) nor a symlink
+    (``os.path.islink``, returns True for both valid and broken symlinks).
+    """
+    assert not os.path.isfile(
+        syspath(path)
+    ), f"Path is a file: {displayable_path(path)}"
+    assert not os.path.islink(
+        syspath(path)
+    ), f"Path is a symlink: {displayable_path(path)}"
+
+
+def assert_symlink(link, target, absolute: bool = True):
+    assert os.path.islink(
+        syspath(link)
+    ), f"Path is not a symbolic link: {displayable_path(link)}"
+    assert os.path.isfile(
+        syspath(target)
+    ), f"Path is not a file: {displayable_path(link)}"
+    pre_link_target = bytestring_path(os.readlink(syspath(link)))
+    link_target = os.path.join(os.path.dirname(link), pre_link_target)
+    assert util.samefile(
+        target, link_target
+    ), f"Symlink points to {displayable_path(link_target)} instead of {displayable_path(target)}"
+
+    if absolute:
+        assert os.path.isabs(
+            pre_link_target
+        ), f"Symlink {displayable_path(pre_link_target)} is not absolute"
+    else:
+        assert not os.path.isabs(
+            pre_link_target
+        ), f"Symlink {displayable_path(pre_link_target)} is not relative"
+
+
+def assert_has_embedded_artwork(path, compare_file=None):
+    mediafile = MediaFile(syspath(path))
+    assert mediafile.art is not None, "MediaFile has no embedded artwork"
+    if compare_file:
+        with open(syspath(compare_file), "rb") as compare_fh:  # noqa: FURB101
+            crc_is = crc32(mediafile.art)  # pyright: ignore[reportArgumentType]
+            crc_expected = crc32(compare_fh.read())
+            assert crc_is == crc_expected, (
+                "MediaFile has embedded artwork, but "
+                f"content (CRC32: {crc_is}) doesn't match "
+                f"expectations (CRC32: {crc_expected})."
+            )
+
+
+def assert_has_not_embedded_artwork(path):
+    mediafile = MediaFile(syspath(path))
+    assert mediafile.art is None, "MediaFile has embedded artwork"
+
+
+def assert_media_file_fields(path, **kwargs):
+    mediafile = MediaFile(syspath(path))
+    for k, v in kwargs.items():
+        actual = getattr(mediafile, k)
+        assert actual == v, f"MediaFile has tag {k}='{actual}' " f"instead of '{v}'"
+
+
+class TestHelper:
+    @pytest.fixture(autouse=True)
+    def _setup(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+        monkeypatch.setattr("beetsplug.alternatives.Worker", MockedWorker)
+
         plugins._classes = {alternatives.AlternativesPlugin, convert.ConvertPlugin}
-        self.setup_beets()
-
-    def tearDown(self):
-        self.unload_plugins()
-        for tempdir in self._tempdirs:
-            shutil.rmtree(syspath(tempdir))
-
-    def mkdtemp(self):
-        # This return a str path, i.e. Unicode on Python 3. We need this in
-        # order to put paths into the configuration.
-        path = tempfile.mkdtemp()
-        self._tempdirs.append(path)
-        return path
-
-    def setup_beets(self):
-        self.addCleanup(self.teardown_beets)
-        os.environ["BEETSDIR"] = self.mkdtemp()
 
         self.config = beets.config
         self.config.clear()
@@ -202,7 +157,8 @@ class TestHelper(Assertions, MediaFileAssertions):
         self.config["threaded"] = False
         self.config["import"]["copy"] = False
 
-        libdir = self.mkdtemp()
+        libdir = str(tmp_path / "beets_lib")
+        os.environ["BEETSDIR"] = libdir
         self.config["directory"] = libdir
         self.libdir = bytestring_path(libdir)
 
@@ -216,18 +172,7 @@ class TestHelper(Assertions, MediaFileAssertions):
 
         self.IMAGE_FIXTURE1 = os.path.join(self.fixture_dir, b"image.png")
         self.IMAGE_FIXTURE2 = os.path.join(self.fixture_dir, b"image_black.png")
-
-    def teardown_beets(self):
-        del self.lib._connections
-        if "BEETSDIR" in os.environ:
-            del os.environ["BEETSDIR"]
-        self.config.clear()
-        beets.config.read(user=False, defaults=True)
-
-    def set_paths_config(self, conf):
-        self.lib.path_formats = conf.items()
-
-    def unload_plugins(self):
+        yield
         for plugin in plugins._classes:
             plugin.listeners = None
             plugins._classes = set()
@@ -311,12 +256,6 @@ class MockedWorker(alternatives.Worker):
         fut = futures.Future()
         res = self._fn(*args, **kwargs)
         fut.set_result(res)
-        # try:
-        #     res = fn(*args, **kwargs)
-        # except Exception as e:
-        #     fut.set_exception(e)
-        # else:
-        #     fut.set_result(res)
         self._tasks.add(fut)
         return fut
 
