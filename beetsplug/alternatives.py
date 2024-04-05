@@ -13,10 +13,11 @@
 import argparse
 import os.path
 import threading
+from collections.abc import Iterator
 from concurrent import futures
 from enum import Enum
 from pathlib import Path
-from typing import Iterator, List, Optional, Tuple
+from typing import Optional
 
 import beets
 import confuse
@@ -187,7 +188,7 @@ class External:
             dir = Path(str(self.lib.directory, "utf8")) / dir  # type: ignore
         self.directory = dir
 
-    def item_change_actions(self, item: Item, actual: Path, dest: Path) -> List[Action]:
+    def item_change_actions(self, item: Item, actual: Path, dest: Path) -> list[Action]:
         """Returns the necessary actions for items that were previously in the
         external collection, but might require metadata updates.
         """
@@ -212,7 +213,7 @@ class External:
 
         return actions
 
-    def _matched_item_action(self, item: Item) -> List[Action]:
+    def _matched_item_action(self, item: Item) -> list[Action]:
         actual = self._get_stored_path(item)
         if actual and (actual.is_file() or actual.is_symlink()):
             dest = self.destination(item)
@@ -224,7 +225,7 @@ class External:
         else:
             return [Action.ADD]
 
-    def _items_actions(self) -> Iterator[Tuple[Item, List[Action]]]:
+    def _items_actions(self) -> Iterator[tuple[Item, list[Action]]]:
         matched_ids = set()
         for album in self.lib.albums():
             if self.query.match(album):
