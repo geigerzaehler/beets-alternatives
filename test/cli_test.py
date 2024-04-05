@@ -118,13 +118,7 @@ class TestSymlinkView(TestHelper):
         self.alt_config = self.config["alternatives"]["by-year"]
 
     def test_add_move_remove_album(self, absolute=True):
-        """Test the symlinks are created and deleted
-        * An album is added
-        * The path of the alternative collection is changed
-        * The query of the alternative collection is changed such that the
-          album does not match it anymore.
-        * The links are absolute
-        """
+        """Test the symlinks are created, updated and deleted"""
         self.add_album(
             artist="Michael Jackson",
             album="Thriller",
@@ -134,42 +128,32 @@ class TestSymlinkView(TestHelper):
 
         self.runcli("alt", "update", "by-year")
 
+        # Album added to collection
         by_year_path = self.libdir / "by-year/1990/Thriller/track 1.mp3"
         target_path = self.libdir / "Michael Jackson/Thriller/track 1.mp3"
         assert_symlink(by_year_path, target_path, absolute)
 
+        # Collection path updated
         self.alt_config["paths"]["default"] = "$original_year/$album/$title"
         self.runcli("alt", "update", "by-year")
-
         by_orig_year_path = self.libdir / "by-year/1982/Thriller/track 1.mp3"
         assert_symlink(by_orig_year_path, target_path, absolute)
 
+        # No changes
+        out = self.runcli("alt", "update", "by-year")
+        assert out == ""
+
+        # Album removed from collection
         self.alt_config["query"] = "some_field::foobar"
         self.runcli("alt", "update", "by-year")
 
         assert_is_not_file(by_orig_year_path)
 
     def test_add_move_remove_album_absolute(self):
-        """Test the absolute symlinks are created and deleted
-        * Config link type is absolute
-        * An album is added
-        * The path of the alternative collection is changed
-        * The query of the alternative collection is changed such that the
-          album does not match it anymore.
-        * The links are absolute
-        """
         self.alt_config["link_type"] = "absolute"
         self.test_add_move_remove_album(absolute=True)
 
     def test_add_move_remove_album_relative(self):
-        """Test the relative symlinks are created and deleted
-        * Config link type is relative
-        * An album is added
-        * The path of the alternative collection is changed
-        * The query of the alternative collection is changed such that the
-          album does not match it anymore.
-        * The links are relative
-        """
         self.alt_config["link_type"] = "relative"
         self.test_add_move_remove_album(absolute=False)
 
