@@ -1,7 +1,9 @@
 import os
 import os.path
+import platform
 import shutil
 from pathlib import Path
+from time import sleep
 
 import pytest
 from beets import util
@@ -22,6 +24,7 @@ from .helper import (
     assert_not_file_tag,
     assert_symlink,
     control_stdin,
+    convert_command,
 )
 
 
@@ -34,8 +37,7 @@ class TestDoc(TestHelper):
         external_dir = str(tmp_path / "myplayer")
         self.config["convert"]["formats"] = {
             "aac": {
-                "command": "bash -c \"cp '$source' '$dest';"
-                + "printf ISAAC >> '$dest'\"",
+                "command": convert_command("ISAAC"),
                 "extension": "m4a",
             },
         }
@@ -110,6 +112,7 @@ class TestDoc(TestHelper):
         assert_file_tag(external_beet, b"ISAAC")
 
 
+@pytest.mark.skipif(platform.system() == "Windows", reason="no symlinks on windows")
 class TestSymlinkView(TestHelper):
     """Test alternatives with the ``link`` format producing symbolic links."""
 
@@ -282,6 +285,7 @@ class TestExternalCopy(TestHelper):
 
     def test_update_older(self):
         item = self.add_external_track("myexternal")
+        sleep(0.1)
         item["composer"] = "JSB"
         item.store()
         item.write()
@@ -293,6 +297,7 @@ class TestExternalCopy(TestHelper):
 
     def test_no_update_newer(self):
         item = self.add_external_track("myexternal")
+        sleep(0.1)
         item["composer"] = "JSB"
         item.store()
         # We omit write to keep old mtime
@@ -320,9 +325,10 @@ class TestExternalCopy(TestHelper):
         old_path = self.get_path(item)
         assert_is_file(old_path)
 
+        sleep(0.1)
         item["title"] = "a new title"
         item.store()
-        item.try_write()  # Required to update mtime.
+        item.write()
         self.runcli("alt", "update", "myexternal")
 
         item.load()
@@ -410,7 +416,7 @@ class TestExternalCopy(TestHelper):
         # Make a copy of the artwork, so that changing mtime/content won't
         # affect the repository.
         image_path = bytes(tmp_path / "image")
-        shutil.copy(self.IMAGE_FIXTURE1, check_type(syspath(image_path), bytes))
+        shutil.copy(self.IMAGE_FIXTURE1, syspath(image_path))  # type: ignore
         touch_art(item, image_path)
 
         # Add a cover image, assert that it is being embedded.
@@ -479,9 +485,7 @@ class TestExternalConvert(TestHelper):
     @pytest.fixture(autouse=True)
     def _external_convert(self, tmp_path: Path, _setup: None):
         external_dir = str(tmp_path)
-        self.config["convert"]["formats"] = {
-            "ogg": "bash -c \"cp '$source' '$dest';" + "printf ISOGG >> '$dest'\""
-        }
+        self.config["convert"]["formats"] = {"ogg": convert_command("ISOGG")}
         self.config["alternatives"] = {
             "myexternal": {
                 "directory": external_dir,
@@ -546,9 +550,7 @@ class TestExternalConvert(TestHelper):
         item = self.add_track(myexternal="true", format="m4a")
         self.runcli("alt", "update", "myexternal")
 
-        self.config["convert"]["formats"] = {
-            "mp3": "bash -c \"cp '$source' '$dest';" + "printf ISMP3 >> '$dest'\""
-        }
+        self.config["convert"]["formats"] = {"mp3": convert_command("ISMP3")}
         self.config["alternatives"]["myexternal"]["formats"] = "mp3"
 
         # Assert that this re-encodes instead of copying the ogg file
@@ -558,6 +560,7 @@ class TestExternalConvert(TestHelper):
         assert_file_tag(converted_path, b"ISMP3")
 
 
+@pytest.mark.skipif(platform.system() == "Windows", reason="converter not implemented")
 class TestExternalConvertWorker(TestHelper):
     """Test alternatives with non-empty ``format`` option, i.e. transcoding
     some of the files. In contrast to the previous test, these test do use
