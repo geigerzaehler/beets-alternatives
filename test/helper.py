@@ -3,11 +3,11 @@
 import os
 import platform
 import sys
+from collections.abc import Callable
 from concurrent import futures
 from contextlib import contextmanager
 from io import StringIO
 from pathlib import Path
-from typing import Callable, Optional, Set, Tuple
 from zlib import crc32
 
 import beets
@@ -46,7 +46,7 @@ def capture_stdout():
 
 
 @contextmanager
-def control_stdin(input: Optional[str] = None):
+def control_stdin(input: str | None = None):
     """Sends ``input`` to stdin.
 
     >>> with control_stdin('yes'):
@@ -85,10 +85,10 @@ def assert_is_not_file(path: Path):
 def assert_symlink(link: Path, target: Path, absolute: bool = True):
     assert link.is_symlink()
     assert link.resolve() == target.resolve()
-    assert Path(os.readlink(link)).is_absolute() == absolute
+    assert link.readlink().is_absolute() == absolute
 
 
-def assert_has_embedded_artwork(path: Path, compare_file: Optional[Path] = None):
+def assert_has_embedded_artwork(path: Path, compare_file: Path | None = None):
     mediafile = MediaFile(path)
     assert mediafile.art is not None, "MediaFile has no embedded artwork"
     if compare_file:
@@ -111,7 +111,7 @@ def assert_media_file_fields(path: Path, **kwargs: str):
     mediafile = MediaFile(path)
     for k, v in kwargs.items():
         actual = getattr(mediafile, k)
-        assert actual == v, f"MediaFile has tag {k}='{actual}' " f"instead of '{v}'"
+        assert actual == v, f"MediaFile has tag {k}='{actual}' instead of '{v}'"
 
 
 class TestHelper:
@@ -215,12 +215,12 @@ class TestHelper:
 class MockedWorker(alternatives.Worker):
     def __init__(
         self,
-        fn: Callable[[Item], Tuple[Item, Path]],
-        max_workers: Optional[int] = None,
+        fn: Callable[[Item], tuple[Item, Path]],
+        max_workers: int | None = None,
     ):
         # Don’t call `super().__init__()`. We don’t want to start the
         # ThreadPoolExecutor.
-        self._tasks: Set[futures.Future[Tuple[Item, Path]]] = set()
+        self._tasks: set[futures.Future[tuple[Item, Path]]] = set()
         self._fn = fn
 
     def run(self, item: Item):

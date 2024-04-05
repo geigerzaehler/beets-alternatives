@@ -15,10 +15,10 @@ import logging
 import os.path
 import shutil
 import threading
+from collections.abc import Callable, Iterable, Iterator, Sequence
 from concurrent import futures
 from enum import Enum
 from pathlib import Path
-from typing import Callable, Iterable, Iterator, Optional, Sequence, Set, Tuple
 
 import beets
 import confuse
@@ -229,7 +229,7 @@ class External:
         else:
             return [Action.ADD]
 
-    def _items_actions(self) -> Iterator[Tuple[Item, Sequence[Action]]]:
+    def _items_actions(self) -> Iterator[tuple[Item, Sequence[Action]]]:
         matched_ids = set()
         for album in self.lib.albums():
             if self.query.match(album):
@@ -242,7 +242,7 @@ class External:
             elif self._get_stored_path(item):
                 yield (item, [Action.REMOVE])
 
-    def ask_create(self, create: Optional[bool] = None) -> bool:
+    def ask_create(self, create: bool | None = None) -> bool:
         if not self.removable:
             return True
         if create is not None:
@@ -255,7 +255,7 @@ class External:
         )
         return input_yn(msg, require=True)
 
-    def update(self, create: Optional[bool] = None):
+    def update(self, create: bool | None = None):
         if not self.directory.is_dir() and not self.ask_create(create):
             print_(f"Skipping creation of {self.directory}")
             return
@@ -308,7 +308,7 @@ class External:
     def _set_stored_path(self, item: Item, path: Path):
         item[self.path_key] = str(path)
 
-    def _get_stored_path(self, item: Item) -> Optional[Path]:
+    def _get_stored_path(self, item: Item) -> Path | None:
         try:
             path = item[self.path_key]
         except KeyError:
@@ -435,7 +435,7 @@ class SymlinkView(External):
             return [Action.MOVE]
 
     @override
-    def update(self, create: Optional[bool] = None):
+    def update(self, create: bool | None = None):
         for item, actions in self._items_actions():
             dest = self.destination(item)
             path = self._get_stored_path(item)
@@ -476,10 +476,10 @@ class SymlinkView(External):
 
 class Worker(futures.ThreadPoolExecutor):
     def __init__(
-        self, fn: Callable[[Item], Tuple[Item, Path]], max_workers: Optional[int]
+        self, fn: Callable[[Item], tuple[Item, Path]], max_workers: int | None
     ):
         super().__init__(max_workers)
-        self._tasks: Set[futures.Future[Tuple[Item, Path]]] = set()
+        self._tasks: set[futures.Future[tuple[Item, Path]]] = set()
         self._fn = fn
 
     def run(self, item: Item):
