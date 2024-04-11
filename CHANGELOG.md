@@ -1,6 +1,10 @@
 Change Log
 ==========
 
+## Upcoming
+* Fix an issue where items in a symlink collection with relative links were
+  always unnecessarily updated.
+
 ## v0.11.1 - 2024-04-24
 * Add `--all` flag to update command which will update all configured
   collections.
