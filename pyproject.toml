@@ -30,6 +30,7 @@ beets = "^1.6.0"
 
 [tool.poetry.group.dev.dependencies]
 confuse = "^2.0.1"
+coverage = "^7.4.4"
 mediafile = "^0.12.0"
 mock = "^5.0.2"
 pyright = "^1.1.340"
