@@ -61,9 +61,10 @@ preview = true
 extend-select = [
   "I",    # Sort imports
   "C",    # Pyflakes conventions
-  "UP",   # Enforce modern Python syntx
+  "PTH",  # Use pathlib instead of os
+  "UP",   # Enforce modern Python syntax
+  "FURB", # Enforce modern Python syntax
   "PIE",  # Misc. lints
-  "FURB", # Elso enforce more modern Python syntax
   "PT",   # Pytest style
   "B",    # Bugbear, avoid common sources of bugs
   "SIM",  # Simplify
