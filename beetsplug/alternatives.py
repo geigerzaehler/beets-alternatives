@@ -11,31 +11,33 @@
 # all copies or substantial portions of the Software.
 
 import argparse
+import logging
 import os.path
 import threading
 import traceback
 from concurrent import futures
 from enum import Enum
-from typing import Iterator, List, Optional, Tuple, cast
+from typing import Callable, Iterable, Iterator, Optional, Sequence, Set, Tuple, cast
 
 import beets
+import confuse
 from beets import art, util
 from beets.library import Item, Library, parse_query_string
 from beets.plugins import BeetsPlugin
 from beets.ui import Subcommand, UserError, decargs, get_path_formats, input_yn, print_
 from beets.util import FilesystemError, bytestring_path, displayable_path, syspath
-from typing_extensions import override
+from typing_extensions import Never, override
 
 import beetsplug.convert as convert
 
 
-def _remove(path, soft=True):
+def _remove(path_: bytes, soft: bool = True):
     """Remove the file. If `soft`, then no error will be raised if the
     file does not exist.
     In contrast to beets' util.remove, this uses lexists such that it can
     actually remove symlink links.
     """
-    path = syspath(path)
+    path = syspath(path_)
     if soft and not os.path.lexists(path):
         return
     try:
@@ -48,7 +50,7 @@ class AlternativesPlugin(BeetsPlugin):
     def __init__(self):
         super().__init__()
 
-    def commands(self):
+    def commands(self):  # pyright: ignore[reportIncompatibleMethodOverride]
         return [AlternativesCommand(self)]
 
     def update(self, lib: Library, options: argparse.Namespace):
@@ -67,10 +69,10 @@ class AlternativesPlugin(BeetsPlugin):
                 ) from e
             alt.update(create=options.create)
 
-    def list_tracks(self, lib, options):
+    def list_tracks(self, lib: Library, options: argparse.Namespace):
         if options.format is not None:
             (fmt,) = decargs([options.format])
-            beets.config[Item._format_config_key].set(fmt)
+            beets.config[Item._format_config_key].set(fmt)  # pyright: ignore[reportPrivateUsage]
 
         alt = self.alternative(options.name, lib)
 
@@ -100,7 +102,7 @@ class AlternativesCommand(Subcommand):
     name = "alt"
     help = "manage alternative files"
 
-    def __init__(self, plugin):
+    def __init__(self, plugin: AlternativesPlugin):
         parser = ArgumentParser()
         subparsers = parser.add_subparsers(prog=parser.prog + " alt")
         subparsers.required = True
@@ -147,10 +149,10 @@ class AlternativesCommand(Subcommand):
 
         super().__init__(self.name, parser, self.help)
 
-    def func(self, lib, opts, _):
+    def func(self, lib: Library, opts: argparse.Namespace, _):  # pyright: ignore[reportIncompatibleMethodOverride]
         opts.func(lib, opts)
 
-    def parse_args(self, args):
+    def parse_args(self, args: Sequence[str]):  # pyright: ignore
         return self.parser.parse_args(args), []
 
 
@@ -160,7 +162,7 @@ class ArgumentParser(argparse.ArgumentParser):
     `_get_all_options()` to generate shell completion.
     """
 
-    def _get_all_options(self):
+    def _get_all_options(self) -> Sequence[Never]:
         # FIXME return options like ``OptionParser._get_all_options``.
         return []
 
@@ -174,7 +176,9 @@ class Action(Enum):
 
 
 class External:
-    def __init__(self, log, name, lib, config):
+    def __init__(
+        self, log: logging.Logger, name: str, lib: Library, config: confuse.ConfigView
+    ):
         self._log = log
         self.name = name
         self.lib = lib
@@ -182,7 +186,7 @@ class External:
         self.max_workers = int(str(beets.config["convert"]["threads"]))
         self.parse_config(config)
 
-    def parse_config(self, config):
+    def parse_config(self, config: confuse.ConfigView):
         if "paths" in config:
             path_config = config["paths"]
         else:
@@ -191,10 +195,11 @@ class External:
         query = config["query"].as_str()
         self.query, _ = parse_query_string(query, Item)
 
-        self.removable = config.get(dict).get("removable", True)
+        self.removable = config.get(dict).get("removable", True)  # type: ignore
 
         if "directory" in config:
             dir = config["directory"].as_str()
+            assert isinstance(dir, str)
         else:
             dir = self.name
         dir = bytestring_path(dir)
@@ -202,7 +207,9 @@ class External:
             dir = os.path.join(self.lib.directory, dir)
         self.directory = dir
 
-    def item_change_actions(self, item: Item, path: bytes, dest: bytes) -> List[Action]:
+    def item_change_actions(
+        self, item: Item, path: bytes, dest: bytes
+    ) -> Sequence[Action]:
         """Returns the necessary actions for items that were previously in the
         external collection, but might require metadata updates.
         """
@@ -216,8 +223,9 @@ class External:
             actions.append(Action.WRITE)
         album = item.get_album()
 
-        if album and (
-            album.artpath
+        if (
+            album
+            and album.artpath
             and os.path.isfile(syspath(album.artpath))
             and (item_mtime_alt < os.path.getmtime(syspath(album.artpath)))
         ):
@@ -225,7 +233,7 @@ class External:
 
         return actions
 
-    def _matched_item_action(self, item: Item) -> List[Action]:
+    def _matched_item_action(self, item: Item) -> Sequence[Action]:
         path = self._get_stored_path(item)
         if path and os.path.lexists(syspath(path)):
             dest = self.destination(item)
@@ -239,7 +247,7 @@ class External:
         else:
             return [Action.ADD]
 
-    def _items_actions(self) -> Iterator[Tuple[Item, List[Action]]]:
+    def _items_actions(self) -> Iterator[Tuple[Item, Sequence[Action]]]:
         matched_ids = set()
         for album in self.lib.albums():
             if self.query.match(album):
@@ -299,7 +307,7 @@ class External:
                     self._sync_art(item, path)
                 elif action == Action.ADD:
                     print_(f"+{displayable_path(dest)}")
-                    converter.submit(item)
+                    converter.run(item)
                 elif action == Action.REMOVE:
                     assert path is not None  # action guarantees that `path` is not none
                     print_(f"-{displayable_path(path)}")
@@ -344,7 +352,7 @@ class External:
         del item[self.path_key]
 
     def _converter(self) -> "Worker":
-        def _convert(item):
+        def _convert(item: Item):
             dest = self.destination(item)
             util.mkdirall(dest)
             util.copy(item.path, dest, replace=True)
@@ -363,7 +371,14 @@ class External:
 
 
 class ExternalConvert(External):
-    def __init__(self, log, name, formats, lib, config):
+    def __init__(
+        self,
+        log: logging.Logger,
+        name: str,
+        formats: Iterable[str],
+        lib: Library,
+        config: confuse.ConfigView,
+    ):
         super().__init__(log, name, lib, config)
         convert_plugin = convert.ConvertPlugin()
         self._encode = convert_plugin.encode
@@ -376,7 +391,7 @@ class ExternalConvert(External):
     def _converter(self) -> "Worker":
         fs_lock = threading.Lock()
 
-        def _convert(item):
+        def _convert(item: Item):
             dest = self.destination(item)
             with fs_lock:
                 util.mkdirall(dest)
@@ -402,7 +417,7 @@ class ExternalConvert(External):
         else:
             return dest
 
-    def _should_transcode(self, item):
+    def _should_transcode(self, item: Item):
         return item.format.lower() not in self.formats
 
 
@@ -413,7 +428,7 @@ class SymlinkType(Enum):
 
 class SymlinkView(External):
     @override
-    def parse_config(self, config):
+    def parse_config(self, config: confuse.ConfigView):
         if "query" not in config:
             config["query"] = ""  # This is a TrueQuery()
         if "link_type" not in config:
@@ -428,7 +443,9 @@ class SymlinkView(External):
         super().parse_config(config)
 
     @override
-    def item_change_actions(self, item: Item, path: bytes, dest: bytes):
+    def item_change_actions(
+        self, item: Item, path: bytes, dest: bytes
+    ) -> Sequence[Action]:
         """Returns the necessary actions for items that were previously in the
         external collection, but might require metadata updates.
         """
@@ -447,7 +464,7 @@ class SymlinkView(External):
             return [Action.MOVE]
 
     @override
-    def update(self, create=None):
+    def update(self, create: Optional[bool] = None):
         for item, actions in self._items_actions():
             dest = self.destination(item)
             path = self._get_stored_path(item)
@@ -486,13 +503,15 @@ class SymlinkView(External):
 
 
 class Worker(futures.ThreadPoolExecutor):
-    def __init__(self, fn, max_workers: Optional[int]):
+    def __init__(
+        self, fn: Callable[[Item], Tuple[Item, bytes]], max_workers: Optional[int]
+    ):
         super().__init__(max_workers)
-        self._tasks = set()
+        self._tasks: Set[futures.Future[Tuple[Item, bytes]]] = set()
         self._fn = fn
 
-    def submit(self, *args, **kwargs):
-        fut = super().submit(self._fn, *args, **kwargs)
+    def run(self, item: Item):
+        fut = self.submit(self._fn, item)
         self._tasks.add(fut)
         return fut
 

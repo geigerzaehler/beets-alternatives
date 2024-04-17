@@ -6,7 +6,6 @@ from pathlib import Path
 from time import sleep
 
 import pytest
-from beets import util
 from beets.library import Item
 from beets.ui import UserError
 from confuse import ConfigValueError
