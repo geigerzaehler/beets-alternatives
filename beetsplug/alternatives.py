@@ -11,6 +11,7 @@
 # all copies or substantial portions of the Software.
 
 import argparse
+import logging
 import os.path
 import threading
 import traceback
@@ -19,6 +20,7 @@ from enum import Enum
 from typing import Iterator, List, Optional, Tuple, cast
 
 import beets
+import confuse
 from beets import art, util
 from beets.library import Item, Library, parse_query_string
 from beets.plugins import BeetsPlugin
@@ -174,7 +176,9 @@ class Action(Enum):
 
 
 class External:
-    def __init__(self, log, name, lib, config):
+    def __init__(
+        self, log: logging.Logger, name: str, lib: Library, config: confuse.ConfigView
+    ):
         self._log = log
         self.name = name
         self.lib = lib
@@ -182,7 +186,7 @@ class External:
         self.max_workers = int(str(beets.config["convert"]["threads"]))
         self.parse_config(config)
 
-    def parse_config(self, config):
+    def parse_config(self, config: confuse.ConfigView):
         if "paths" in config:
             path_config = config["paths"]
         else:
@@ -191,7 +195,7 @@ class External:
         query = config["query"].as_str()
         self.query, _ = parse_query_string(query, Item)
 
-        self.removable = config.get(dict).get("removable", True)
+        self.removable = config.get(dict).get("removable", True)  # type: ignore
 
         if "directory" in config:
             dir = config["directory"].as_str()
@@ -216,8 +220,9 @@ class External:
             actions.append(Action.WRITE)
         album = item.get_album()
 
-        if album and (
-            album.artpath
+        if (
+            album
+            and album.artpath
             and os.path.isfile(syspath(album.artpath))
             and (item_mtime_alt < os.path.getmtime(syspath(album.artpath)))
         ):
