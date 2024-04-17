@@ -11,9 +11,9 @@ from zlib import crc32
 import beets
 import beets.library
 import pytest
-from beets import logging, plugins, ui, util
+from beets import logging, plugins, ui
 from beets.library import Item
-from beets.util import MoveOperation, bytestring_path, displayable_path, syspath
+from beets.util import MoveOperation
 from mediafile import MediaFile
 
 import beetsplug.alternatives as alternatives
@@ -59,67 +59,38 @@ def control_stdin(input=None):
         sys.stdin = org
 
 
-def assert_file_tag(path, tag: bytes):
-    assert_is_file(path)
-    with open(syspath(path), "rb") as f:
+def assert_file_tag(path: Path, tag: bytes):
+    with path.open("rb") as f:
         f.seek(-5, os.SEEK_END)
         assert f.read() == tag
 
 
-def assert_not_file_tag(path, tag: bytes):
-    assert_is_file(path)
-    with open(syspath(path), "rb") as f:
+def assert_not_file_tag(path: Path, tag: bytes):
+    with path.open("rb") as f:
         f.seek(-5, os.SEEK_END)
         assert f.read() != tag
 
 
-def assert_is_file(path):
-    assert os.path.isfile(
-        syspath(path)
-    ), f"Path is not a file: {displayable_path(path)}"
-
-
-def assert_is_not_file(path):
+def assert_is_not_file(path: Path):
     """Asserts that `path` is neither a regular file (``os.path.isfile``,
     follows symlinks and returns False for a broken symlink) nor a symlink
     (``os.path.islink``, returns True for both valid and broken symlinks).
     """
-    assert not os.path.isfile(
-        syspath(path)
-    ), f"Path is a file: {displayable_path(path)}"
-    assert not os.path.islink(
-        syspath(path)
-    ), f"Path is a symlink: {displayable_path(path)}"
+    assert not path.is_file()
+    assert not path.is_symlink()
 
 
-def assert_symlink(link, target, absolute: bool = True):
-    assert os.path.islink(
-        syspath(link)
-    ), f"Path is not a symbolic link: {displayable_path(link)}"
-    assert os.path.isfile(
-        syspath(target)
-    ), f"Path is not a file: {displayable_path(link)}"
-    pre_link_target = bytestring_path(os.readlink(syspath(link)))
-    link_target = os.path.join(os.path.dirname(link), pre_link_target)
-    assert util.samefile(
-        target, link_target
-    ), f"Symlink points to {displayable_path(link_target)} instead of {displayable_path(target)}"
-
-    if absolute:
-        assert os.path.isabs(
-            pre_link_target
-        ), f"Symlink {displayable_path(pre_link_target)} is not absolute"
-    else:
-        assert not os.path.isabs(
-            pre_link_target
-        ), f"Symlink {displayable_path(pre_link_target)} is not relative"
+def assert_symlink(link: Path, target: Path, absolute: bool = True):
+    assert link.is_symlink()
+    assert link.resolve() == target.resolve()
+    assert Path(os.readlink(link)).is_absolute() == absolute
 
 
-def assert_has_embedded_artwork(path, compare_file=None):
-    mediafile = MediaFile(syspath(path))
+def assert_has_embedded_artwork(path: Path, compare_file: Optional[Path] = None):
+    mediafile = MediaFile(path)
     assert mediafile.art is not None, "MediaFile has no embedded artwork"
     if compare_file:
-        with open(syspath(compare_file), "rb") as compare_fh:  # noqa: FURB101
+        with compare_file.open("rb") as compare_fh:
             crc_is = crc32(mediafile.art)  # pyright: ignore[reportArgumentType]
             crc_expected = crc32(compare_fh.read())
             assert crc_is == crc_expected, (
@@ -129,13 +100,13 @@ def assert_has_embedded_artwork(path, compare_file=None):
             )
 
 
-def assert_has_not_embedded_artwork(path):
-    mediafile = MediaFile(syspath(path))
+def assert_has_not_embedded_artwork(path: Path):
+    mediafile = MediaFile(path)
     assert mediafile.art is None, "MediaFile has embedded artwork"
 
 
-def assert_media_file_fields(path, **kwargs):
-    mediafile = MediaFile(syspath(path))
+def assert_media_file_fields(path: Path, **kwargs):
+    mediafile = MediaFile(path)
     for k, v in kwargs.items():
         actual = getattr(mediafile, k)
         assert actual == v, f"MediaFile has tag {k}='{actual}' " f"instead of '{v}'"
@@ -158,39 +129,33 @@ class TestHelper:
         self.config["threaded"] = False
         self.config["import"]["copy"] = False
 
-        libdir = str(tmp_path / "beets_lib")
-        os.environ["BEETSDIR"] = libdir
-        self.config["directory"] = libdir
-        self.libdir = bytestring_path(libdir)
+        self.libdir = tmp_path / "beets_lib"
+        os.environ["BEETSDIR"] = str(self.libdir)
+        self.config["directory"] = str(self.libdir)
 
         self.lib = beets.library.Library(
             ":memory:",
-            self.libdir,  # pyright: ignore[reportArgumentType]
+            str(self.libdir),
         )
-        self.fixture_dir = os.path.join(
-            bytestring_path(os.path.dirname(__file__)), b"fixtures"
-        )
+        self.fixture_dir = Path(__file__).parent / "fixtures"
 
-        self.IMAGE_FIXTURE1 = os.path.join(self.fixture_dir, b"image.png")
-        self.IMAGE_FIXTURE2 = os.path.join(self.fixture_dir, b"image_black.png")
+        self.IMAGE_FIXTURE1 = self.fixture_dir / "image.png"
+        self.IMAGE_FIXTURE2 = self.fixture_dir / "image_black.png"
         yield
         for plugin in plugins._classes:
             plugin.listeners = None
             plugins._classes = set()
             plugins._instances = {}
 
-    def runcli(self, *args):
+    def runcli(self, *args) -> str:
         # TODO mock stdin
         with capture_stdout() as out:
             ui._raw_main(list(args), self.lib)
         return out.getvalue()
 
-    def lib_path(self, path):
-        return os.path.join(self.libdir, path.replace(b"/", bytestring_path(os.sep)))
-
     def item_fixture_path(self, fmt):
-        assert fmt in "mp3 m4a ogg".split()
-        return os.path.join(self.fixture_dir, bytestring_path("min." + fmt.lower()))
+        assert fmt in {"mp3", "m4a", "ogg"}
+        return self.fixture_dir / f"min.{fmt}"
 
     def add_album(self, **kwargs):
         values = {
@@ -200,7 +165,7 @@ class TestHelper:
             "format": "mp3",
         }
         values.update(kwargs)
-        item = Item.from_path(self.item_fixture_path(values.pop("format")))
+        item = Item.from_path(str(self.item_fixture_path(values.pop("format"))))
         item.add(self.lib)
         item.update(values)
         item.move(MoveOperation.COPY)
@@ -219,7 +184,7 @@ class TestHelper:
         }
         values.update(kwargs)
 
-        item = Item.from_path(self.item_fixture_path(values.pop("format")))
+        item = Item.from_path(str(self.item_fixture_path(values.pop("format"))))
         item.add(self.lib)
         item.update(values)
         item.move(MoveOperation.COPY)
@@ -241,11 +206,8 @@ class TestHelper:
         album.load()
         return album
 
-    def get_path(self, item, path_key="alt.myexternal") -> Optional[bytes]:
-        try:
-            return item[path_key].encode("utf8")
-        except KeyError:
-            return None
+    def get_path(self, item, path_key="alt.myexternal") -> Path:
+        return Path(item[path_key])
 
 
 class MockedWorker(alternatives.Worker):

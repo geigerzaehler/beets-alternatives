@@ -35,11 +35,15 @@ jobs:
     - run: poetry run ruff check
     - run: poetry run pyright --warnings
     - run: poetry run pytest
+    - run: poetry run coverage xml
     - uses: coverallsapp/github-action@v2
       if: >
         github.event_name == 'pull_request' &&
         matrix.python-version == '3.8' &&
         matrix.os == 'ubuntu-latest'
+      with:
+        # Ignore .coverage, which has limited support from coveralls
+        file: coverage.xml
 
   build-beets-master:
     runs-on: ubuntu-latest

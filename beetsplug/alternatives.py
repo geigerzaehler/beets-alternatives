@@ -10,7 +10,6 @@
 # The above copyright notice and this permission notice shall be included in
 # all copies or substantial portions of the Software.
 
-
 import argparse
 import os.path
 import threading
@@ -420,16 +419,11 @@ class SymlinkView(External):
         """Returns the necessary actions for items that were previously in the
         external collection, but might require metadata updates.
         """
-        actions = []
 
-        if path != dest:
-            # The path of the link itself changed
-            actions.append(Action.MOVE)
-        elif not util.samefile(path, item.path):
-            # link target changed
-            actions.append(Action.MOVE)
-
-        return actions
+        if path != dest or not util.samefile(os.readlink(path), item.path):
+            return [Action.MOVE]
+        else:
+            return []
 
     @override
     def update(self, create=None):

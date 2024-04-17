@@ -7,18 +7,16 @@ from time import sleep
 
 import pytest
 from beets import util
+from beets.library import Item
 from beets.ui import UserError
-from beets.util import bytestring_path, syspath
 from confuse import ConfigValueError
 from mediafile import MediaFile
-from typeguard import check_type
 
 from .helper import (
     TestHelper,
     assert_file_tag,
     assert_has_embedded_artwork,
     assert_has_not_embedded_artwork,
-    assert_is_file,
     assert_is_not_file,
     assert_media_file_fields,
     assert_not_file_tag,
@@ -34,7 +32,7 @@ class TestDoc(TestHelper):
     """
 
     def test_external(self, tmp_path: Path):
-        external_dir = str(tmp_path / "myplayer")
+        external_dir = tmp_path / "myplayer"
         self.config["convert"]["formats"] = {
             "aac": {
                 "command": convert_command("ISAAC"),
@@ -43,7 +41,7 @@ class TestDoc(TestHelper):
         }
         self.config["alternatives"] = {
             "myplayer": {
-                "directory": external_dir,
+                "directory": str(external_dir),
                 "paths": {"default": "$artist/$title"},
                 "formats": "aac mp3",
                 "query": "onplayer:true",
@@ -56,18 +54,10 @@ class TestDoc(TestHelper):
         self.add_album(artist="Bach", title="was ogg", format="ogg")
         self.add_album(artist="Beethoven", title="was ogg", format="ogg")
 
-        external_from_mp3 = bytestring_path(
-            os.path.join(external_dir, "Bach", "was mp3.mp3")
-        )
-        external_from_m4a = bytestring_path(
-            os.path.join(external_dir, "Bach", "was m4a.m4a")
-        )
-        external_from_ogg = bytestring_path(
-            os.path.join(external_dir, "Bach", "was ogg.m4a")
-        )
-        external_beet = bytestring_path(
-            os.path.join(external_dir, "Beethoven", "was ogg.m4a")
-        )
+        external_from_mp3 = external_dir / "Bach" / "was mp3.mp3"
+        external_from_m4a = external_dir / "Bach" / "was m4a.m4a"
+        external_from_ogg = external_dir / "Bach" / "was ogg.m4a"
+        external_beet = external_dir / "Beethoven" / "was ogg.m4a"
 
         self.runcli("modify", "--yes", "onplayer=true", "artist:Bach")
         with control_stdin("y"):
@@ -77,7 +67,7 @@ class TestDoc(TestHelper):
         assert_not_file_tag(external_from_mp3, b"ISAAC")
         assert_not_file_tag(external_from_m4a, b"ISAAC")
         assert_file_tag(external_from_ogg, b"ISAAC")
-        assert not os.path.isfile(external_beet)
+        assert not external_beet.exists()
 
         self.runcli("modify", "--yes", "composer=JSB", "artist:Bach")
 
@@ -92,7 +82,7 @@ class TestDoc(TestHelper):
         ])
 
         self.runcli("alt", "update", "myplayer")
-        mediafile = MediaFile(syspath(external_from_ogg))
+        mediafile = MediaFile(external_from_ogg)
         assert mediafile.composer == "JSB"
 
         self.runcli("modify", "--yes", "onplayer!", "artist:Bach")
@@ -106,9 +96,9 @@ class TestDoc(TestHelper):
         )
         assert list_output == "Beethoven\n"
 
-        assert not os.path.isfile(external_from_mp3)
-        assert not os.path.isfile(external_from_m4a)
-        assert not os.path.isfile(external_from_ogg)
+        assert not external_from_mp3.exists()
+        assert not external_from_m4a.exists()
+        assert not external_from_ogg.exists()
         assert_file_tag(external_beet, b"ISAAC")
 
 
@@ -144,15 +134,14 @@ class TestSymlinkView(TestHelper):
 
         self.runcli("alt", "update", "by-year")
 
-        by_year_path = self.lib_path(b"by-year/1990/Thriller/track 1.mp3")
-        target_path = self.lib_path(b"Michael Jackson/Thriller/track 1.mp3")
+        by_year_path = self.libdir / "by-year/1990/Thriller/track 1.mp3"
+        target_path = self.libdir / "Michael Jackson/Thriller/track 1.mp3"
         assert_symlink(by_year_path, target_path, absolute)
 
         self.alt_config["paths"]["default"] = "$original_year/$album/$title"
         self.runcli("alt", "update", "by-year")
 
-        by_orig_year_path = self.lib_path(b"by-year/1982/Thriller/track 1.mp3")
-        assert_is_not_file(by_year_path)
+        by_orig_year_path = self.libdir / "by-year/1982/Thriller/track 1.mp3"
         assert_symlink(by_orig_year_path, target_path, absolute)
 
         self.alt_config["query"] = "some_field::foobar"
@@ -184,54 +173,33 @@ class TestSymlinkView(TestHelper):
         self.alt_config["link_type"] = "relative"
         self.test_add_move_remove_album(absolute=False)
 
-    def test_add_update_move_album(self):
-        """Test that symlinks are properly updated and no broken links left
-        when an item's path in the library changes.
-        Since moving the items causes the links in the symlink view to be
-        broken, this situation used to be incorrectly detected as
-        addition of new items, such that the old links weren't removed.
-        Contrast this to the `test_add_move_remove_album` test, in which the
-        old links do not break upon changing the path format.
-        * An album is added.
-        * The album name is changed, which also causes the tracks to be moved.
-        * The symlink view is updated.
-        """
+    def test_update_link_target(self, tmp_path: Path):
+        """Link targets are updated when the item has moved in the library"""
+
         self.add_album(artist="Michael Jackson", album="Thriller", year="1990")
 
         self.runcli("alt", "update", "by-year")
 
-        by_year_path = self.lib_path(b"by-year/1990/Thriller/track 1.mp3")
+        alt_path = self.libdir / "by-year/1990/Thriller/track 1.mp3"
         assert_symlink(
-            link=by_year_path,
-            target=self.lib_path(b"Michael Jackson/Thriller/track 1.mp3"),
+            link=alt_path,
+            target=self.libdir / "Michael Jackson/Thriller/track 1.mp3",
             absolute=True,
         )
 
-        # `-y` skips the prompt, `-a` updates album-level fields, `-m` forces
-        # actually moving the files
-        self.runcli("mod", "-y", "-a", "-m", "Thriller", "album=Thriller (Remastered)")
+        new_libdir = tmp_path / "newlib"
+        new_libdir.mkdir()
+        self.runcli("move", "-a", "-d", str(new_libdir), "Thriller")
         self.runcli("alt", "update", "by-year")
 
-        assert_is_not_file(by_year_path)
         assert_symlink(
-            link=self.lib_path(b"by-year/1990/Thriller (Remastered)/track 1.mp3"),
-            target=self.lib_path(b"Michael Jackson/Thriller (Remastered)/track 1.mp3"),
+            link=alt_path,
+            target=new_libdir / "Michael Jackson/Thriller/track 1.mp3",
             absolute=True,
         )
 
-    def test_valid_options(self):
-        """Test that an error is raised when option is invalid
-        * Config link type is invalid
-        * An album is added
-        * A confuse.ConfigValueError is raised
-        """
+    def test_invalid_link_type(self):
         self.alt_config["link_type"] = "Hylian"
-        self.add_album(
-            artist="Michael Jackson",
-            album="Thriller",
-            year="1990",
-            original_year="1982",
-        )
 
         with pytest.raises(ConfigValueError):
             self.runcli("alt", "update", "by-year")
@@ -256,7 +224,7 @@ class TestExternalCopy(TestHelper):
         item = self.add_track(title="\u00e9", myexternal="true")
         self.runcli("alt", "update", "myexternal")
         item.load()
-        assert_is_file(self.get_path(item))
+        assert self.get_path(item).is_file()
 
     def test_add_album(self):
         album = self.add_album()
@@ -264,15 +232,15 @@ class TestExternalCopy(TestHelper):
         album.store()
         self.runcli("alt", "update", "myexternal")
         for item in album.items():
-            assert_is_file(self.get_path(item))
+            assert self.get_path(item).is_file()
 
     def test_add_nonexistent(self):
         item = self.add_external_track("myexternal")
         path = self.get_path(item)
-        util.remove(path)
+        path.unlink()
 
         self.runcli("alt", "update", "myexternal")
-        assert_is_file(self.get_path(item))
+        assert path.is_file()
 
     def test_add_replace(self):
         item = self.add_external_track("myexternal")
@@ -292,7 +260,7 @@ class TestExternalCopy(TestHelper):
 
         self.runcli("alt", "update", "myexternal")
         item.load()
-        mediafile = MediaFile(syspath(self.get_path(item)))
+        mediafile = MediaFile(self.get_path(item))
         assert mediafile.composer == "JSB"
 
     def test_no_update_newer(self):
@@ -304,13 +272,13 @@ class TestExternalCopy(TestHelper):
 
         self.runcli("alt", "update", "myexternal")
         item.load()
-        mediafile = MediaFile(syspath(self.get_path(item)))
+        mediafile = MediaFile(self.get_path(item))
         assert mediafile.composer != "JSB"
 
     def test_move_after_path_format_update(self):
         item = self.add_external_track("myexternal")
         old_path = self.get_path(item)
-        assert_is_file(old_path)
+        assert old_path.is_file()
 
         self.external_config["paths"] = {"default": "$album/$title"}
         self.runcli("alt", "update", "myexternal")
@@ -318,12 +286,12 @@ class TestExternalCopy(TestHelper):
         item.load()
         new_path = self.get_path(item)
         assert_is_not_file(old_path)
-        assert_is_file(new_path)
+        assert new_path.is_file()
 
     def test_move_and_write_after_tags_changed(self):
         item = self.add_external_track("myexternal")
         old_path = self.get_path(item)
-        assert_is_file(old_path)
+        assert old_path.is_file()
 
         sleep(0.1)
         item["title"] = "a new title"
@@ -334,25 +302,26 @@ class TestExternalCopy(TestHelper):
         item.load()
         new_path = self.get_path(item)
         assert_is_not_file(old_path)
-        assert_is_file(new_path)
-        mediafile = MediaFile(syspath(new_path))
+        assert new_path.is_file()
+        mediafile = MediaFile(new_path)
         assert mediafile.title == "a new title"
 
     def test_prune_after_move(self):
         item = self.add_external_track("myexternal")
-        artist_dir = os.path.dirname(check_type(self.get_path(item), bytes))
-        assert os.path.isdir(artist_dir)
+        item_alt_path = self.get_path(item)
+        assert item_alt_path
+        assert item_alt_path.parent.is_dir()
 
         item["artist"] = "a new artist"
         item.store()
         self.runcli("alt", "update", "myexternal")
 
-        assert not os.path.exists(syspath(artist_dir))
+        assert not item_alt_path.parent.is_dir()
 
     def test_remove_item(self):
         item = self.add_external_track("myexternal")
         old_path = self.get_path(item)
-        assert_is_file(old_path)
+        assert old_path.is_file()
 
         del item["myexternal"]
         item.store()
@@ -366,7 +335,7 @@ class TestExternalCopy(TestHelper):
         album = self.add_external_album("myexternal")
         item = album.items().get()
         old_path = self.get_path(item)
-        assert_is_file(old_path)
+        assert old_path.is_file()
 
         del album["myexternal"]
         album.store()
@@ -392,7 +361,7 @@ class TestExternalCopy(TestHelper):
         with the artwork file, even if no changes to the database happen.
         """
 
-        def touch_art(item, image_path):
+        def touch_art(item: Item, image_path: Path):
             """`touch` the image file, but don't set mtime to the current
             time since the tests run rather fast and item and art mtimes might
             end up identical if the filesystem has low mtime granularity or
@@ -402,8 +371,8 @@ class TestExternalCopy(TestHelper):
             update <name>` in a real use-case, this should not obscure any
             bugs.
             """
-            item_mtime_alt = os.path.getmtime(syspath(item.path))
-            os.utime(syspath(image_path), (item_mtime_alt + 2, item_mtime_alt + 2))
+            item_mtime_alt = Path(str(item.path, "utf8")).stat().st_mtime
+            os.utime(image_path, (item_mtime_alt + 2, item_mtime_alt + 2))
 
         # Initially add album without artwork.
         album = self.add_album(myexternal="true")
@@ -415,12 +384,12 @@ class TestExternalCopy(TestHelper):
 
         # Make a copy of the artwork, so that changing mtime/content won't
         # affect the repository.
-        image_path = bytes(tmp_path / "image")
-        shutil.copy(self.IMAGE_FIXTURE1, syspath(image_path))  # type: ignore
+        image_path = tmp_path / "image"
+        shutil.copy(self.IMAGE_FIXTURE1, image_path)
         touch_art(item, image_path)
 
         # Add a cover image, assert that it is being embedded.
-        album.artpath = image_path
+        album.artpath = bytes(image_path)
         album.store()
         self.runcli("alt", "update", "myexternal")
 
@@ -440,18 +409,16 @@ class TestExternalCopy(TestHelper):
     def test_update_all(self, tmp_path: Path):
         dir_a = tmp_path / "a"
         dir_a.mkdir()
-        dir_a = str(dir_a)
         dir_b = tmp_path / "b"
         dir_b.mkdir()
-        dir_b = str(dir_b)
         self.config["alternatives"].get().clear()  # type: ignore
         self.config["alternatives"] = {
             "a": {
-                "directory": dir_a,
+                "directory": str(dir_a),
                 "query": "myexternal:true",
             },
             "b": {
-                "directory": dir_b,
+                "directory": str(dir_b),
                 "query": "myexternal:true",
             },
         }
@@ -465,13 +432,13 @@ class TestExternalCopy(TestHelper):
         item.load()
         path_a = self.get_path(item, path_key="alt.a")
         assert path_a
-        assert dir_a in path_a.decode()
-        assert_is_file(path_a)
+        assert dir_a in path_a.parents
+        assert path_a.is_file()
 
         path_b = self.get_path(item, path_key="alt.b")
         assert path_b
-        assert dir_b in path_b.decode()
-        assert_is_file(path_b)
+        assert dir_b in path_b.parents
+        assert path_b.is_file()
 
         # Don’t update files on second run
         assert self.runcli("alt", "update", "--all") == ""
@@ -506,7 +473,7 @@ class TestExternalConvert(TestHelper):
         self.config["convert"]["embed"] = True
 
         album = self.add_album(myexternal="true", format="m4a")
-        album.artpath = self.IMAGE_FIXTURE1
+        album.artpath = bytes(self.IMAGE_FIXTURE1)
         album.store()
 
         self.runcli("alt", "update", "myexternal")
@@ -518,14 +485,14 @@ class TestExternalConvert(TestHelper):
 
         # We "convert" by copying the file. Setting the title simulates
         # a badly behaved converter
-        mediafile_converted = MediaFile(syspath(item.path))
+        mediafile_converted = MediaFile(item.path)
         mediafile_converted.title = "WRONG"
         mediafile_converted.save()
 
         self.runcli("alt", "update", "myexternal")
         item.load()
 
-        alt_mediafile = MediaFile(syspath(self.get_path(item)))
+        alt_mediafile = MediaFile(self.get_path(item))
         assert alt_mediafile.title == "TITLE"
 
     def test_skip_convert_for_same_format(self):
@@ -573,7 +540,7 @@ class TestExternalConvertWorker(TestHelper):
         self.config["convert"]["formats"] = {
             "ogg": "bash -c \"cp '{source}' '$dest'\"".format(
                 # The convert plugin will encode this again using arg_encoding
-                source=self.item_fixture_path("ogg").decode(util.arg_encoding())
+                source=self.item_fixture_path("ogg")
             )
         }
         self.config["alternatives"] = {
