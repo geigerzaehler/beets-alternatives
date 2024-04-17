@@ -1,6 +1,13 @@
 Change Log
 ==========
 
+## Upcoming
+* Consistently use Unicode paths to alternative items. This may result and
+  collection updates and orphaned files in alternatives. It may also improve
+  usability on non-standard file systems (see [#74]).
+
+[#74]: https://github.com/geigerzaehler/beets-alternatives/issues/74
+
 ## v0.12.0 - 2024-06-25
 * Fix an issue where items in a symlink collection with relative links were
   always unnecessarily updated.

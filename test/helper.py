@@ -215,16 +215,16 @@ class TestHelper:
 class MockedWorker(alternatives.Worker):
     def __init__(
         self,
-        fn: Callable[[Item], Tuple[Item, bytes]],
+        fn: Callable[[Item], Tuple[Item, Path]],
         max_workers: Optional[int] = None,
     ):
         # Don’t call `super().__init__()`. We don’t want to start the
         # ThreadPoolExecutor.
-        self._tasks: Set[futures.Future[Tuple[Item, bytes]]] = set()
+        self._tasks: Set[futures.Future[Tuple[Item, Path]]] = set()
         self._fn = fn
 
     def run(self, item: Item):
-        fut: futures.Future[tuple[Item, bytes]] = futures.Future()
+        fut: futures.Future[tuple[Item, Path]] = futures.Future()
         res = self._fn(item)
         fut.set_result(res)
         self._tasks.add(fut)

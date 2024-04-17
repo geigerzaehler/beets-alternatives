@@ -67,6 +67,7 @@ preview = true
 extend-select = [
   "I",    # Sort imports
   "C",    # Pyflakes conventions
+  "PTH",  # Use pathlib instead of os
   "PIE",  # Misc. lints
   "UP",   # Enforce modern Python syntax
   "FURB", # Also enforce more modern Python syntax
