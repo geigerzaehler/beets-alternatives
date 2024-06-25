@@ -38,7 +38,7 @@ jobs:
     - run: poetry run coverage xml
     - uses: coverallsapp/github-action@v2
       if: >
-        github.event_name == 'pull_request' &&
+        (github.event_name == 'pull_request' || github.ref_name == 'main') &&
         matrix.python-version == '3.8' &&
         matrix.os == 'ubuntu-latest'
       with:
