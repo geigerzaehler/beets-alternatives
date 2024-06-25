@@ -420,10 +420,18 @@ class SymlinkView(External):
         external collection, but might require metadata updates.
         """
 
-        if path != dest or not util.samefile(os.readlink(path), item.path):
+        if path != dest:
             return [Action.MOVE]
-        else:
+
+        try:
+            link_target_correct = os.path.samefile(path, item.path)
+        except FileNotFoundError:
+            link_target_correct = False
+
+        if link_target_correct:
             return []
+        else:
+            return [Action.MOVE]
 
     @override
     def update(self, create=None):

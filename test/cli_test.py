@@ -117,14 +117,9 @@ class TestSymlinkView(TestHelper):
         }
         self.alt_config = self.config["alternatives"]["by-year"]
 
-    def test_add_move_remove_album(self, absolute=True):
-        """Test the symlinks are created and deleted
-        * An album is added
-        * The path of the alternative collection is changed
-        * The query of the alternative collection is changed such that the
-          album does not match it anymore.
-        * The links are absolute
-        """
+    def _test_add_move_remove_album(self, *, absolute: bool):
+        """Test that symlinks are created, moved and deleted."""
+
         self.add_album(
             artist="Michael Jackson",
             album="Thriller",
@@ -132,46 +127,37 @@ class TestSymlinkView(TestHelper):
             original_year="1982",
         )
 
+        # Symlink is created
         self.runcli("alt", "update", "by-year")
+        alt_path = self.libdir / "by-year/1990/Thriller/track 1.mp3"
+        library_path = self.libdir / "Michael Jackson/Thriller/track 1.mp3"
+        assert_symlink(alt_path, library_path, absolute)
 
-        by_year_path = self.libdir / "by-year/1990/Thriller/track 1.mp3"
-        target_path = self.libdir / "Michael Jackson/Thriller/track 1.mp3"
-        assert_symlink(by_year_path, target_path, absolute)
+        # Alternative is not updated
+        assert self.runcli("alt", "update", "by-year") == ""
 
+        # Symlink location is updated when path config changes
         self.alt_config["paths"]["default"] = "$original_year/$album/$title"
         self.runcli("alt", "update", "by-year")
+        alt_path = self.libdir / "by-year/1982/Thriller/track 1.mp3"
+        assert_symlink(alt_path, library_path, absolute)
 
-        by_orig_year_path = self.libdir / "by-year/1982/Thriller/track 1.mp3"
-        assert_symlink(by_orig_year_path, target_path, absolute)
-
+        # Symlink is removed
         self.alt_config["query"] = "some_field::foobar"
         self.runcli("alt", "update", "by-year")
-
-        assert_is_not_file(by_orig_year_path)
+        assert_is_not_file(alt_path)
 
     def test_add_move_remove_album_absolute(self):
-        """Test the absolute symlinks are created and deleted
-        * Config link type is absolute
-        * An album is added
-        * The path of the alternative collection is changed
-        * The query of the alternative collection is changed such that the
-          album does not match it anymore.
-        * The links are absolute
-        """
+        """Test that absolute symlinks are created, moved and deleted."""
+
         self.alt_config["link_type"] = "absolute"
-        self.test_add_move_remove_album(absolute=True)
+        self._test_add_move_remove_album(absolute=True)
 
     def test_add_move_remove_album_relative(self):
-        """Test the relative symlinks are created and deleted
-        * Config link type is relative
-        * An album is added
-        * The path of the alternative collection is changed
-        * The query of the alternative collection is changed such that the
-          album does not match it anymore.
-        * The links are relative
-        """
+        """Test that relative symlinks are created, moved and deleted."""
+
         self.alt_config["link_type"] = "relative"
-        self.test_add_move_remove_album(absolute=False)
+        self._test_add_move_remove_album(absolute=False)
 
     def test_update_link_target(self, tmp_path: Path):
         """Link targets are updated when the item has moved in the library"""
@@ -187,11 +173,15 @@ class TestSymlinkView(TestHelper):
             absolute=True,
         )
 
+        # Moving a library item breaks the symlink
         new_libdir = tmp_path / "newlib"
         new_libdir.mkdir()
         self.runcli("move", "-a", "-d", str(new_libdir), "Thriller")
-        self.runcli("alt", "update", "by-year")
+        assert alt_path.is_symlink()
+        assert not alt_path.is_file()
 
+        # Updating the alternative fixes the symlink
+        self.runcli("alt", "update", "by-year")
         assert_symlink(
             link=alt_path,
             target=new_libdir / "Michael Jackson/Thriller/track 1.mp3",
