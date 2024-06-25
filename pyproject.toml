@@ -26,7 +26,7 @@ classifiers = [
 
 [tool.poetry.dependencies]
 python = "^3.8.1"
-beets = "^1.6.0"
+beets = "^2.0.0"
 
 [tool.poetry.group.dev.dependencies]
 confuse = "^2.0.1"

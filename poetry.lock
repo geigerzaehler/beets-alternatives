@@ -2,13 +2,13 @@
 
 [[package]]
 name = "beets"
-version = "1.6.1"
+version = "2.0.0"
 description = "music tagger and library organizer"
 optional = false
 python-versions = "*"
 files = [
-    {file = "beets-1.6.1-py3-none-any.whl", hash = "sha256:1cb28c694a634d33f1a2e218a9701d962d980d317fa7e43721a42e2835ba6a0e"},
-    {file = "beets-1.6.1.tar.gz", hash = "sha256:cab2d89fc27a6013ca17a3060e1bf46f3d7aabeadc5aa9365df6a38c519f0224"},
+    {file = "beets-2.0.0-py3-none-any.whl", hash = "sha256:6fe596f578ce50652fc634d399af67bc0450b325c349989af781805599fcedb3"},
+    {file = "beets-2.0.0.tar.gz", hash = "sha256:3b1172b5bc3729e33a6ea4689f7d0236682bf828c67196b6a260f0389cb1f8cf"},
 ]
 
 [package.dependencies]
@@ -596,4 +596,4 @@ test = ["big-O", "importlib-resources", "jaraco.functools", "jaraco.itertools", 
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.8.1"
-content-hash = "c84488872e66c86a0f87b293b0016e2b3a603432f994cb632f2c82fe5336b95f"
+content-hash = "084f81518f7c95cf22bb0e33d5bdadeae9566a84cf9435ac2f515a29cab04944"
