@@ -16,7 +16,7 @@ import threading
 import traceback
 from concurrent import futures
 from enum import Enum
-from typing import Iterator, List, Optional, Tuple
+from typing import Iterator, List, Optional, Tuple, cast
 
 import beets
 from beets import art, util
@@ -276,25 +276,32 @@ class External:
             path = self._get_stored_path(item)
             for action in actions:
                 if action == Action.MOVE:
+                    assert path is not None  # action guarantees that `path` is not none
                     print_(f">{displayable_path(path)} -> {displayable_path(dest)}")
                     util.mkdirall(dest)
                     util.move(path, dest)
-                    assert path is not None
-                    util.prune_dirs(os.path.dirname(path), root=self.directory)
+                    util.prune_dirs(
+                        # Although the types for `prune_dirs()` require a `str`
+                        # argument the function accepts a `bytes` argument.
+                        cast(str, os.path.dirname(path)),
+                        root=self.directory,
+                    )
                     self._set_stored_path(item, dest)
                     item.store()
                     path = dest
                 elif action == Action.WRITE:
+                    assert path is not None  # action guarantees that `path` is not none
                     print_(f"*{displayable_path(path)}")
                     item.write(path=path)
                 elif action == Action.SYNC_ART:
+                    assert path is not None  # action guarantees that `path` is not none
                     print_(f"~{displayable_path(path)}")
-                    assert path is not None
                     self._sync_art(item, path)
                 elif action == Action.ADD:
                     print_(f"+{displayable_path(dest)}")
                     converter.submit(item)
                 elif action == Action.REMOVE:
+                    assert path is not None  # action guarantees that `path` is not none
                     print_(f"-{displayable_path(path)}")
                     self._remove_file(item)
                     item.store()
@@ -326,8 +333,14 @@ class External:
     def _remove_file(self, item: Item):
         """Remove the external file for `item`."""
         path = self._get_stored_path(item)
+        assert path, "File to remove does not have a path"
         _remove(path)
-        util.prune_dirs(path, root=self.directory)
+        util.prune_dirs(
+            # Although the types for `prune_dirs()` require a `str`
+            # argument the function accepts a `bytes` argument.
+            cast(str, path),
+            root=self.directory,
+        )
         del item[self.path_key]
 
     def _converter(self) -> "Worker":
@@ -440,6 +453,7 @@ class SymlinkView(External):
             path = self._get_stored_path(item)
             for action in actions:
                 if action == Action.MOVE:
+                    assert path is not None  # action guarantees that `path` is not none
                     print_(f">{displayable_path(path)} -> {displayable_path(dest)}")
                     self._remove_file(item)
                     self._create_symlink(item)
@@ -449,6 +463,7 @@ class SymlinkView(External):
                     self._create_symlink(item)
                     self._set_stored_path(item, dest)
                 elif action == Action.REMOVE:
+                    assert path is not None  # action guarantees that `path` is not none
                     print_(f"-{displayable_path(path)}")
                     self._remove_file(item)
                 else:
