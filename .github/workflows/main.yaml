@@ -45,8 +45,13 @@ jobs:
         # Ignore .coverage, which has limited support from coveralls
         file: coverage.xml
 
-  build-beets-master:
+  build-beets-versions:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        beets:
+          - "git+https://github.com/beetbox/beets#master"
+          - "beets==1.6.1"
 
     steps:
     - uses: actions/checkout@v4
@@ -57,7 +62,6 @@ jobs:
         cache: poetry
     - run: poetry env use $(which python)
     - run: poetry install
-    # We cannot use `poetry add` because poetry does not install beets
-    # dependencies properly
-    - run: poetry run pip install "git+https://github.com/beetbox/beets#master"
+    - run: poetry add ${{ matrix.beets }}
+    - run: poetry run pyright --warnings
     - run: poetry run pytest
