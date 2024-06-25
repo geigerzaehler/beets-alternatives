@@ -1,7 +1,7 @@
 Change Log
 ==========
 
-## Upcoming
+## v0.12.0 - 2024-06-25
 * Fix an issue where items in a symlink collection with relative links were
   always unnecessarily updated.
 * Support [Beets v2](https://beets.readthedocs.io/en/latest/changelog.html#may-30-2024)
