@@ -1,0 +1,14 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["config:recommended"],
+  "timezone": "Europe/Berlin",
+  "schedule": ["before 8:00"],
+  "semanticCommits": "disabled",
+  "packageRules": [
+    {
+      "managers": ["poetry"],
+      "updateTypes": ["patch"],
+      "enabled": false
+    }
+  ]
+}
