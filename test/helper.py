@@ -1,3 +1,5 @@
+# pyright: reportPrivateUsage=false
+
 import os
 import platform
 import sys
@@ -5,7 +7,7 @@ from concurrent import futures
 from contextlib import contextmanager
 from io import StringIO
 from pathlib import Path
-from typing import Optional
+from typing import Callable, Optional, Set, Tuple
 from zlib import crc32
 
 import beets
@@ -44,7 +46,7 @@ def capture_stdout():
 
 
 @contextmanager
-def control_stdin(input=None):
+def control_stdin(input: Optional[str] = None):
     """Sends ``input`` to stdin.
 
     >>> with control_stdin('yes'):
@@ -105,7 +107,7 @@ def assert_has_not_embedded_artwork(path: Path):
     assert mediafile.art is None, "MediaFile has embedded artwork"
 
 
-def assert_media_file_fields(path: Path, **kwargs):
+def assert_media_file_fields(path: Path, **kwargs: str):
     mediafile = MediaFile(path)
     for k, v in kwargs.items():
         actual = getattr(mediafile, k)
@@ -147,17 +149,17 @@ class TestHelper:
             plugins._classes = set()
             plugins._instances = {}
 
-    def runcli(self, *args) -> str:
+    def runcli(self, *args: str) -> str:
         # TODO mock stdin
         with capture_stdout() as out:
             ui._raw_main(list(args), self.lib)
         return out.getvalue()
 
-    def item_fixture_path(self, fmt):
+    def item_fixture_path(self, fmt: str):
         assert fmt in {"mp3", "m4a", "ogg"}
         return self.fixture_dir / f"min.{fmt}"
 
-    def add_album(self, **kwargs):
+    def add_album(self, **kwargs: str):
         values = {
             "title": "track 1",
             "artist": "artist 1",
@@ -175,7 +177,7 @@ class TestHelper:
         album.store()
         return album
 
-    def add_track(self, **kwargs):
+    def add_track(self, **kwargs: str):
         values = {
             "title": "track 1",
             "artist": "artist 1",
@@ -191,14 +193,14 @@ class TestHelper:
         item.write()
         return item
 
-    def add_external_track(self, ext_name, **kwargs):
+    def add_external_track(self, ext_name: str, **kwargs: str):
         kwargs[ext_name] = "true"
         item = self.add_track(**kwargs)
         self.runcli("alt", "update", ext_name)
         item.load()
         return item
 
-    def add_external_album(self, ext_name, **kwargs):
+    def add_external_album(self, ext_name: str, **kwargs: str):
         album = self.add_album(**kwargs)
         album[ext_name] = "true"
         album.store()
@@ -206,23 +208,29 @@ class TestHelper:
         album.load()
         return album
 
-    def get_path(self, item, path_key="alt.myexternal") -> Path:
+    def get_path(self, item: Item, path_key: str = "alt.myexternal") -> Path:
         return Path(item[path_key])
 
 
 class MockedWorker(alternatives.Worker):
-    def __init__(self, fn, max_workers=None):
-        self._tasks = set()
+    def __init__(
+        self,
+        fn: Callable[[Item], Tuple[Item, bytes]],
+        max_workers: Optional[int] = None,
+    ):
+        # Don’t call `super().__init__()`. We don’t want to start the
+        # ThreadPoolExecutor.
+        self._tasks: Set[futures.Future[Tuple[Item, bytes]]] = set()
         self._fn = fn
 
-    def submit(self, *args, **kwargs):
-        fut = futures.Future()
-        res = self._fn(*args, **kwargs)
+    def run(self, item: Item):
+        fut: futures.Future[tuple[Item, bytes]] = futures.Future()
+        res = self._fn(item)
         fut.set_result(res)
         self._tasks.add(fut)
         return fut
 
-    def shutdown(self, wait=True):
+    def shutdown(self, wait: bool = True, *, cancel_futures: bool = False) -> None:
         pass
 
 

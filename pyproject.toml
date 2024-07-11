@@ -50,7 +50,13 @@ filterwarnings = [
 ]
 
 [tool.pyright]
-typeCheckingMode = "basic"
+typeCheckingMode = "strict"
+reportMissingTypeStubs = "none"
+# We haven’t made an effort to fix the following issues. Most are caused by
+# missing type annotations from beets.
+reportUnknownMemberType = "none"
+reportUnknownArgumentType = "none"
+reportUnknownVariableType = "none"
 
 [tool.ruff]
 target-version = "py38"
@@ -61,9 +67,9 @@ preview = true
 extend-select = [
   "I",    # Sort imports
   "C",    # Pyflakes conventions
-  "UP",   # Enforce modern Python syntx
   "PIE",  # Misc. lints
-  "FURB", # Elso enforce more modern Python syntax
+  "UP",   # Enforce modern Python syntax
+  "FURB", # Also enforce more modern Python syntax
   "PT",   # Pytest style
   "B",    # Bugbear, avoid common sources of bugs
   "SIM",  # Simplify
