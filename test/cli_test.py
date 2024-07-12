@@ -432,6 +432,28 @@ class TestExternalCopy(TestHelper):
         # Don’t update files on second run
         assert self.runcli("alt", "update", "--all") == ""
 
+    def test_update_subset_query(self):
+        """When a query is provided via the command line only update items in the
+        collection that also match that query."""
+
+        item_add = self.add_track(title="add", myexternal="true", foo="true")
+        item_dont_add = self.add_track(title="don't add", myexternal="true", foo="")
+        # Ensure that we don’t inadvertently add items that match the CLI query
+        # but not the collection query.
+        item_not_in_collection = self.add_track(title="not in collection", foo="true")
+
+        self.runcli("alt", "update", "myexternal", "--query", "foo:true")
+
+        item_add.load()
+        assert self.get_path(item_add).is_file()
+
+        item_dont_add.load()
+        assert not self.get_path(item_dont_add).is_file()
+
+        item_not_in_collection.load()
+        with pytest.raises(KeyError):
+            self.get_path(item_not_in_collection)
+
 
 class TestExternalConvert(TestHelper):
     """Test alternatives with non-empty ``format`` option, i.e. transcoding
