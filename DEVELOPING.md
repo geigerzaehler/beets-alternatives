@@ -5,7 +5,15 @@ This project uses [Poetry][] for packaging and dependency management.
 We’re using the following tools to ensure consistency and quality
 
 - [ruff](https://docs.astral.sh/ruff/)
+- [pyright](https://microsoft.github.io/pyright/)
 - [pytest](https://docs.pytest.org/)
+
+```bash
+poetry install
+poetry run ruff check .
+poetry run pyright .
+poetry run pytest
+```
 
 [poetry]: https://python-poetry.org/
 
