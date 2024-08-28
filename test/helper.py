@@ -245,7 +245,7 @@ def convert_command(tag: str) -> str:
             f"Add-Content -Path '$dest' -Value {tag} -NoNewline"
             '"'
         )
-    elif system == "Linux":
+    elif system == "Linux" or system == "Darwin":
         return f"bash -c \"cp '$source' '$dest'; printf {tag} >> '$dest'\""
     else:
         raise Exception(f"Unsupported system: {system}")
