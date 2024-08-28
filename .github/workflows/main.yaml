@@ -17,6 +17,8 @@ jobs:
         include:
         - python-version: 3.8
           os: windows-2022
+        - python-version: 3.8
+          os: macos-12
 
     runs-on: ${{ matrix.os }}
     continue-on-error: ${{ matrix.python-version == '3.13-dev' }}
