@@ -270,7 +270,8 @@ class External:
                     print_(f">{path} -> {dest}")
                     dest.parent.mkdir(parents=True, exist_ok=True)
                     path.rename(dest)
-                    util.prune_dirs(str(path.parent), root=str(self.directory))
+                    # beets types are confusing
+                    util.prune_dirs(str(path.parent), root=str(self.directory))  # pyright: ignore
                     self._set_stored_path(item, dest)
                     item.store()
                     path = dest
@@ -323,7 +324,8 @@ class External:
         path = self._get_stored_path(item)
         if path:
             path.unlink(missing_ok=True)
-            util.prune_dirs(str(path), root=str(self.directory))
+            # beets types are confusing
+            util.prune_dirs(str(path), root=str(self.directory))  # pyright: ignore
         del item[self.path_key]
 
     def _converter(self) -> "Worker":
