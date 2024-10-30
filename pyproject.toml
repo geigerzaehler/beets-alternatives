@@ -25,8 +25,8 @@ classifiers = [
 ]
 
 [tool.poetry.dependencies]
-python = "^3.8.1"
-beets = ">=1.6.0 <3"
+python = ">=3.10, <4"
+beets = ">=1.6.0, <3"
 
 [tool.poetry.group.dev.dependencies]
 confuse = "^2.0.1"
@@ -59,7 +59,7 @@ reportUnknownArgumentType = "none"
 reportUnknownVariableType = "none"
 
 [tool.ruff]
-target-version = "py38"
+target-version = "py310"
 unsafe-fixes = true
 preview = true
 

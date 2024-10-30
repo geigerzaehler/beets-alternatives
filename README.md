@@ -18,8 +18,8 @@ documentation](./DEVELOPING.md).
 Getting Started
 ---------------
 
-Install the plugin and make sure you using at least version 1.6.0 of beets and
-Python 3.8.
+Install the plugin and make sure you using at least version 1.6.1 of beets and
+Python 3.10.
 
 ```bash
 pip install --upgrade beets>=1.6.0 beets-alternatives
