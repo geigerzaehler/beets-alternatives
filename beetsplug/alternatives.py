@@ -181,6 +181,7 @@ class External:
         self.query, _ = parse_query_string(query, Item)
 
         self.removable = config.get(dict).get("removable", True)  # type: ignore
+        self.album_art_maxwidth = config.get(dict).get("album_art_maxwidth", None)  # type: ignore
 
         if "directory" in config:
             dir = config["directory"].as_path()
@@ -342,7 +343,14 @@ class External:
         album = item.get_album()
         if album and album.artpath and Path(str(album.artpath, "utf8")).is_file():
             self._log.debug(f"Embedding art from {album.artpath} into {path}")
-            art.embed_item(self._log, item, album.artpath, itempath=bytes(path))
+
+            art.embed_item(
+                self._log,
+                item,
+                album.artpath,
+                maxwidth=self.album_art_maxwidth,
+                itempath=bytes(path),
+            )
 
 
 class ExternalConvert(External):
