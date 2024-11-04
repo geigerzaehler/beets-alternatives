@@ -166,6 +166,17 @@ files = [
 test = ["pytest (>=6)"]
 
 [[package]]
+name = "filetype"
+version = "1.2.0"
+description = "Infer file type and MIME type of any file/buffer. No external dependencies."
+optional = false
+python-versions = "*"
+files = [
+    {file = "filetype-1.2.0-py2.py3-none-any.whl", hash = "sha256:7ce71b6880181241cf7ac8697a2f1eb6a8bd9b429f7ad6d27b8db9ba5f1c2d25"},
+    {file = "filetype-1.2.0.tar.gz", hash = "sha256:66b56cd6474bf41d8c54660347d37afcc3f7d1970648de365c102ef77548aadb"},
+]
+
+[[package]]
 name = "iniconfig"
 version = "2.0.0"
 description = "brain-dead simple config-ini parsing"
@@ -268,18 +279,18 @@ files = [
 
 [[package]]
 name = "mediafile"
-version = "0.12.0"
+version = "0.13.0"
 description = "Handles low-level interfacing for files' tags. Wraps Mutagen to"
 optional = false
 python-versions = ">=3.7"
 files = [
-    {file = "mediafile-0.12.0-py3-none-any.whl", hash = "sha256:6b6fdb61bb151cd9d6a8a8821ce28adee604ede8a9a992f0d9dd3e835ef4899b"},
-    {file = "mediafile-0.12.0.tar.gz", hash = "sha256:d75d805a06ed56150dbcea76505e700f9809abd9e98f98117ae46f5df2ccf1d7"},
+    {file = "mediafile-0.13.0-py3-none-any.whl", hash = "sha256:cd8d183d0e0671b5203a86e92cf4e3338ecc892a1ec9dcd7ec0ed87779e514cb"},
+    {file = "mediafile-0.13.0.tar.gz", hash = "sha256:de71063e1bffe9733d6ccad526ea7dac8a9ce760105827f81ab0cb034c729a6d"},
 ]
 
 [package.dependencies]
+filetype = ">=1.2.0"
 mutagen = ">=1.46"
-six = ">=1.9"
 
 [package.extras]
 test = ["tox"]
@@ -520,17 +531,6 @@ files = [
 ]
 
 [[package]]
-name = "six"
-version = "1.16.0"
-description = "Python 2 and 3 compatibility utilities"
-optional = false
-python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*"
-files = [
-    {file = "six-1.16.0-py2.py3-none-any.whl", hash = "sha256:8abb2f1d86890a2dfb989f9a77cfcfd3e47c2a354b01111771326f8aa26e0254"},
-    {file = "six-1.16.0.tar.gz", hash = "sha256:1e61c37477a1626458e36f7b1d82aa5c9b094fa4802892072e49de9c60c4c926"},
-]
-
-[[package]]
 name = "tomli"
 version = "2.0.2"
 description = "A lil' TOML parser"
@@ -584,4 +584,4 @@ files = [
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.10, <4"
-content-hash = "33d43104df9432015b964c707f4d87f9c4b65f54376e1e4d57d9c3fd12918386"
+content-hash = "23a774bc6902d6cba076c118c6e360244538d0893f34cc52c9539c3f3fac2328"
