@@ -18,8 +18,8 @@ documentation](./DEVELOPING.md).
 Getting Started
 ---------------
 
-Install the plugin and make sure you using at least version 1.6.0 of beets and
-Python 3.8.
+Install the plugin and make sure you using at least version 1.6.1 of beets and
+Python 3.10.
 
 ```bash
 pip install --upgrade beets>=1.6.0 beets-alternatives
@@ -256,6 +256,12 @@ following settings.
   transcoding the file. It can not be combined with other formats.
 
   By default no transcoding is done.
+
+* **`albumart_maxwidth`** Downscale the embedded album art to a width
+  of maximum `albumart_maxwidth` pixels. The aspect ratio of the image
+  will be preserved. This is comparable to the setting with the same
+  name of the [convert plugin][convert plugin]. 
+
 
 * **`removable`** If this is `true` (the default) and `directory` does
   not exist, the `update` command will ask you to confirm the creation

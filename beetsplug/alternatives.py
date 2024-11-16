@@ -15,10 +15,10 @@ import logging
 import os.path
 import shutil
 import threading
+from collections.abc import Callable, Iterable, Iterator, Sequence
 from concurrent import futures
 from enum import Enum
 from pathlib import Path
-from typing import Callable, Iterable, Iterator, Optional, Sequence, Set, Tuple
 
 import beets
 import confuse
@@ -181,6 +181,7 @@ class External:
         self.query, _ = parse_query_string(query, Item)
 
         self.removable = config.get(dict).get("removable", True)  # type: ignore
+        self.album_art_maxwidth = config.get(dict).get("album_art_maxwidth", None)  # type: ignore
 
         if "directory" in config:
             dir = config["directory"].as_path()
@@ -229,7 +230,7 @@ class External:
         else:
             return [Action.ADD]
 
-    def _items_actions(self) -> Iterator[Tuple[Item, Sequence[Action]]]:
+    def _items_actions(self) -> Iterator[tuple[Item, Sequence[Action]]]:
         matched_ids = set()
         for album in self.lib.albums():
             if self.query.match(album):
@@ -242,7 +243,7 @@ class External:
             elif self._get_stored_path(item):
                 yield (item, [Action.REMOVE])
 
-    def ask_create(self, create: Optional[bool] = None) -> bool:
+    def ask_create(self, create: bool | None = None) -> bool:
         if not self.removable:
             return True
         if create is not None:
@@ -255,7 +256,7 @@ class External:
         )
         return input_yn(msg, require=True)
 
-    def update(self, create: Optional[bool] = None):
+    def update(self, create: bool | None = None):
         if not self.directory.is_dir() and not self.ask_create(create):
             print_(f"Skipping creation of {self.directory}")
             return
@@ -270,7 +271,8 @@ class External:
                     print_(f">{path} -> {dest}")
                     dest.parent.mkdir(parents=True, exist_ok=True)
                     path.rename(dest)
-                    util.prune_dirs(str(path.parent), root=str(self.directory))
+                    # beets types are confusing
+                    util.prune_dirs(str(path.parent), root=str(self.directory))  # pyright: ignore
                     self._set_stored_path(item, dest)
                     item.store()
                     path = dest
@@ -307,7 +309,7 @@ class External:
     def _set_stored_path(self, item: Item, path: Path):
         item[self.path_key] = str(path)
 
-    def _get_stored_path(self, item: Item) -> Optional[Path]:
+    def _get_stored_path(self, item: Item) -> Path | None:
         try:
             path = item[self.path_key]
         except KeyError:
@@ -323,7 +325,8 @@ class External:
         path = self._get_stored_path(item)
         if path:
             path.unlink(missing_ok=True)
-            util.prune_dirs(str(path), root=str(self.directory))
+            # beets types are confusing
+            util.prune_dirs(str(path), root=str(self.directory))  # pyright: ignore
         del item[self.path_key]
 
     def _converter(self) -> "Worker":
@@ -340,7 +343,14 @@ class External:
         album = item.get_album()
         if album and album.artpath and Path(str(album.artpath, "utf8")).is_file():
             self._log.debug(f"Embedding art from {album.artpath} into {path}")
-            art.embed_item(self._log, item, album.artpath, itempath=bytes(path))
+
+            art.embed_item(
+                self._log,
+                item,
+                album.artpath,
+                maxwidth=self.album_art_maxwidth,
+                itempath=bytes(path),
+            )
 
 
 class ExternalConvert(External):
@@ -433,7 +443,7 @@ class SymlinkView(External):
             return [Action.MOVE]
 
     @override
-    def update(self, create: Optional[bool] = None):
+    def update(self, create: bool | None = None):
         for item, actions in self._items_actions():
             dest = self.destination(item)
             path = self._get_stored_path(item)
@@ -474,10 +484,10 @@ class SymlinkView(External):
 
 class Worker(futures.ThreadPoolExecutor):
     def __init__(
-        self, fn: Callable[[Item], Tuple[Item, Path]], max_workers: Optional[int]
+        self, fn: Callable[[Item], tuple[Item, Path]], max_workers: int | None
     ):
         super().__init__(max_workers)
-        self._tasks: Set[futures.Future[Tuple[Item, Path]]] = set()
+        self._tasks: set[futures.Future[tuple[Item, Path]]] = set()
         self._fn = fn
 
     def run(self, item: Item):

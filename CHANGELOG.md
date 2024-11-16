@@ -5,6 +5,7 @@ Change Log
 * Consistently use Unicode paths to alternative items. This may result and
   collection updates and orphaned files in alternatives. It may also improve
   usability on non-standard file systems (see [#74]).
+* Require Python >= 3.10
 
 [#74]: https://github.com/geigerzaehler/beets-alternatives/issues/74
 

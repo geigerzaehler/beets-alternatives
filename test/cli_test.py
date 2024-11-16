@@ -8,6 +8,7 @@ from time import sleep
 import pytest
 from beets.library import Item
 from beets.ui import UserError
+from beets.util.artresizer import ArtResizer
 from confuse import ConfigValueError
 from mediafile import MediaFile
 
@@ -348,6 +349,8 @@ class TestExternalCopy(TestHelper):
 
         This test comprehensively checks that embedded artwork is up-to-date
         with the artwork file, even if no changes to the database happen.
+
+        It also tests if the album_art_maxwidth is applied
         """
 
         def touch_art(item: Item, image_path: Path):
@@ -363,7 +366,8 @@ class TestExternalCopy(TestHelper):
             item_mtime_alt = Path(str(item.path, "utf8")).stat().st_mtime
             os.utime(image_path, (item_mtime_alt + 2, item_mtime_alt + 2))
 
-        # Initially add album without artwork.
+        # Initially add album without artwork. Do not do resizing
+        self.config["alternatives"]["myexternal"]["album_art_maxwidth"] = None
         album = self.add_album(myexternal="true")
         album.store()
         self.runcli("alt", "update", "myexternal")
@@ -373,7 +377,7 @@ class TestExternalCopy(TestHelper):
 
         # Make a copy of the artwork, so that changing mtime/content won't
         # affect the repository.
-        image_path = tmp_path / "image"
+        image_path = tmp_path / "image.png"
         shutil.copy(self.IMAGE_FIXTURE1, image_path)
         touch_art(item, image_path)
 
@@ -394,6 +398,19 @@ class TestExternalCopy(TestHelper):
 
         item = album.items().get()
         assert_has_embedded_artwork(self.get_path(item), self.IMAGE_FIXTURE2)
+
+        # now set a maxwidth and verify the final image has the right
+        # dimensions
+        touch_art(item, image_path)
+        self.config["alternatives"]["myexternal"]["album_art_maxwidth"] = 1
+        self.runcli("alt", "update", "myexternal")
+        mediafile = MediaFile(self.get_path(item))
+        tmp_embedded_image = tmp_path / "embedded_image.png"
+        tmp_embedded_image.write_bytes(mediafile.art)  # pyright: ignore
+        art_resizer = ArtResizer()
+        (width, height) = art_resizer.get_size(bytes(tmp_embedded_image))  # pyright: ignore
+        assert width == 1
+        assert height < 3
 
     def test_update_all(self, tmp_path: Path):
         dir_a = tmp_path / "a"

@@ -25,18 +25,18 @@ classifiers = [
 ]
 
 [tool.poetry.dependencies]
-python = "^3.8.1"
-beets = ">=1.6.0 <3"
+python = ">=3.10, <4"
+beets = ">=1.6.0, <3"
 
 [tool.poetry.group.dev.dependencies]
 confuse = "^2.0.1"
 coverage = "^7.4.4"
-mediafile = "^0.12.0"
+mediafile = "^0.13.0"
 mock = "^5.0.2"
 pyright = "^1.1.340"
 pytest = "^8.0.2"
-pytest-cov = "^5.0.0"
-ruff = "^0.6.0"
+pytest-cov = "^6.0.0"
+ruff = "^0.7.0"
 typeguard = "^4.1.5"
 typing-extensions = "^4.9.0"
 
@@ -59,7 +59,7 @@ reportUnknownArgumentType = "none"
 reportUnknownVariableType = "none"
 
 [tool.ruff]
-target-version = "py38"
+target-version = "py310"
 unsafe-fixes = true
 preview = true
 
