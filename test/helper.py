@@ -29,20 +29,23 @@ for h in beetsLogger.handlers:
 
 @contextmanager
 def capture_stdout():
-    """Save stdout in a StringIO.
+    r"""Collect stdout in a StringIO while still outputting it.
 
     >>> with capture_stdout() as output:
     ...     print('spam')
     ...
+    spam
     >>> output.getvalue()
-    'spam'
+    'spam\n'
     """
     org = sys.stdout
-    sys.stdout = StringIO()
+    buffer = StringIO()
+    sys.stdout = buffer
     try:
         yield sys.stdout
     finally:
         sys.stdout = org
+        sys.stdout.write(buffer.getvalue())
 
 
 @contextmanager
