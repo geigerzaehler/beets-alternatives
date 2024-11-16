@@ -1,6 +1,9 @@
 Change Log
 ==========
 
+## Upcoming
+* Resize embedded art in alternative files with `albumart_maxwidth` option.
+
 ## v0.13.0 - 2024-08-17
 * Consistently use Unicode paths to alternative items. This may result and
   collection updates and orphaned files in alternatives. It may also improve
