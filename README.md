@@ -257,6 +257,12 @@ following settings.
 
   By default no transcoding is done.
 
+* **`albumart_maxwidth`** Downscale the embedded album art to a width
+  of maximum `albumart_maxwidth` pixels. The aspect ratio of the image
+  will be preserved. This is comparable to the setting with the same
+  name of the [convert plugin][convert plugin]. 
+
+
 * **`removable`** If this is `true` (the default) and `directory` does
   not exist, the `update` command will ask you to confirm the creation
   of the external collection. (optional)
