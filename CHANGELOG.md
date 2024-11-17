@@ -1,7 +1,7 @@
 Change Log
 ==========
 
-## Upcoming
+## v0.13.1 - 2024-11-17
 * Resize embedded art in alternative files with `albumart_maxwidth` option.
 
 ## v0.13.0 - 2024-08-17
