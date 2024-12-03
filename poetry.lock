@@ -2,13 +2,13 @@
 
 [[package]]
 name = "beets"
-version = "2.1.0"
+version = "2.2.0"
 description = "music tagger and library organizer"
 optional = false
 python-versions = "<4,>=3.8"
 files = [
-    {file = "beets-2.1.0-py3-none-any.whl", hash = "sha256:dd72e41008a3aaced0a49749820f75a5b6d03aa3d4a41a4298c40dc8c9e4f854"},
-    {file = "beets-2.1.0.tar.gz", hash = "sha256:a0abcdf95d5f89fcf46b07ddc2b5b92e1dd5abe68f4cc7222f21aff2dffc4789"},
+    {file = "beets-2.2.0-py3-none-any.whl", hash = "sha256:6dddec32933278e83e4555aaba8587f125b4becd97c71bac81fe317264a0d01c"},
+    {file = "beets-2.2.0.tar.gz", hash = "sha256:cc0a277f530844575e3374021f316da16bf78ed514963c1ab1597168a8d4c715"},
 ]
 
 [package.dependencies]
