@@ -1,6 +1,9 @@
 name: Check and test
 
-on: [push, pull_request]
+on:
+  push:
+    branches: [main]
+  pull_request:
 
 env:
   FORCE_COLOR: 1
@@ -15,13 +18,11 @@ jobs:
         - "3.13" # latest
         include:
         - python-version: "3.10"
-          os: windows-2022
+          os: windows-latest
         - python-version: "3.10"
           os: macos-12
 
     runs-on: ${{ matrix.os }}
-    # Fails because of https://github.com/beetbox/mediafile/pull/75
-    continue-on-error: ${{ matrix.python-version == '3.13' }}
 
     steps:
     - uses: actions/checkout@v4
@@ -36,6 +37,8 @@ jobs:
     - run: poetry run ruff format --check
     - run: poetry run ruff check
     - run: poetry run pyright --warnings
+    - run: sudo apt-get install -y imagemagick
+      if: runner.os == 'Linux'
     - run: poetry run pytest
     - run: poetry run coverage xml
     - uses: coverallsapp/github-action@v2
@@ -55,6 +58,7 @@ jobs:
           - "git+https://github.com/beetbox/beets#master"
           - "beets==1.6.1"
 
+    continue-on-error: ${{ contains(matrix.beets, 'master') }}
     steps:
     - uses: actions/checkout@v4
     - run: pip install poetry
@@ -62,8 +66,9 @@ jobs:
       with:
         python-version: "3.10"
         cache: poetry
-    - run: poetry env use $(which python)
+    - run: poetry env use "$(which python)"
     - run: poetry install
     - run: poetry add ${{ matrix.beets }}
     - run: poetry run pyright --warnings
+    - run: sudo apt-get install -y imagemagick
     - run: poetry run pytest

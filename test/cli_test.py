@@ -342,7 +342,7 @@ class TestExternalCopy(TestHelper):
         assert str(e.value) == "Alternative collection 'unkown' not found."
 
     @pytest.mark.skipif(
-        sys.platform.startswith("win"), reason="Image conversion not available"
+        not sys.platform.startswith("linux"), reason="Image conversion not available"
     )
     def test_embed_art(self, tmp_path: Path):
         """Test that artwork is embedded and updated to match the source file.
