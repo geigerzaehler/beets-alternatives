@@ -325,6 +325,7 @@ class TestExternalCopy(TestHelper):
     def test_remove_album(self):
         album = self.add_external_album("myexternal")
         item = album.items().get()
+        assert item
         old_path = self.get_path(item)
         assert old_path.is_file()
 
@@ -377,6 +378,7 @@ class TestExternalCopy(TestHelper):
         self.runcli("alt", "update", "myexternal")
 
         item = album.items().get()
+        assert item
         assert_has_not_embedded_artwork(self.get_path(item))
 
         # Make a copy of the artwork, so that changing mtime/content won't
@@ -391,6 +393,7 @@ class TestExternalCopy(TestHelper):
         self.runcli("alt", "update", "myexternal")
 
         item = album.items().get()
+        assert item
         assert_has_embedded_artwork(self.get_path(item), self.IMAGE_FIXTURE1)
 
         # Change content and update mtime, but do not change the item/album in
@@ -401,6 +404,7 @@ class TestExternalCopy(TestHelper):
         self.runcli("alt", "update", "myexternal")
 
         item = album.items().get()
+        assert item
         assert_has_embedded_artwork(self.get_path(item), self.IMAGE_FIXTURE2)
 
         # now set a maxwidth and verify the final image has the right
@@ -488,6 +492,7 @@ class TestExternalConvert(TestHelper):
 
         self.runcli("alt", "update", "myexternal")
         item = album.items().get()
+        assert item
         assert_has_embedded_artwork(self.get_path(item))
 
     def test_convert_write_tags(self):
