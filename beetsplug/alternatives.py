@@ -137,7 +137,7 @@ class AlternativesCommand(Subcommand):
     def func(self, lib: Library, opts: argparse.Namespace, _):  # pyright: ignore[reportIncompatibleMethodOverride]
         opts.func(lib, opts)
 
-    def parse_args(self, args: Sequence[str]):  # pyright: ignore
+    def parse_args(self, args: list[str]):  # pyright: ignore
         return self.parser.parse_args(args), []
 
 
