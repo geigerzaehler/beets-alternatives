@@ -1,17 +1,17 @@
+import io
 import os
 import os.path
 import platform
 import shutil
-import sys
 from pathlib import Path
 from time import sleep
 
 import pytest
 from beets.library import Item
 from beets.ui import UserError
-from beets.util.artresizer import ArtResizer
 from confuse import ConfigValueError
 from mediafile import MediaFile
+from PIL import Image
 
 from .helper import (
     TestHelper,
@@ -342,9 +342,6 @@ class TestExternalCopy(TestHelper):
             self.runcli("alt", "update", "unkown")
         assert str(e.value) == "Alternative collection 'unkown' not found."
 
-    @pytest.mark.skipif(
-        not sys.platform.startswith("linux"), reason="Image conversion not available"
-    )
     def test_embed_art(self, tmp_path: Path):
         """Test that artwork is embedded and updated to match the source file.
 
@@ -413,10 +410,7 @@ class TestExternalCopy(TestHelper):
         self.config["alternatives"]["myexternal"]["album_art_maxwidth"] = 1
         self.runcli("alt", "update", "myexternal")
         mediafile = MediaFile(self.get_path(item))
-        tmp_embedded_image = tmp_path / "embedded_image.png"
-        tmp_embedded_image.write_bytes(mediafile.art)  # pyright: ignore
-        art_resizer = ArtResizer()
-        (width, height) = art_resizer.get_size(bytes(tmp_embedded_image))  # pyright: ignore
+        width, height = Image.open(io.BytesIO(mediafile.art)).size  # pyright: ignore
         assert width == 1
         assert height < 3
 
