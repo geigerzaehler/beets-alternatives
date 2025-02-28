@@ -1,6 +1,9 @@
 Change Log
 ==========
 
+## v0.13.2 - 2025-02-28
+* Make builds more reliable for packagers
+
 ## v0.13.1 - 2024-11-17
 * Resize embedded art in alternative files with `albumart_maxwidth` option.
 
