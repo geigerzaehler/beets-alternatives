@@ -1,6 +1,9 @@
 Change Log
 ==========
 
+## Unreleased
+* Add support for beets v2.3.x
+
 ## v0.13.2 - 2025-02-28
 * Make builds more reliable for packagers
 

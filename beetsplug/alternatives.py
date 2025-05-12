@@ -356,9 +356,9 @@ class External:
 
     def destination(self, item: Item) -> Path:
         """Returns the path for `item` in the external collection."""
-        path = item.destination(path_formats=self._config.path_formats, fragment=True)
-        # When using `fragment=True` the returned path is guaranteed to be a
-        # string.
+        path = _item_destination_relative_compat(
+            item, path_formats=self._config.path_formats
+        )
         assert isinstance(path, str)
         return self._config.directory / path
 
@@ -537,3 +537,25 @@ class Worker(futures.ThreadPoolExecutor):
         for f in futures.as_completed(self._tasks):
             self._tasks.remove(f)
             yield f.result()
+
+
+_beets_version = tuple(map(int, beets.__version__.split(".")[0:2]))
+
+if _beets_version >= (2, 3):
+
+    def _item_destination_relative_compat(
+        item: Item, path_formats: object = None
+    ) -> str:
+        path_bytes = item.destination(
+            path_formats=path_formats, relative_to_libdir=True
+        )
+        return path_bytes.decode("utf-8")
+
+else:
+
+    def _item_destination_relative_compat(
+        item: Item, path_formats: object = None
+    ) -> str:
+        path = item.destination(path_formats=path_formats, fragment=True)  # type: ignore
+        assert isinstance(path, str)
+        return path

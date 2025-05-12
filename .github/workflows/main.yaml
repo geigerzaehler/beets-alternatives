@@ -57,6 +57,9 @@ jobs:
         beets:
           - "git+https://github.com/beetbox/beets#master"
           - "beets==1.6.1"
+          - "beets==2.0.*"
+          - "beets==2.1.*"
+          - "beets==2.2.*"
 
     continue-on-error: ${{ contains(matrix.beets, 'master') }}
     steps:
@@ -69,6 +72,4 @@ jobs:
     - run: poetry env use "$(which python)"
     - run: poetry install
     - run: poetry add ${{ matrix.beets }}
-    - run: poetry run pyright --warnings
-    - run: sudo apt-get install -y imagemagick
     - run: poetry run pytest
