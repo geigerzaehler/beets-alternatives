@@ -1,6 +1,9 @@
 Change Log
 ==========
 
+## Unreleased
+* Add support for beets v2.3.x
+
 ## v0.13.1 - 2024-11-17
 * Resize embedded art in alternative files with `albumart_maxwidth` option.
 

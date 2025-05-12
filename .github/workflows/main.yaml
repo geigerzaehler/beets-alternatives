@@ -57,6 +57,9 @@ jobs:
         beets:
           - "git+https://github.com/beetbox/beets#master"
           - "beets==1.6.1"
+          - "beets==2.0.*"
+          - "beets==2.1.*"
+          - "beets==2.2.*"
 
     continue-on-error: ${{ contains(matrix.beets, 'master') }}
     steps:
@@ -70,9 +73,3 @@ jobs:
     - run: poetry install
     - run: poetry add ${{ matrix.beets }}
     - run: poetry run pytest
-    - if: contains(matrix.beets, 'master')
-      # Beets does not require this file anymore since https://github.com/beetbox/beets/commit/916d40f
-      # And if we keep the file around pyright can’t resolve the
-      # `beetsplug.convert` module correctly
-      run: rm beetsplug/__init__.py
-    - run: poetry run pyright --warnings
