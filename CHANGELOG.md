@@ -1,7 +1,7 @@
 Change Log
 ==========
 
-## Unreleased
+## v0.13.3 - 2025-05-12
 * Add support for beets v2.3.x
 
 ## v0.13.2 - 2025-02-28
