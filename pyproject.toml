@@ -4,7 +4,7 @@ build-backend = "poetry.core.masonry.api"
 
 [tool.poetry]
 name = "beets-alternatives"
-version = "0.13.1"
+version = "0.13.2.alpha1"
 description = "beets plugin to manage multiple files"
 authors = [
   "Thomas Scholtes <geigerzaehler@axiom.fm>",
