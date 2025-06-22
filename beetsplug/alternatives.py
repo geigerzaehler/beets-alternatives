@@ -22,14 +22,13 @@ from pathlib import Path
 from typing import Literal
 
 import beets
+import beetsplug.convert as convert
 import confuse
 from beets import art, util
 from beets.library import Item, Library, parse_query_string
 from beets.plugins import BeetsPlugin
 from beets.ui import Subcommand, UserError, decargs, get_path_formats, input_yn, print_
 from typing_extensions import Never, override
-
-import beetsplug.convert as convert
 
 
 class AlternativesPlugin(BeetsPlugin):
