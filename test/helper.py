@@ -12,6 +12,7 @@ from zlib import crc32
 
 import beets
 import beets.library
+import beetsplug.convert as convert
 import pytest
 from beets import logging, plugins, ui
 from beets.library import Item
@@ -19,7 +20,6 @@ from beets.util import MoveOperation
 from mediafile import MediaFile
 
 import beetsplug.alternatives as alternatives
-import beetsplug.convert as convert
 
 beetsLogger = logging.getLogger("beets")
 beetsLogger.propagate = True
