@@ -27,7 +27,7 @@ import confuse
 from beets import art, util
 from beets.library import Item, Library, parse_query_string
 from beets.plugins import BeetsPlugin
-from beets.ui import Subcommand, UserError, decargs, get_path_formats, input_yn, print_
+from beets.ui import Subcommand, UserError, get_path_formats, input_yn, print_
 from typing_extensions import Never, override
 
 
@@ -56,8 +56,7 @@ class AlternativesPlugin(BeetsPlugin):
 
     def list_tracks(self, lib: Library, options: argparse.Namespace):
         if options.format is not None:
-            (fmt,) = decargs([options.format])
-            beets.config[Item._format_config_key].set(fmt)  # pyright: ignore[reportPrivateUsage]
+            beets.config[Item._format_config_key].set(options.format)  # pyright: ignore[reportPrivateUsage]
 
         alt = self.alternative(options.name, lib)
 
