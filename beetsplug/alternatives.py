@@ -22,6 +22,7 @@ from pathlib import Path
 from typing import Literal, TypeVar
 
 import beets
+import beets.plugins
 import beetsplug.convert as convert
 import confuse
 from beets import art, util
@@ -231,11 +232,22 @@ class Config:
 
 
 class Action(Enum):
-    ADD = 1
-    REMOVE = 2
-    WRITE = 3
-    MOVE = 4
-    SYNC_ART = 5
+    """Action to take for a track when syncing a collection"""
+
+    #: Track was not present in the collection before and is added
+    ADD = "ADD"
+
+    #: Remove the track from the collection
+    REMOVE = "REMOVE"
+
+    #: Write tags
+    WRITE = "WRITE"
+
+    #: Move the file for an existing track in a collection to a different path.
+    MOVE = "MOVE"
+
+    #: Write album art to the track’s metadata
+    SYNC_ART = "SYNC_ART"
 
 
 class External:
@@ -323,6 +335,12 @@ class External:
                 self._sync_art(item, dest)
             self._set_stored_path(item, dest)
             item.store()
+            beets.plugins.send(
+                "alternatives.update_item",
+                collection=self._config.collection_id,
+                item=item,
+                action=action.value,
+            )
 
         converter, converting_done = self._converter()
         with converter as converter:
@@ -330,6 +348,7 @@ class External:
                 dest = self.destination(item)
                 path = self._get_stored_path(item)
                 for action in actions:
+                    delay_finalize = False
                     if action == Action.MOVE:
                         assert (
                             path is not None
@@ -358,6 +377,7 @@ class External:
                         print_(f"+{dest}")
                         dest.parent.mkdir(exist_ok=True, parents=True)
                         if self._should_transcode(item):
+                            delay_finalize = True
                             converter.run(item, dest)
                         else:
                             self._log.debug(f"copying {dest}")
@@ -374,6 +394,14 @@ class External:
                         print_(f"-{path}")
                         self._remove_file(item)
                         item.store()
+
+                    if not delay_finalize:
+                        beets.plugins.send(
+                            "alternatives.update_item",
+                            collection=self._config.collection_id,
+                            item=item,
+                            action=action.value,
+                        )
 
                 for item, dest in _get_queue_available(converting_done):
                     finalize_converted_item(item, dest)
@@ -514,17 +542,24 @@ class SymlinkView(External):
                     self._remove_file(item)
                     self._create_symlink(item)
                     self._set_stored_path(item, dest)
+                    item.store()
                 elif action == Action.ADD:
                     print_(f"+{dest}")
                     self._create_symlink(item)
                     self._set_stored_path(item, dest)
+                    item.store()
                 elif action == Action.REMOVE:
                     assert path is not None  # action guarantees that `path` is not none
                     print_(f"-{path}")
                     self._remove_file(item)
-                else:
-                    continue
-                item.store()
+                    item.store()
+
+                beets.plugins.send(
+                    "alternatives.update_item",
+                    collection=self._config.collection_id,
+                    item=item,
+                    action=action.value,
+                )
 
     def _create_symlink(self, item: Item):
         dest = self.destination(item)

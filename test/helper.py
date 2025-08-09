@@ -13,6 +13,7 @@ import beets
 import beets.library
 import beets.plugins
 import beetsplug.convert
+import beetsplug.hook
 import pytest
 from beets import logging, ui
 from beets.library import Item
@@ -149,11 +150,13 @@ class TestHelper:
             beets.plugins._instances = [
                 beetsplug.alternatives.AlternativesPlugin(),
                 beetsplug.convert.ConvertPlugin(),
+                beetsplug.hook.HookPlugin(),
             ]
         else:
             beets.plugins._classes = {  # type: ignore (compatibility with beets<2.4)
                 beetsplug.alternatives.AlternativesPlugin,
                 beetsplug.convert.ConvertPlugin,
+                beetsplug.hook.HookPlugin,
             }
             beets.plugins._instances = {}
 
@@ -166,6 +169,40 @@ class TestHelper:
                 # Instantiating a plugin will modify register event listeners which
                 # are stored in a class variable
                 plugin.listeners = None  # type: ignore (compatibility with beets<2.4)
+
+    @pytest.fixture
+    def event_log(self, tmp_path: Path, _setup: None) -> Path:
+        """Add hook for the `alternatives.update` event that logs the event to the
+        returned path.
+
+        The format for the events is `{collection}, {action}, {item.title}`.
+        """
+
+        hook_log = tmp_path / "update-event.log"
+
+        if platform.system() == "Windows":
+            command = f'powershell -Command "Add-Content -Path \\"{hook_log}\\" -Value \\"{{collection}}, {{action}}, {{item.title}}\\"" -NoNewline'
+        else:
+            command = f"bash -c 'echo \"{{collection}}, {{action}}, {{item.title}}\" >> {hook_log}'"
+
+        self.config["hook"]["hooks"] = [
+            {
+                "event": "alternatives.update_item",
+                "command": command,
+            },
+        ]
+
+        if _beets_version >= (2, 3, 1):
+            beets.plugins._instances.append(
+                beetsplug.hook.HookPlugin(),
+            )
+
+        else:
+            beets.plugins._classes.add(  # type: ignore (compatibility with beets<2.4)
+                beetsplug.hook.HookPlugin,
+            )
+
+        return hook_log
 
     def runcli(self, *args: str) -> str:
         # TODO mock stdin
