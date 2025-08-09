@@ -1,6 +1,10 @@
 Change Log
 ==========
 
+## Upcoming
+* You can now hook into collection updates and run your own logic using the
+  `alternatives.update_item` event.
+
 ## v0.13.3 - 2025-05-12
 * Add support for beets v2.3.x
 
