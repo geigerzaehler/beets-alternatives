@@ -12,14 +12,16 @@ from zlib import crc32
 
 import beets
 import beets.library
-import beetsplug.convert as convert
+import beets.plugins
+import beetsplug.convert
+import beetsplug.hook
 import pytest
-from beets import logging, plugins, ui
+from beets import logging, ui
 from beets.library import Item
 from beets.util import MoveOperation
 from mediafile import MediaFile
 
-import beetsplug.alternatives as alternatives
+import beetsplug.alternatives
 
 beetsLogger = logging.getLogger("beets")
 beetsLogger.propagate = True
@@ -122,7 +124,13 @@ class TestHelper:
     def _setup(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
         monkeypatch.setattr("beetsplug.alternatives.Worker", MockedWorker)
 
-        plugins._classes = {alternatives.AlternativesPlugin, convert.ConvertPlugin}
+        # We can’t use the "plugin" config to set the plugins to load.
+        beets.plugins._classes = {
+            beetsplug.alternatives.AlternativesPlugin,
+            beetsplug.convert.ConvertPlugin,
+        }
+        # Clear plugin instance cache
+        beets.plugins._instances = {}
 
         self.config = beets.config
         self.config.clear()
@@ -147,10 +155,29 @@ class TestHelper:
         self.IMAGE_FIXTURE1 = self.fixture_dir / "image.png"
         self.IMAGE_FIXTURE2 = self.fixture_dir / "image_black.png"
         yield
-        for plugin in plugins._classes:
+        for plugin in beets.plugins._classes:
+            # Instantiating a plugin will modify register event listeners which
+            # are stored in a class variable
             plugin.listeners = None
-            plugins._classes = set()
-            plugins._instances = {}
+
+    @pytest.fixture
+    def event_log(self, tmp_path: Path, _setup: None) -> Path:
+        """Add hook for the `alternatives.update` event that logs the event to the
+        returned path.
+
+        The format for the events is `{collection}, {action}, {item.title}`.
+        """
+
+        hook_log = tmp_path / "update-event.log"
+        beets.plugins._classes.add(beetsplug.hook.HookPlugin)
+
+        self.config["hook"]["hooks"] = [
+            {
+                "event": "alternatives.update_item",
+                "command": f"bash -c 'echo \"{{collection}}, {{action}}, {{item.title}}\" >> {hook_log}'",
+            },
+        ]
+        return hook_log
 
     def runcli(self, *args: str) -> str:
         # TODO mock stdin
@@ -215,7 +242,7 @@ class TestHelper:
         return Path(item[path_key])
 
 
-class MockedWorker(alternatives.Worker):
+class MockedWorker(beetsplug.alternatives.Worker):
     def __init__(
         self,
         fn: Callable[[Item], tuple[Item, Path]],

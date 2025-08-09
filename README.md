@@ -168,7 +168,8 @@ alternatives:
     link_type: relative
 ```
 
-With this config, the `beet alt update by-year` command will create relative symlinks. E.g:
+With this config, the `beet alt update by-year` command will create relative
+symlinks. E.g:
 
 ```plain
 /music/by-year/1982/Thriller/Beat It.mp3
@@ -260,8 +261,7 @@ following settings.
 * **`albumart_maxwidth`** Downscale the embedded album art to a width
   of maximum `albumart_maxwidth` pixels. The aspect ratio of the image
   will be preserved. This is comparable to the setting with the same
-  name of the [convert plugin][convert plugin]. 
-
+  name of the [convert plugin][convert plugin].
 
 * **`removable`** If this is `true` (the default) and `directory` does
   not exist, the `update` command will ask you to confirm the creation
@@ -271,6 +271,36 @@ following settings.
   **`formats`** is `link`, it sets the type of links to create. For
   differences between link types and examples see [Symlink Views](#symlink-views).
 
+Events
+------
+
+The plugin fires the `alternatives.update_item` event whenever an item (track)
+is added, removed  or updated in a collection by the `update` command. You can
+use the [Hook plugin][] to run a shell command whenever an item is updated.
+
+```yaml
+hook:
+  hooks:
+  - event: alternatives.update_item
+    command: "bash -c 'echo \"{collection}: {action} {item.path}\" >> events.log"
+```
+
+Alternatively, you can [listen for events][] from a custom plugin.
+
+The event listener receives the following arguments:
+
+* `collection: str` — name of the collection
+* [`item: beets.Item`][Item] — library item the action is taken on
+* `action: str` — type of update action:
+  * `ADD`: The item is added to the collection and was not present before
+  * `REMOVE`: The item is removed from the collection
+  * `MOVE`: The file for an item is moved to a different location in the collection
+  * `WRITE`: Updated metadata is written to the file in the collection
+  * `SYNC_ART`: Updated album art is written to the file in the collection
+
+[hook plugin]: https://beets.readthedocs.io/en/stable/plugins/hook.html
+[listen for events]: https://beets.readthedocs.io/en/stable/dev/plugins.html#listen-for-events
+[Item]: https://beets.readthedocs.io/en/stable/dev/library.html#beets.library.Item
 
 Feature Requests
 ----------------
@@ -282,7 +312,6 @@ The following is a list of things I might add in the feature.
 
 * Symbolic links for each artist in a multiple artists release (see the
   [beets issue][beets-issue-split-symlinks])
-
 
 License
 -------
