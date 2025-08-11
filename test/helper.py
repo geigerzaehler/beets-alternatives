@@ -171,10 +171,15 @@ class TestHelper:
         hook_log = tmp_path / "update-event.log"
         beets.plugins._classes.add(beetsplug.hook.HookPlugin)
 
+        if platform.system() == "Windows":
+            command = f'powershell -Command "Add-Content -Path \\"{hook_log}\\" -Value \\"{{collection}}, {{action}}, {{item.title}}\\"" -NoNewline'
+        else:
+            command = f"bash -c 'echo \"{{collection}}, {{action}}, {{item.title}}\" >> {hook_log}'"
+
         self.config["hook"]["hooks"] = [
             {
                 "event": "alternatives.update_item",
-                "command": f"bash -c 'echo \"{{collection}}, {{action}}, {{item.title}}\" >> {hook_log}'",
+                "command": command,
             },
         ]
         return hook_log
