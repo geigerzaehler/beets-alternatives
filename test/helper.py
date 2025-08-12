@@ -3,6 +3,7 @@
 import os
 import platform
 import sys
+from collections import defaultdict
 from collections.abc import Callable
 from concurrent import futures
 from contextlib import contextmanager
@@ -12,19 +13,22 @@ from zlib import crc32
 
 import beets
 import beets.library
-import beetsplug.convert as convert
+import beets.plugins
+import beetsplug.convert
 import pytest
-from beets import logging, plugins, ui
+from beets import logging, ui
 from beets.library import Item
 from beets.util import MoveOperation
 from mediafile import MediaFile
 
-import beetsplug.alternatives as alternatives
+import beetsplug.alternatives
 
 beetsLogger = logging.getLogger("beets")
 beetsLogger.propagate = True
 for h in beetsLogger.handlers:
     beetsLogger.removeHandler(h)
+
+_beets_version = tuple(map(int, beets.__version__.split(".")[0:3]))
 
 
 @contextmanager
@@ -122,8 +126,6 @@ class TestHelper:
     def _setup(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
         monkeypatch.setattr("beetsplug.alternatives.Worker", MockedWorker)
 
-        plugins._classes = {alternatives.AlternativesPlugin, convert.ConvertPlugin}
-
         self.config = beets.config
         self.config.clear()
         self.config.read()
@@ -146,11 +148,28 @@ class TestHelper:
 
         self.IMAGE_FIXTURE1 = self.fixture_dir / "image.png"
         self.IMAGE_FIXTURE2 = self.fixture_dir / "image_black.png"
+
+        if _beets_version >= (2, 3, 1):
+            beets.plugins._instances = [
+                beetsplug.alternatives.AlternativesPlugin(),
+                beetsplug.convert.ConvertPlugin(),
+            ]
+        else:
+            beets.plugins._classes = {  # type: ignore (compatibility with beets<2.4)
+                beetsplug.alternatives.AlternativesPlugin,
+                beetsplug.convert.ConvertPlugin,
+            }
+            beets.plugins._instances = {}
+
         yield
-        for plugin in plugins._classes:
-            plugin.listeners = None
-            plugins._classes = set()
-            plugins._instances = {}
+
+        if _beets_version >= (2, 3, 1):
+            beets.plugins.BeetsPlugin.listeners = defaultdict(list)
+        else:
+            for plugin in beets.plugins._classes:  # type: ignore (compatibility with beets<2.4)
+                # Instantiating a plugin will modify register event listeners which
+                # are stored in a class variable
+                plugin.listeners = None  # type: ignore (compatibility with beets<2.4)
 
     def runcli(self, *args: str) -> str:
         # TODO mock stdin
@@ -215,7 +234,7 @@ class TestHelper:
         return Path(item[path_key])
 
 
-class MockedWorker(alternatives.Worker):
+class MockedWorker(beetsplug.alternatives.Worker):
     def __init__(
         self,
         fn: Callable[[Item], tuple[Item, Path]],
