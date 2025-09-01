@@ -27,6 +27,7 @@ classifiers = [
 [tool.poetry.dependencies]
 python = ">=3.10, <4"
 beets = ">=1.6.0, <3"
+typing-extensions = "^4.9.0"
 
 [tool.poetry.group.dev.dependencies]
 confuse = "^2.0.1"
@@ -38,7 +39,6 @@ pytest = "^8.0.2"
 pytest-cov = "^6.0.0"
 ruff = "^0.12.0"
 typeguard = "^4.1.5"
-typing-extensions = "^4.9.0"
 pillow = "^11.1.0"
 
 [tool.pytest.ini_options]
