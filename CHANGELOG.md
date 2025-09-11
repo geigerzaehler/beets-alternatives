@@ -3,6 +3,7 @@ Change Log
 
 ## Unreleased
 * Promote `typing-extensions` to runtime dependency
+* Improved disk write performance when encoding items
 
 ## v0.13.3 - 2025-05-12
 * Add support for beets v2.3.x

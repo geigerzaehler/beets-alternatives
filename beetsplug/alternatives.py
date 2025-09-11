@@ -14,7 +14,6 @@ import argparse
 import logging
 import os.path
 import shutil
-import threading
 from collections.abc import Callable, Iterator, Sequence
 from concurrent import futures
 from enum import Enum
@@ -242,6 +241,7 @@ class External:
     def __init__(self, log: logging.Logger, lib: Library, config: Config):
         self._log = log
         self._config = config
+        self._embed = False
         self.lib = lib
         self.path_key = f"alt.{config.collection_id}"
         self.max_workers = int(str(beets.config["convert"]["threads"]))
@@ -346,7 +346,17 @@ class External:
                         self._sync_art(item, path)
                     elif action == Action.ADD:
                         print_(f"+{dest}")
-                        converter.run(item)
+                        dest.parent.mkdir(exist_ok=True, parents=True)
+                        if self._should_transcode(item):
+                            converter.run(item, dest)
+                        else:
+                            self._log.debug(f"copying {dest}")
+                            shutil.copyfile(item.path, dest)
+                            if self._embed:
+                                self._sync_art(item, dest)
+                            self._set_stored_path(item, dest)
+                            item.store()
+
                     elif action == Action.REMOVE:
                         assert (
                             path is not None
@@ -356,6 +366,10 @@ class External:
                         item.store()
 
             for item, dest in converter.as_completed():
+                # Don't rely on the converter to write correct/complete tags.
+                item.write(path=bytes(dest))
+                if self._embed:
+                    self._sync_art(item, dest)
                 self._set_stored_path(item, dest)
                 item.store()
 
@@ -391,11 +405,10 @@ class External:
         del item[self.path_key]
 
     def _converter(self) -> "Worker":
-        def _convert(item: Item):
-            dest = self.destination(item)
-            dest.parent.mkdir(exist_ok=True, parents=True)
-            shutil.copyfile(item.path, dest)
-            return item, dest
+        def _convert(item: Item, dest: Path):
+            raise RuntimeError(
+                "Convert must never be called for non-converting collection"
+            )
 
         return Worker(_convert, self.max_workers)
 
@@ -412,6 +425,9 @@ class External:
                 maxwidth=self._config.album_art_maxwidth,
                 itempath=bytes(path),
             )
+
+    def _should_transcode(self, item: Item) -> bool:
+        return False
 
 
 class ExternalConvert(External):
@@ -430,22 +446,8 @@ class ExternalConvert(External):
 
     @override
     def _converter(self) -> "Worker":
-        fs_lock = threading.Lock()
-
-        def _convert(item: Item):
-            dest = self.destination(item)
-            with fs_lock:
-                dest.parent.mkdir(exist_ok=True, parents=True)
-
-            if self._should_transcode(item):
-                self._encode(self.convert_cmd, item.path, bytes(dest))
-                # Don't rely on the converter to write correct/complete tags.
-                item.write(path=bytes(dest))
-            else:
-                self._log.debug(f"copying {dest}")
-                shutil.copyfile(item.path, dest)
-            if self._embed:
-                self._sync_art(item, dest)
+        def _convert(item: Item, dest: Path):
+            self._encode(self.convert_cmd, item.path, bytes(dest))
             return item, dest
 
         return Worker(_convert, self.max_workers)
@@ -458,6 +460,7 @@ class ExternalConvert(External):
         else:
             return dest
 
+    @override
     def _should_transcode(self, item: Item):
         return item.format.lower() not in self._formats
 
@@ -527,19 +530,19 @@ class SymlinkView(External):
 
 class Worker(futures.ThreadPoolExecutor):
     def __init__(
-        self, fn: Callable[[Item], tuple[Item, Path]], max_workers: int | None
+        self, fn: Callable[[Item, Path], tuple[Item, Path]], max_workers: int | None
     ):
         super().__init__(max_workers)
         self._tasks: set[futures.Future[tuple[Item, Path]]] = set()
         self._fn = fn
 
-    def run(self, item: Item):
-        fut = self.submit(self._fn, item)
+    def run(self, item: Item, path: Path):
+        fut = self.submit(self._fn, item, path)
         self._tasks.add(fut)
         return fut
 
-    def as_completed(self):
-        for f in futures.as_completed(self._tasks):
+    def as_completed(self, timeout: float | None = None):
+        for f in futures.as_completed(self._tasks, timeout=timeout):
             self._tasks.remove(f)
             yield f.result()
 
