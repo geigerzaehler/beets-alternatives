@@ -315,42 +315,49 @@ class External:
             print_(f"Skipping creation of {self._config.directory}")
             return
 
-        converter = self._converter()
-        for item, actions in self._items_actions():
-            dest = self.destination(item)
-            path = self._get_stored_path(item)
-            for action in actions:
-                if action == Action.MOVE:
-                    assert path is not None  # action guarantees that `path` is not none
-                    print_(f">{path} -> {dest}")
-                    dest.parent.mkdir(parents=True, exist_ok=True)
-                    path.rename(dest)
-                    # beets types are confusing
-                    util.prune_dirs(str(path.parent), root=str(self._config.directory))  # pyright: ignore
-                    self._set_stored_path(item, dest)
-                    item.store()
-                    path = dest
-                elif action == Action.WRITE:
-                    assert path is not None  # action guarantees that `path` is not none
-                    print_(f"*{path}")
-                    item.write(path=bytes(path))
-                elif action == Action.SYNC_ART:
-                    print_(f"~{path}")
-                    assert path is not None
-                    self._sync_art(item, path)
-                elif action == Action.ADD:
-                    print_(f"+{dest}")
-                    converter.run(item)
-                elif action == Action.REMOVE:
-                    assert path is not None  # action guarantees that `path` is not none
-                    print_(f"-{path}")
-                    self._remove_file(item)
-                    item.store()
+        with self._converter() as converter:
+            for item, actions in self._items_actions():
+                dest = self.destination(item)
+                path = self._get_stored_path(item)
+                for action in actions:
+                    if action == Action.MOVE:
+                        assert (
+                            path is not None
+                        )  # action guarantees that `path` is not none
+                        print_(f">{path} -> {dest}")
+                        dest.parent.mkdir(parents=True, exist_ok=True)
+                        path.rename(dest)
+                        # beets types are confusing
+                        util.prune_dirs(
+                            str(path.parent), root=str(self._config.directory)
+                        )  # pyright: ignore
+                        self._set_stored_path(item, dest)
+                        item.store()
+                        path = dest
+                    elif action == Action.WRITE:
+                        assert (
+                            path is not None
+                        )  # action guarantees that `path` is not none
+                        print_(f"*{path}")
+                        item.write(path=bytes(path))
+                    elif action == Action.SYNC_ART:
+                        print_(f"~{path}")
+                        assert path is not None
+                        self._sync_art(item, path)
+                    elif action == Action.ADD:
+                        print_(f"+{dest}")
+                        converter.run(item)
+                    elif action == Action.REMOVE:
+                        assert (
+                            path is not None
+                        )  # action guarantees that `path` is not none
+                        print_(f"-{path}")
+                        self._remove_file(item)
+                        item.store()
 
-        for item, dest in converter.as_completed():
-            self._set_stored_path(item, dest)
-            item.store()
-        converter.shutdown()
+            for item, dest in converter.as_completed():
+                self._set_stored_path(item, dest)
+                item.store()
 
     def destination(self, item: Item) -> Path:
         """Returns the path for `item` in the external collection."""
