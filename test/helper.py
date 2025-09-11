@@ -4,8 +4,6 @@ import os
 import platform
 import sys
 from collections import defaultdict
-from collections.abc import Callable
-from concurrent import futures
 from contextlib import contextmanager
 from io import StringIO
 from pathlib import Path
@@ -123,9 +121,7 @@ def assert_media_file_fields(path: Path, **kwargs: str):
 
 class TestHelper:
     @pytest.fixture(autouse=True)
-    def _setup(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
-        monkeypatch.setattr("beetsplug.alternatives.Worker", MockedWorker)
-
+    def _setup(self, tmp_path: Path):
         self.config = beets.config
         self.config.clear()
         self.config.read()
@@ -232,28 +228,6 @@ class TestHelper:
 
     def get_path(self, item: Item, path_key: str = "alt.myexternal") -> Path:
         return Path(item[path_key])
-
-
-class MockedWorker(beetsplug.alternatives.Worker):
-    def __init__(
-        self,
-        fn: Callable[[Item], tuple[Item, Path]],
-        max_workers: int | None = None,
-    ):
-        # Don’t call `super().__init__()`. We don’t want to start the
-        # ThreadPoolExecutor.
-        self._tasks: set[futures.Future[tuple[Item, Path]]] = set()
-        self._fn = fn
-
-    def run(self, item: Item):
-        fut: futures.Future[tuple[Item, Path]] = futures.Future()
-        res = self._fn(item)
-        fut.set_result(res)
-        self._tasks.add(fut)
-        return fut
-
-    def shutdown(self, wait: bool = True, *, cancel_futures: bool = False) -> None:
-        pass
 
 
 def convert_command(tag: str) -> str:
