@@ -335,11 +335,11 @@ class External:
                 self._sync_art(item, dest)
             self._set_stored_path(item, dest)
             item.store()
-            beets.plugins.send(
-                "alternatives.update_item",
+            _send_item_updated(
                 collection=self._config.collection_id,
+                path=dest,
                 item=item,
-                action=action.value,
+                action=action,
             )
 
         converter, converting_done = self._converter()
@@ -396,11 +396,11 @@ class External:
                         item.store()
 
                     if not delay_finalize:
-                        beets.plugins.send(
-                            "alternatives.update_item",
+                        _send_item_updated(
                             collection=self._config.collection_id,
+                            path=dest,
                             item=item,
-                            action=action.value,
+                            action=action,
                         )
 
                 for item, dest in _get_queue_available(converting_done):
@@ -554,11 +554,11 @@ class SymlinkView(External):
                     self._remove_file(item)
                     item.store()
 
-                beets.plugins.send(
-                    "alternatives.update_item",
+                _send_item_updated(
                     collection=self._config.collection_id,
+                    path=dest,
                     item=item,
-                    action=action.value,
+                    action=action,
                 )
 
     def _create_symlink(self, item: Item):
@@ -606,6 +606,16 @@ def _get_queue_available(q: queue.Queue[_T] | queue.SimpleQueue[_T]):
         except queue.Empty:
             break
         yield item
+
+
+def _send_item_updated(*, collection: str, path: Path, item: Item, action: Action):
+    beets.plugins.send(
+        "alternatives.item_updated",
+        collection=collection,
+        path=path,
+        item=item,
+        action=action.value,
+    )
 
 
 _beets_version = tuple(map(int, beets.__version__.split(".")[0:2]))

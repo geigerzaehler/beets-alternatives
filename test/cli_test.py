@@ -130,9 +130,9 @@ class TestSymlinkView(TestHelper):
 
         # Symlink is created
         self.runcli("alt", "update", "by-year")
-        alt_path = self.libdir / "by-year/1990/Thriller/track 1.mp3"
+        alt_path_1 = self.libdir / "by-year/1990/Thriller/track 1.mp3"
         library_path = self.libdir / "Michael Jackson/Thriller/track 1.mp3"
-        assert_symlink(alt_path, library_path, absolute)
+        assert_symlink(alt_path_1, library_path, absolute)
 
         # Alternative is not updated
         assert self.runcli("alt", "update", "by-year") == ""
@@ -140,17 +140,17 @@ class TestSymlinkView(TestHelper):
         # Symlink location is updated when path config changes
         self.alt_config["paths"]["default"] = "$original_year/$album/$title"
         self.runcli("alt", "update", "by-year")
-        alt_path = self.libdir / "by-year/1982/Thriller/track 1.mp3"
-        assert_symlink(alt_path, library_path, absolute)
+        alt_path_2 = self.libdir / "by-year/1982/Thriller/track 1.mp3"
+        assert_symlink(alt_path_2, library_path, absolute)
 
         # Symlink is removed
         self.alt_config["query"] = "some_field::foobar"
         self.runcli("alt", "update", "by-year")
-        assert_is_not_file(alt_path)
+        assert_is_not_file(alt_path_2)
         assert event_log.read_text().split("\n") == [
-            "by-year, ADD, track 1",
-            "by-year, MOVE, track 1",
-            "by-year, REMOVE, track 1",
+            f"by-year, ADD, {alt_path_1}, track 1",
+            f"by-year, MOVE, {alt_path_2}, track 1",
+            f"by-year, REMOVE, {alt_path_2}, track 1",
             "",
         ]
 
@@ -221,8 +221,10 @@ class TestExternalCopy(TestHelper):
         item = self.add_track(title="\u00e9", myexternal="true")
         self.runcli("alt", "update", "myexternal")
         item.load()
-        assert self.get_path(item).is_file()
-        assert event_log.read_text() == "myexternal, ADD, \u00e9\n"
+        alt_path = self.get_path(item)
+        assert alt_path.is_file()
+
+        assert event_log.read_text() == f"myexternal, ADD, {alt_path}, \u00e9\n"
 
     def test_add_album(self):
         album = self.add_album()

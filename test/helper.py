@@ -180,20 +180,21 @@ class TestHelper:
 
         hook_log = tmp_path / "update-event.log"
 
+        log_line = "{collection}, {action}, {path}, {item.title}"
         if platform.system() == "Windows":
-            command = f'powershell -Command "Add-Content -Path \\"{hook_log}\\" -Value \\"{{collection}}, {{action}}, {{item.title}}\\"" -NoNewline'
+            command = f'powershell -Command "Add-Content -Path \\"{hook_log}\\" -Value \\"{log_line}\\""'
         else:
-            command = f"bash -c 'echo \"{{collection}}, {{action}}, {{item.title}}\" >> {hook_log}'"
+            command = f"bash -c 'echo \"{log_line}\" >> {hook_log}'"
 
         self.config["hook"]["hooks"] = [
             {
-                "event": "alternatives.update_item",
+                "event": "alternatives.item_updated",
                 "command": command,
             },
         ]
 
         if _beets_version >= (2, 3, 1):
-            beets.plugins._instances.append(
+            beets.plugins._instances.append(  # type: ignore
                 beetsplug.hook.HookPlugin(),
             )
 

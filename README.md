@@ -274,9 +274,9 @@ following settings.
 Events
 ------
 
-The plugin fires the `alternatives.update_item` event whenever an item (track)
-is added, removed  or updated in a collection by the `update` command. You can
-use the [Hook plugin][] to run a shell command whenever an item is updated.
+The plugin emits the `alternatives.item_updated` event whenever after an item
+(track) is added, removed or updated in a collection by the `update` command.You
+can use the [Hook plugin][] to run a shell command whenever an item is updated.
 
 ```yaml
 hook:
@@ -291,6 +291,7 @@ The event listener receives the following arguments:
 
 * `collection: str` — name of the collection
 * [`item: beets.Item`][Item] — library item the action is taken on
+* `path: str` — absolute path of the item in the collection
 * `action: str` — type of update action:
   * `ADD`: The item is added to the collection and was not present before
   * `REMOVE`: The item is removed from the collection
@@ -335,7 +336,6 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
-
 
 [beets-docs]: https://beets.readthedocs.io/en/latest/index.html
 [beets-issue-split-symlinks]: https://github.com/sampsyo/beets/issues/153
