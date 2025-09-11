@@ -390,7 +390,10 @@ class External:
             shutil.copyfile(item.path, dest)
             return item, dest
 
-        return Worker(_convert, self.max_workers)
+        return Worker(
+            _convert,
+            1,  # Copy files sequentially. Parallel I/O does not increase performance
+        )
 
     def _sync_art(self, item: Item, path: Path):
         """Embed artwork in the file at `path`."""
