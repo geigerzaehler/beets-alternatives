@@ -13,12 +13,13 @@
 import argparse
 import logging
 import os.path
+import queue
 import shutil
 from collections.abc import Callable, Iterator, Sequence
 from concurrent import futures
 from enum import Enum
 from pathlib import Path
-from typing import Literal
+from typing import Literal, TypeVar
 
 import beets
 import beetsplug.convert as convert
@@ -310,12 +311,21 @@ class External:
         )
         return input_yn(msg, require=True)
 
-    def update(self, create: bool | None = None):
+    def update(self, create: bool | None = None):  # noqa: C901
         if not self._config.directory.is_dir() and not self.ask_create(create):
             print_(f"Skipping creation of {self._config.directory}")
             return
 
-        with self._converter() as converter:
+        def finalize_converted_item(item: Item, dest: Path):
+            # Don't rely on the converter to write correct/complete tags.
+            item.write(path=bytes(dest))
+            if self._embed:
+                self._sync_art(item, dest)
+            self._set_stored_path(item, dest)
+            item.store()
+
+        converter, converting_done = self._converter()
+        with converter as converter:
             for item, actions in self._items_actions():
                 dest = self.destination(item)
                 path = self._get_stored_path(item)
@@ -365,13 +375,12 @@ class External:
                         self._remove_file(item)
                         item.store()
 
+                for item, dest in _get_queue_available(converting_done):
+                    finalize_converted_item(item, dest)
+
             for item, dest in converter.as_completed():
-                # Don't rely on the converter to write correct/complete tags.
-                item.write(path=bytes(dest))
-                if self._embed:
-                    self._sync_art(item, dest)
-                self._set_stored_path(item, dest)
-                item.store()
+                for item, dest in _get_queue_available(converting_done):
+                    finalize_converted_item(item, dest)
 
     def destination(self, item: Item) -> Path:
         """Returns the path for `item` in the external collection."""
@@ -404,13 +413,15 @@ class External:
             util.prune_dirs(str(path), root=str(self._config.directory))  # pyright: ignore
         del item[self.path_key]
 
-    def _converter(self) -> "Worker":
+    def _converter(self) -> tuple["Worker", queue.Queue[tuple[Item, Path]]]:
+        done_queue = queue.Queue()
+
         def _convert(item: Item, dest: Path):
             raise RuntimeError(
                 "Convert must never be called for non-converting collection"
             )
 
-        return Worker(_convert, self.max_workers)
+        return (Worker(_convert, self.max_workers), done_queue)
 
     def _sync_art(self, item: Item, path: Path):
         """Embed artwork in the file at `path`."""
@@ -445,12 +456,15 @@ class ExternalConvert(External):
         self.convert_cmd, self.ext = convert.get_format(self._formats[0])
 
     @override
-    def _converter(self) -> "Worker":
+    def _converter(self) -> tuple["Worker", queue.Queue[tuple[Item, Path]]]:
+        done_queue = queue.Queue()
+
         def _convert(item: Item, dest: Path):
             self._encode(self.convert_cmd, item.path, bytes(dest))
+            done_queue.put((item, dest))
             return item, dest
 
-        return Worker(_convert, self.max_workers)
+        return Worker(_convert, self.max_workers), done_queue
 
     @override
     def destination(self, item: Item) -> Path:
@@ -545,6 +559,18 @@ class Worker(futures.ThreadPoolExecutor):
         for f in futures.as_completed(self._tasks, timeout=timeout):
             self._tasks.remove(f)
             yield f.result()
+
+
+_T = TypeVar("_T")
+
+
+def _get_queue_available(q: queue.Queue[_T] | queue.SimpleQueue[_T]):
+    while True:
+        try:
+            item = q.get(block=False)
+        except queue.Empty:
+            break
+        yield item
 
 
 _beets_version = tuple(map(int, beets.__version__.split(".")[0:2]))
