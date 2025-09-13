@@ -118,7 +118,7 @@ class TestSymlinkView(TestHelper):
         }
         self.alt_config = self.config["alternatives"]["by-year"]
 
-    def _test_add_move_remove_album(self, *, absolute: bool):
+    def _test_add_move_remove_album(self, *, event_log: Path, absolute: bool):
         """Test that symlinks are created, moved and deleted."""
 
         self.add_album(
@@ -130,9 +130,9 @@ class TestSymlinkView(TestHelper):
 
         # Symlink is created
         self.runcli("alt", "update", "by-year")
-        alt_path = self.libdir / "by-year/1990/Thriller/track 1.mp3"
+        alt_path_1 = self.libdir / "by-year/1990/Thriller/track 1.mp3"
         library_path = self.libdir / "Michael Jackson/Thriller/track 1.mp3"
-        assert_symlink(alt_path, library_path, absolute)
+        assert_symlink(alt_path_1, library_path, absolute)
 
         # Alternative is not updated
         assert self.runcli("alt", "update", "by-year") == ""
@@ -140,25 +140,31 @@ class TestSymlinkView(TestHelper):
         # Symlink location is updated when path config changes
         self.alt_config["paths"]["default"] = "$original_year/$album/$title"
         self.runcli("alt", "update", "by-year")
-        alt_path = self.libdir / "by-year/1982/Thriller/track 1.mp3"
-        assert_symlink(alt_path, library_path, absolute)
+        alt_path_2 = self.libdir / "by-year/1982/Thriller/track 1.mp3"
+        assert_symlink(alt_path_2, library_path, absolute)
 
         # Symlink is removed
         self.alt_config["query"] = "some_field::foobar"
         self.runcli("alt", "update", "by-year")
-        assert_is_not_file(alt_path)
+        assert_is_not_file(alt_path_2)
+        assert event_log.read_text().split("\n") == [
+            f"by-year, ADD, {alt_path_1}, track 1",
+            f"by-year, MOVE, {alt_path_2}, track 1",
+            f"by-year, REMOVE, {alt_path_2}, track 1",
+            "",
+        ]
 
-    def test_add_move_remove_album_absolute(self):
+    def test_add_move_remove_album_absolute(self, event_log: Path):
         """Test that absolute symlinks are created, moved and deleted."""
 
         self.alt_config["link_type"] = "absolute"
-        self._test_add_move_remove_album(absolute=True)
+        self._test_add_move_remove_album(event_log=event_log, absolute=True)
 
-    def test_add_move_remove_album_relative(self):
+    def test_add_move_remove_album_relative(self, event_log: Path):
         """Test that relative symlinks are created, moved and deleted."""
 
         self.alt_config["link_type"] = "relative"
-        self._test_add_move_remove_album(absolute=False)
+        self._test_add_move_remove_album(event_log=event_log, absolute=False)
 
     def test_update_link_target(self, tmp_path: Path):
         """Link targets are updated when the item has moved in the library"""
@@ -211,11 +217,14 @@ class TestExternalCopy(TestHelper):
         }
         self.external_config = self.config["alternatives"]["myexternal"]
 
-    def test_add_singleton(self):
+    def test_add_singleton(self, event_log: Path):
         item = self.add_track(title="\u00e9", myexternal="true")
         self.runcli("alt", "update", "myexternal")
         item.load()
-        assert self.get_path(item).is_file()
+        alt_path = self.get_path(item)
+        assert alt_path.is_file()
+
+        assert event_log.read_text() == f"myexternal, ADD, {alt_path}, \u00e9\n"
 
     def test_add_album(self):
         album = self.add_album()
