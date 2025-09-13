@@ -281,7 +281,7 @@ can use the [Hook plugin][] to run a shell command whenever an item is updated.
 ```yaml
 hook:
   hooks:
-  - event: alternatives.update_item
+  - event: alternatives.item_updated
     command: "bash -c 'echo \"{collection}: {action} {item.path}\" >> events.log"
 ```
 
