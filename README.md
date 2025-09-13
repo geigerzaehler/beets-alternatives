@@ -274,9 +274,9 @@ following settings.
 Events
 ------
 
-The plugin emits the `alternatives.item_updated` event whenever after an item
-(track) is added, removed or updated in a collection by the `update` command.You
-can use the [Hook plugin][] to run a shell command whenever an item is updated.
+The plugin emits the `alternatives.item_updated` event after an item (track) is
+added, removed or updated in a collection by the `update` command.You can use
+the [Hook plugin][] to run a shell command whenever an item is updated.
 
 ```yaml
 hook:
