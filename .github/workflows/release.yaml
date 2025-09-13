@@ -1,0 +1,146 @@
+# Verify and publish releases created by push to `release/candidate`
+name: release
+run-name: publish ${{ github.event.workflow_run.head_commit.message }}
+
+on:
+  workflow_run:
+    workflows: ["Check and test"]
+    branches: ["release/candidate"]
+    types:
+      - completed
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+      - run: pip install poetry
+      - uses: actions/setup-python@v6
+        with:
+          cache: poetry
+      - name: Get version
+        id: version
+        run: |
+          version=$(poetry version --short)
+          echo "version=${version}" >> "$GITHUB_OUTPUT"
+      - run: poetry build
+      - uses: actions/upload-artifact@v4
+        with:
+          name: python-package-dist
+          path: dist/
+
+  verify:
+    needs: build
+    runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+      - name: Verify release notes
+        run: pipx run dev/get_release_notes.py
+      - name: Verify commit message format
+        run: |
+          version="${{ needs.build.outputs.version }}"
+          expected="release: v${version}"
+
+          if [[ "$COMMIT_MESSAGE" != "$expected" ]]; then
+            echo "❌ Invalid commit message format" | tee -a "$GITHUB_STEP_SUMMARY"
+            echo "❙ Actual: $COMMIT_MESSAGE" | tee -a "$GITHUB_STEP_SUMMARY"
+            echo "❙ Expected: $expected" | tee -a "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
+        env:
+          COMMIT_MESSAGE: ${{ github.event.workflow_run.head_commit.message }}
+
+  # Create release tag vX.Y.Z and merge release candidate into `main`
+  publish-git:
+    needs: [verify, build]
+    permissions:
+      contents: write
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.workflow_run.head_sha }}
+
+      - name: Create and push git tag
+        continue-on-error: true
+        run: |
+          tag="v${VERSION}"
+
+          if [ -n "$(git tag -l "${tag}")" ]; then
+            echo "⚠️ Tag ${tag} already exists, skipping tag creation" | tee -a "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag "${tag}"
+          git push origin "${tag}"
+          echo "✅ Created tag ${tag}" | tee -a "$GITHUB_STEP_SUMMARY"
+        env:
+          VERSION: ${{ needs.build.outputs.version }}
+
+      - name: Update main branch
+        run: |
+          if git push origin HEAD:refs/heads/main; then
+            echo "✅ Merged release into main branch" | tee -a "$GITHUB_STEP_SUMMARY"
+          else
+            echo "⚠️ Failed to merge release into main branche" | tee -a "$GITHUB_STEP_SUMMARY"
+          fi
+
+  publish-github-release:
+    needs: [verify, build]
+    permissions:
+      contents: write
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+      - name: Create GitHub Release
+        run: |
+          name="v${VERSION}"
+
+          if gh release view "${name}" >/dev/null 2>&1; then
+            echo "⚠️ Release ${name} already exists, skipping release creation" | tee -a "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+
+          release_notes=$(pipx run dev/get_release_notes.py)
+
+          gh release create "${name}" \
+            --title "${name}" \
+            --notes "${release_notes}" \
+            --target "${TARGET_SHA}"
+          echo "✅ GitHub release [${name}](${{ github.server_url }}/${{ github.repository }}/releases/tag/${name}) created" | tee -a "$GITHUB_STEP_SUMMARY"
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ needs.build.outputs.version }}
+          TARGET_SHA: ${{ github.event.workflow_run.head_sha }}
+
+  # Publish the package to PyPi
+  publish-pypi:
+    needs: [verify, build]
+    permissions:
+      id-token: write
+    runs-on: ubuntu-latest
+    environment:
+      name: pypi
+      url: https://pypi.org/p/oidc-provider-mock
+    steps:
+      - uses: actions/download-artifact@v5
+        with:
+          name: python-package-dist
+          path: dist/
+
+      - uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          repository-url: https://upload.pypi.org/legacy/
