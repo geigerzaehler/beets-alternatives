@@ -10,5 +10,9 @@
       "updateTypes": ["patch"],
       "enabled": false
     }
-  ]
+  ],
+  "lockFileMaintenance": {
+    "enabled": true,
+    "schedule": ["* 0-6 5 * *"]
+  }
 }
