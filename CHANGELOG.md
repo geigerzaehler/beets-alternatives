@@ -1,6 +1,6 @@
 # Change Log
 
-## Unreleased
+## v0.13.4 - 2025-09-13
 
 - Promote `typing-extensions` to runtime dependency
 - Improved disk write performance when encoding items
