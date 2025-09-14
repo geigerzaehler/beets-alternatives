@@ -60,6 +60,7 @@ jobs:
           - "beets==2.0.*"
           - "beets==2.1.*"
           - "beets==2.2.*"
+          - "beets==2.3.*"
 
     continue-on-error: ${{ contains(matrix.beets, 'master') }}
     steps:
