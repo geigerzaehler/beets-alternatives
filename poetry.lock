@@ -2,14 +2,14 @@
 
 [[package]]
 name = "beets"
-version = "2.3.0"
+version = "2.4.0"
 description = "music tagger and library organizer"
 optional = false
 python-versions = "<4,>=3.9"
 groups = ["main"]
 files = [
-    {file = "beets-2.3.0-py3-none-any.whl", hash = "sha256:3ccd38d7a19e2a577da491adb627f35e5ae5b51e1def0d5b2c9edf0ce840b5ec"},
-    {file = "beets-2.3.0.tar.gz", hash = "sha256:b24fc7949af502601774f907ebed1998f9adf411ec8df1123a1fc3f334b63102"},
+    {file = "beets-2.4.0-py3-none-any.whl", hash = "sha256:0b50b9d15a413662c7e19378408e93909b53b83f8a71e1babba3e2bf88673c8b"},
+    {file = "beets-2.4.0.tar.gz", hash = "sha256:c5897e7b018fbeaf02a9c50b93e338a4f4e854ed8321471be690a7746be03efa"},
 ]
 
 [package.dependencies]
@@ -22,7 +22,7 @@ musicbrainzngs = ">=0.4"
 numpy = ">=1.24.4"
 platformdirs = ">=3.5.0"
 pyyaml = "*"
-typing_extensions = {version = "*", markers = "python_full_version <= \"3.10.0\""}
+typing_extensions = "*"
 unidecode = ">=1.3.6"
 
 [package.extras]

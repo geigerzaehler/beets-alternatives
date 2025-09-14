@@ -610,7 +610,7 @@ def _get_queue_available(q: queue.Queue[_T] | queue.SimpleQueue[_T]):
 
 def _send_item_updated(*, collection: str, path: Path, item: Item, action: Action):
     beets.plugins.send(
-        "alternatives.item_updated",
+        "alternatives.item_updated",  # type: ignore Custom event
         collection=collection,
         path=path,
         item=item,
