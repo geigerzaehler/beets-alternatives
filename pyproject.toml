@@ -47,9 +47,8 @@ tomli = "^2.2.1"
 addopts = "--cov --cov-report=term --cov-report=html --cov-branch --doctest-modules"
 filterwarnings = [
   "error",
-  "ignore:.*imghdr.*:DeprecationWarning:mediafile",
-  "ignore:.*setlocale.*:DeprecationWarning:beets.util",
   "ignore:.*pkgutil.get_loader.*:DeprecationWarning:confuse.util",
+  "ignore:.*beets.art.*:DeprecationWarning:beets",
 ]
 
 [tool.pyright]

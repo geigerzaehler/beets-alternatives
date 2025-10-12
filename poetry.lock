@@ -2,15 +2,13 @@
 
 [[package]]
 name = "beets"
-version = "2.4.0"
+version = "2.5.0"
 description = "music tagger and library organizer"
 optional = false
-python-versions = "<4,>=3.9"
+python-versions = ">=3.9,<4"
 groups = ["main"]
-files = [
-    {file = "beets-2.4.0-py3-none-any.whl", hash = "sha256:0b50b9d15a413662c7e19378408e93909b53b83f8a71e1babba3e2bf88673c8b"},
-    {file = "beets-2.4.0.tar.gz", hash = "sha256:c5897e7b018fbeaf02a9c50b93e338a4f4e854ed8321471be690a7746be03efa"},
-]
+files = []
+develop = false
 
 [package.dependencies]
 colorama = {version = "*", markers = "sys_platform == \"win32\""}
@@ -33,7 +31,7 @@ beatport = ["requests-oauthlib (>=0.6.1)"]
 bpd = ["PyGObject"]
 chroma = ["pyacoustid"]
 discogs = ["python3-discogs-client (>=2.3.15)"]
-docs = ["pydata-sphinx-theme", "sphinx"]
+docs = ["pydata-sphinx-theme", "sphinx", "sphinx-copybutton (>=0.5.2,<0.6.0)", "sphinx-design (>=0.6.1,<0.7.0)"]
 embedart = ["Pillow"]
 embyupdate = ["requests"]
 fetchart = ["Pillow", "beautifulsoup4", "langdetect", "requests"]
@@ -51,6 +49,12 @@ scrub = ["mutagen (>=1.33)"]
 sonosupdate = ["soco"]
 thumbnails = ["Pillow", "pyxdg"]
 web = ["flask", "flask-cors"]
+
+[package.source]
+type = "git"
+url = "https://github.com/beetbox/beets"
+reference = "master"
+resolved_reference = "41e314247d7a5802a9d98ced4b6db8e7c9d67c77"
 
 [[package]]
 name = "colorama"
