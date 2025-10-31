@@ -249,12 +249,18 @@ class Action(Enum):
     #: Write album art to the track’s metadata
     SYNC_ART = "SYNC_ART"
 
+    #: Copy album art to collection
+    COPY_ART = "COPY_ART"
+
 
 class External:
     def __init__(self, log: logging.Logger, lib: Library, config: Config):
+        convert_plugin = convert.ConvertPlugin()
         self._log = log
         self._config = config
         self._embed = False
+        self._copy_album_art_fn = convert_plugin.copy_album_art
+        self._copy_album_art = convert_plugin.config["copy_album_art"].get(bool)
         self.lib = lib
         self.path_key = f"alt.{config.collection_id}"
         self.max_workers = int(str(beets.config["convert"]["threads"]))
@@ -309,6 +315,36 @@ class External:
                 yield (item, self._matched_item_action(item))
             elif self._get_stored_path(item):
                 yield (item, [Action.REMOVE])
+
+    def matched_album_action(self, album):
+        dest_dir = self.album_destination(album)
+
+        if not dest_dir:
+            return (album, [])
+
+        if (
+            self._copy_album_art
+            and album.artpath
+            and Path(str(album.artpath, "utf8")).is_file()
+        ):
+            dest = album.art_destination(
+                album.artpath, bytes(dest_dir, encoding="utf8")
+            )
+
+            if (not Path(str(dest, "utf8")).is_file()) or (
+                Path(str(album.artpath, "utf8")).stat().st_mtime
+                > Path(str(dest, "utf8")).stat().st_mtime
+            ):
+                return (album, [Action.COPY_ART])
+
+        return (album, [])
+
+    def albums_actions(self):
+        for album in self.lib.albums():
+            if self._config.query.match(album) or any(
+                self._config.query.match(item) for item in album.items()
+            ):
+                yield self.matched_album_action(album)
 
     def ask_create(self, create: bool | None = None) -> bool:
         if not self._config.removable:
@@ -410,6 +446,31 @@ class External:
                 for item, dest in _get_queue_available(converting_done):
                     finalize_converted_item(item, dest)
 
+            dest_dir = bytes(str(self._config.directory), encoding="utf8")
+            for album, actions in self.albums_actions():
+                for action in actions:
+                    if action == Action.COPY_ART:
+                        self._log.debug(f"Copying art from {path} into {dest}")
+                        dest = album.art_destination(
+                            album.artpath,
+                            bytes(self.album_destination(album), encoding="utf8"),
+                        )
+
+                        dest_path = Path(str(dest, "utf8"))
+                        if dest_path.exists():
+                            dest_path.unlink()
+
+                        self._copy_album_art_fn(
+                            album,
+                            dest_dir,
+                            path_formats=None,
+                            pretend=False,
+                            link=False,
+                            hardlink=False,
+                        )
+
+                        print_(f"~{dest}")
+
     def destination(self, item: Item) -> Path:
         """Returns the path for `item` in the external collection."""
         path = _item_destination_relative_compat(
@@ -417,6 +478,14 @@ class External:
         )
         assert isinstance(path, str)
         return self._config.directory / path
+
+    def album_destination(self, album):
+        items = album.items()
+        if len(items) > 0:
+            head, _ = os.path.split(self.destination(items[0]))
+            return head
+        else:
+            return None
 
     def _set_stored_path(self, item: Item, path: Path):
         item[self.path_key] = str(path)
@@ -479,7 +548,9 @@ class ExternalConvert(External):
         super().__init__(log, lib, config)
         convert_plugin = convert.ConvertPlugin()
         self._encode = convert_plugin.encode
+        self._copy_album_art_fn = convert_plugin.copy_album_art
         self._embed = convert_plugin.config["embed"].get(bool)
+        self._copy_album_art = convert_plugin.config["copy_album_art"].get(bool)
         self._formats = [convert.ALIASES.get(f, f) for f in config.formats]
         self.convert_cmd, self.ext = convert.get_format(self._formats[0])
 
