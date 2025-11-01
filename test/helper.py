@@ -114,7 +114,7 @@ def assert_has_artwork(path: Path, compare_file: Path | None = None):
             crc_is = crc32(path_fh.read())
             crc_expected = crc32(compare_fh.read())
             assert crc_is == crc_expected, (
-                "MediaFile has embedded artwork, but "
+                "artwork file exists, but "
                 f"content (CRC32: {crc_is}) doesn't match "
                 f"expectations (CRC32: {crc_expected})."
             )
@@ -278,13 +278,14 @@ class TestHelper:
     def get_path(self, item: Item, path_key: str = "alt.myexternal") -> Path:
         return Path(item[path_key])
 
-    def get_album_path(self, album: Album) -> Path:
+    def get_album_path(self, album: Album, path_key: str = "alt.myexternal") -> Path:
         item = album.items().get()
         if item:
-            head, _ = os.path.split(self.get_path(item))
+            head, _ = os.path.split(self.get_path(item, path_key=path_key))
             return head
         else:
             return None
+
 
 def convert_command(tag: str) -> str:
     """Return a convert shell command that copies the file and adds a tag to the files end."""
