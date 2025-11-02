@@ -258,11 +258,6 @@ following settings.
 
   By default no transcoding is done.
 
-* **`albumart_maxwidth`** Downscale the embedded album art to a width
-  of maximum `albumart_maxwidth` pixels. The aspect ratio of the image
-  will be preserved. This is comparable to the setting with the same
-  name of the [convert plugin][convert plugin].
-
 * **`removable`** If this is `true` (the default) and `directory` does
   not exist, the `update` command will ask you to confirm the creation
   of the external collection. (optional)
@@ -270,6 +265,33 @@ following settings.
 * **`link_type`** Can be `absolute` (default) or `relative`. If
   **`formats`** is `link`, it sets the type of links to create. For
   differences between link types and examples see [Symlink Views](#symlink-views).
+
+* **`album_art_embed`** Embed album art into the media file. Default `yes`
+
+* **`album_art_copy`** Copy album art files into the collection. 
+  If `formats: link` is used then album art is linked instead.
+
+* **`album_art_maxwidth`** Downscale the embedded album art to a width
+  of maximum `album_art_maxwidth` pixels. The aspect ratio of the image
+  will be preserved. This is comparable to the setting with the same
+  name of the [convert plugin][convert plugin].
+
+* **`album_art_format`** If set forces album art to be converted to the
+  specified format. Most often, this will be either JPEG or PNG.
+  Support the same options as [`fetchart.cover_formats`][cover formats]
+
+* **`album_art_deinterlace`** If enabled, Pillow or ImageMagick backends
+  are instructed to store cover art as non-progressive JPEG. You might
+  need this if you use DAPs that don’t support progressive images.
+  Default: no.
+
+* **`album_art_quality`** The JPEG quality level to use when compressing
+  images (when maxwidth is set). This should be either a number
+  from 1 to 100 or 0 to use the default quality. 65–75 is usually a
+  good starting point. The default behavior depends on the imaging
+  tool used for scaling: ImageMagick tries to estimate the input image
+  quality and uses 92 if it cannot be determined, and PIL defaults 
+  to 75. Default: 0 (disabled)
 
 Events
 ------
@@ -345,3 +367,4 @@ SOFTWARE.
 [convert plugin]: http://beets.readthedocs.org/en/latest/plugins/convert.html
 [query string]: http://beets.readthedocs.org/en/latest/reference/query.html
 [using plugins]: http://beets.readthedocs.org/en/latest/plugins/index.html#using-plugins
+[cover formats]: https://beets.readthedocs.io/en/stable/plugins/fetchart.html#image-formats
