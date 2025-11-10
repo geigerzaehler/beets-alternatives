@@ -1,6 +1,6 @@
 # Developer Guide
 
-This project uses [Poetry][] for packaging and dependency management.
+This project uses [uv][] for packaging and dependency management.
 
 We’re using the following tools to ensure consistency and quality
 
@@ -9,13 +9,13 @@ We’re using the following tools to ensure consistency and quality
 - [pytest](https://docs.pytest.org/)
 
 ```bash
-poetry install
-poetry run ruff check .
-poetry run pyright .
-poetry run pytest
+uv sync
+uv run ruff check .
+uv run pyright .
+uv run pytest
 ```
 
-[poetry]: https://python-poetry.org/
+[uv]: https://docs.astral.sh/uv/
 
 ## Releasing
 

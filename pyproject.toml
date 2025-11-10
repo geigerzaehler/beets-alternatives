@@ -1,21 +1,19 @@
 [build-system]
-requires = ["poetry-core"]
-build-backend = "poetry.core.masonry.api"
+requires = ["hatchling"]
+build-backend = "hatchling.build"
 
-[tool.poetry]
+[project]
 name = "beets-alternatives"
 version = "0.13.4"
 description = "beets plugin to manage multiple files"
 authors = [
-  "Thomas Scholtes <geigerzaehler@axiom.fm>",
-  "wisp3rwind <wisp3rwind@posteo.eu>",
+  { name = "Thomas Scholtes", email = "geigerzaehler@axiom.fm" },
+  { name = "wisp3rwind", email = "wisp3rwind@posteo.eu" },
 ]
 license = "MIT"
 readme = "README.md"
-include = ["CHANGELOG.md"]
-packages = [{ include = "beetsplug" }]
-homepage = "http://www.github.com/geigerzaehler/beets-alternatives"
-repository = "http://www.github.com/geigerzaehler/beets-alternatives"
+requires-python = ">=3.10"
+dependencies = ["beets>=1.6.0, <3", "typing-extensions>=4.9.0"]
 classifiers = [
   "Topic :: Multimedia :: Sound/Audio",
   "Topic :: Multimedia :: Sound/Audio :: Players :: MP3",
@@ -24,32 +22,38 @@ classifiers = [
   "Programming Language :: Python",
 ]
 
-[tool.poetry.dependencies]
-python = ">=3.10, <4"
-beets = ">=1.6.0, <3"
-typing-extensions = "^4.9.0"
+[project.urls]
+Homepage = "http://www.github.com/geigerzaehler/beets-alternatives"
+Repository = "http://www.github.com/geigerzaehler/beets-alternatives"
 
-[tool.poetry.group.dev.dependencies]
-confuse = "^2.0.1"
-coverage = "^7.4.4"
-mediafile = "^0.13.0"
-mock = "^5.0.2"
-pyright = "^1.1.340"
-pytest = "^8.0.2"
-pytest-cov = "^7.0.0"
-ruff = "^0.13.0"
-typeguard = "^4.1.5"
-pillow = "^11.1.0"
-pytest-watcher = "^0.4.3"
-tomli = "^2.2.1"
+[dependency-groups]
+dev = [
+  "confuse>=2.0.1",
+  "coverage>=7.4.4",
+  "mediafile>=0.13.0",
+  "mock>=5.0.2",
+  "pyright>=1.1.340",
+  "pytest>=8.0.2",
+  "pytest-cov>=7.0.0",
+  "ruff>=0.14.0",
+  "typeguard>=4.1.5",
+  "pillow>=11.1.0",
+  "pytest-watcher>=0.4.3",
+  "tomli>=2.2.1",
+]
+
+[tool.hatch.build.targets.sdist]
+include = ["/beetsplug", "/CHANGELOG.md", "/README.md", "/LICENSE"]
+
+[tool.hatch.build.targets.wheel]
+packages = ["beetsplug"]
 
 [tool.pytest.ini_options]
 addopts = "--cov --cov-report=term --cov-report=html --cov-branch --doctest-modules"
 filterwarnings = [
   "error",
-  "ignore:.*imghdr.*:DeprecationWarning:mediafile",
-  "ignore:.*setlocale.*:DeprecationWarning:beets.util",
   "ignore:.*pkgutil.get_loader.*:DeprecationWarning:confuse.util",
+  "ignore:.*beets.art.*:DeprecationWarning:beets",
 ]
 
 [tool.pyright]

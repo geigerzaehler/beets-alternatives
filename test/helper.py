@@ -157,7 +157,7 @@ class TestHelper:
         self.IMAGE_FIXTURE1 = self.fixture_dir / "image.png"
         self.IMAGE_FIXTURE2 = self.fixture_dir / "image_black.png"
 
-        if _beets_version >= (2, 3, 1):
+        if _beets_version > (2, 3, 1):
             beets.plugins._instances = [
                 beetsplug.alternatives.AlternativesPlugin(),
                 beetsplug.convert.ConvertPlugin(),
@@ -173,7 +173,7 @@ class TestHelper:
 
         yield
 
-        if _beets_version >= (2, 3, 1):
+        if _beets_version > (2, 3, 1):
             beets.plugins.BeetsPlugin.listeners = defaultdict(list)
         else:
             for plugin in beets.plugins._classes:  # type: ignore (compatibility with beets<2.4)
@@ -204,7 +204,7 @@ class TestHelper:
             },
         ]
 
-        if _beets_version >= (2, 3, 1):
+        if _beets_version > (2, 3, 1):
             beets.plugins._instances.append(  # type: ignore
                 beetsplug.hook.HookPlugin(),
             )

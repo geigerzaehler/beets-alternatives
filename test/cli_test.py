@@ -1,6 +1,5 @@
 import io
 import os
-import os.path
 import platform
 import shutil
 from pathlib import Path

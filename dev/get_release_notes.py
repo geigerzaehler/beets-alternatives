@@ -25,7 +25,7 @@ def _validate_heading_format(heading: str, version: str):
 def _get_release_notes():
     with Path("pyproject.toml").open("rb") as f:
         data = tomli.load(f)
-        version = data["tool"]["poetry"]["version"]
+        version = data["project"]["version"]
     release_notes = []
 
     with Path("CHANGELOG.md").open() as lines:
