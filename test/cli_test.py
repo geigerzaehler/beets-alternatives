@@ -15,12 +15,12 @@ from PIL import Image
 from .helper import (
     TestHelper,
     assert_file_tag,
-    assert_same_file_content,
     assert_has_embedded_artwork,
     assert_has_not_embedded_artwork,
     assert_is_not_file,
     assert_media_file_fields,
     assert_not_file_tag,
+    assert_same_file_content,
     assert_symlink,
     control_stdin,
     convert_command,
@@ -408,14 +408,16 @@ class TestExternalCopy(TestHelper):
         # Don’t update files on second run
         assert self.runcli("alt", "update", "--all") == ""
 
+
 class TestExternalArt(TestHelper):
     @pytest.fixture(autouse=True)
     def _external_art(self, tmp_path: Path, _setup: None):
-        external_dir = str(tmp_path)
+        self.external_dir = tmp_path
         self.config["convert"]["embed"] = False
+        self.config["art_filename"] = "COVER"
         self.config["alternatives"] = {
             "myexternal": {
-                "directory": external_dir,
+                "directory": str(self.external_dir),
                 "query": "myexternal:true",
                 "formats": "mp3",
                 "album_art_copy": False,
@@ -426,7 +428,6 @@ class TestExternalArt(TestHelper):
             }
         }
         self.external_config = self.config["alternatives"]["myexternal"]
-
 
     def test_resize_art(self, tmp_path: Path):
         album = self.add_album(myexternal="true")
@@ -450,8 +451,8 @@ class TestExternalArt(TestHelper):
         self.runcli("alt", "update", "myexternal")
         size = ArtResizer.shared.get_size(path_in=dest)
         assert size is not None
-        assert size[0] == 1 # width
-        assert size[1] < 3 # height
+        assert size[0] == 1  # width
+        assert size[1] < 3  # height
         assert ArtResizer.shared.get_format(path_in=dest) == "PNG"
 
         self.external_config["album_art_format"] = "JPEG"
@@ -461,8 +462,8 @@ class TestExternalArt(TestHelper):
 
         size = ArtResizer.shared.get_size(path_in=dest)
         assert size is not None
-        assert size[0] == 1 # width
-        assert size[1] < 3 # height
+        assert size[0] == 1  # width
+        assert size[1] < 3  # height
         assert ArtResizer.shared.get_format(path_in=dest) == "JPEG"
         assert Path(str(dest, "utf8")).name == "cover.jpg"
         # Check that FIXTURE.png is still around to verify that
@@ -483,7 +484,7 @@ class TestExternalArt(TestHelper):
 
         assert mtime_1 == mtime_2
 
-    def test_copy_art(self, tmp_path: Path):
+    def test_copy_art(self):
         # Initially add album without artwork. Do not do resizing
         self.external_config["album_art_embed"] = False
         self.external_config["album_art_copy"] = True
@@ -492,48 +493,35 @@ class TestExternalArt(TestHelper):
         album.store()
         self.runcli("alt", "update", "myexternal")
 
-        # Make a copy of the artwork, so that changing mtime/content won't
-        # affect the repository.
-        image_path = tmp_path / "FIXTURE.png"
-        artpath = bytes(image_path)
-        shutil.copy(self.IMAGE_FIXTURE1, image_path)
-        touch_art(artpath, image_path)
-
-        dest_dir = self.get_album_path(album)
-        dest = Path(str(album.art_destination(artpath, dest_dir), "utf8"))
+        external_album_path = self.external_dir / "artist 1" / "album 1"
+        external_art_path = external_album_path / "COVER.png"
 
         # Test that no artwork is placed
         self.runcli("alt", "update", "myexternal")
-        assert not dest.is_file()
+        assert not external_art_path.is_file()
 
-        # Test that artwork is added
-        album.artpath = artpath
+        album.set_art(self.IMAGE_FIXTURE1)
         album.store()
         self.runcli("alt", "update", "myexternal")
-
-        assert dest.is_file()
-        assert_same_file_content(dest, self.IMAGE_FIXTURE1)
+        assert_same_file_content(external_art_path, self.IMAGE_FIXTURE1)
 
         # Update art file
-        shutil.copy(self.IMAGE_FIXTURE2, image_path)
-        touch_art(artpath, image_path)
+        album.set_art(self.IMAGE_FIXTURE2)
         self.runcli("alt", "update", "myexternal")
-        assert_same_file_content(dest, self.IMAGE_FIXTURE2)
+        assert_same_file_content(external_art_path, self.IMAGE_FIXTURE2)
 
         # Test that art is updated after extension was updated
-        touch_art(bytes(image_path), dest)
         self.external_config["album_art_format"] = "JPEG"
         self.runcli("alt", "update", "myexternal")
-        dest = Path(str(album.art_destination("FIXTURE.jpg", dest_dir), "utf8"))
-        assert dest.is_file()
+        external_art_path = external_album_path / "COVER.jpg"
+        assert external_art_path.is_file()
 
         # Test that art is not updated
         # Change dest timestamp to be newer than artpath
-        touch_art(artpath, dest)
-        mtime_before = dest.stat().st_mtime
+        touch_art(album.artpath, external_art_path)
+        mtime_before = external_art_path.stat().st_mtime
         self.runcli("alt", "update", "myexternal")
-        assert mtime_before == dest.stat().st_mtime
-
+        assert mtime_before == external_art_path.stat().st_mtime
 
     def test_embed_art(self, tmp_path: Path):
         """Test that artwork is embedded and updated to match the source file.
