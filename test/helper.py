@@ -107,17 +107,17 @@ def assert_has_embedded_artwork(path: Path, compare_file: Path | None = None):
                 f"expectations (CRC32: {crc_expected})."
             )
 
-def assert_has_artwork(path: Path, compare_file: Path | None = None):
-    assert path.is_file()
-    if compare_file:
-        with compare_file.open("rb") as compare_fh, path.open("rb") as path_fh:
-            crc_is = crc32(path_fh.read())
-            crc_expected = crc32(compare_fh.read())
-            assert crc_is == crc_expected, (
-                "artwork file exists, but "
-                f"content (CRC32: {crc_is}) doesn't match "
-                f"expectations (CRC32: {crc_expected})."
-            )
+def assert_same_file_content(a: Path, b: Path):
+    assert a.is_file()
+    assert b.is_file()
+    with b.open("rb") as compare_fh, a.open("rb") as path_fh:
+        crc_is = crc32(path_fh.read())
+        crc_expected = crc32(compare_fh.read())
+        assert crc_is == crc_expected, (
+            "artwork file exists, but "
+            f"content (CRC32: {crc_is}) doesn't match "
+            f"expectations (CRC32: {crc_expected})."
+        )
 
 def assert_has_not_embedded_artwork(path: Path):
     mediafile = MediaFile(path)

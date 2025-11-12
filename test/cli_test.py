@@ -16,7 +16,7 @@ from PIL import Image
 from .helper import (
     TestHelper,
     assert_file_tag,
-    assert_has_artwork,
+    assert_same_file_content,
     assert_has_embedded_artwork,
     assert_has_not_embedded_artwork,
     assert_is_not_file,
@@ -525,13 +525,13 @@ class TestExternalArt(TestHelper):
         self.runcli("alt", "update", "myexternal")
 
         assert dest.is_file()
-        assert_has_artwork(dest, self.IMAGE_FIXTURE1)
+        assert_same_file_content(dest, self.IMAGE_FIXTURE1)
 
         # Update art file
         shutil.copy(self.IMAGE_FIXTURE2, image_path)
         self.touch_art(artpath, image_path)
         self.runcli("alt", "update", "myexternal")
-        assert_has_artwork(dest, self.IMAGE_FIXTURE2)
+        assert_same_file_content(dest, self.IMAGE_FIXTURE2)
 
         # Test that art is updated after extension was updated
         self.touch_art(bytes(image_path), dest)
