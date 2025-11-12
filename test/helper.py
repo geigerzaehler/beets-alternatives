@@ -278,11 +278,10 @@ class TestHelper:
     def get_path(self, item: Item, path_key: str = "alt.myexternal") -> Path:
         return Path(item[path_key])
 
-    def get_album_path(self, album: Album, path_key: str = "alt.myexternal") -> Path:
+    def get_album_path(self, album: Album, path_key: str = "alt.myexternal") -> bytes | None:
         item = album.items().get()
         if item:
-            head, _ = os.path.split(self.get_path(item, path_key=path_key))
-            return head
+            return bytes(self.get_path(item, path_key=path_key).parent)
         else:
             return None
 

@@ -546,7 +546,7 @@ class External:
         assert isinstance(path, str)
         return self._config.directory / path
 
-    def album_destination(self, album):
+    def album_destination(self, album: Album):
         items = album.items()
         if len(items) > 0:
             head, _ = os.path.split(self.destination(items[0]))

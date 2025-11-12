@@ -7,7 +7,6 @@ from time import sleep
 
 import pytest
 from beets import util
-from beets.library import Album, Item
 from beets.ui import UserError
 from beets.util.artresizer import ArtResizer
 from confuse import ConfigValueError
@@ -216,7 +215,8 @@ class TestSymlinkView(TestHelper):
         self.runcli("alt", "update", "by-year")
 
         dest_dir = self.get_album_path(album, path_key="alt.by-year")
-        dest = album.art_destination(album.artpath, bytes(dest_dir, encoding="utf8"))
+        assert dest_dir is not None
+        dest = album.art_destination(album.artpath, dest_dir)
 
         # Symlink is created
         assert Path(str(dest, "utf8")).is_symlink()
@@ -454,28 +454,28 @@ class TestExternalArt(TestHelper):
         self.touch_art(artpath, image_path)
 
         dest_dir = self.get_album_path(album)
-        dest = album.art_destination(artpath, bytes(dest_dir, encoding="utf8"))
+        dest = album.art_destination(artpath, dest_dir)
 
         self.external_config["album_art_copy"] = True
         self.external_config["album_art_maxwidth"] = 1
         album.artpath = artpath
         album.store()
         self.runcli("alt", "update", "myexternal")
-        (width, height) = ArtResizer.shared.get_size(path_in=dest)
-        assert width == 1
-        assert height < 3
+        size = ArtResizer.shared.get_size(path_in=dest)
+        assert size is not None
+        assert size[0] == 1 # width
+        assert size[1] < 3 # height
         assert ArtResizer.shared.get_format(path_in=dest) == "PNG"
 
         self.external_config["album_art_format"] = "JPEG"
         self.runcli("alt", "update", "myexternal")
 
-        dest = album.art_destination(
-            tmp_path / "FIXTURE.jpg", bytes(dest_dir, encoding="utf8")
-        )
+        dest = album.art_destination(tmp_path / "FIXTURE.jpg", dest_dir)
 
-        (width, height) = ArtResizer.shared.get_size(path_in=dest)
-        assert width == 1
-        assert height < 3
+        size = ArtResizer.shared.get_size(path_in=dest)
+        assert size is not None
+        assert size[0] == 1 # width
+        assert size[1] < 3 # height
         assert ArtResizer.shared.get_format(path_in=dest) == "JPEG"
         assert Path(str(dest, "utf8")).name == "cover.jpg"
         # Check that FIXTURE.png is still around to verify that
@@ -484,8 +484,8 @@ class TestExternalArt(TestHelper):
 
         # Test that reformat is idempotent
         image_path = tmp_path / "FIXTURE.jpg"
-        util.copy(dest, image_path)
         album.artpath = bytes(image_path)
+        util.copy(dest, album.artpath)
         album.store()
         self.runcli("alt", "update", "myexternal")
 
@@ -513,7 +513,7 @@ class TestExternalArt(TestHelper):
         self.touch_art(artpath, image_path)
 
         dest_dir = self.get_album_path(album)
-        dest = album.art_destination(artpath, bytes(dest_dir, encoding="utf8"))
+        dest = album.art_destination(artpath, dest_dir)
 
         # Test that no artwork is placed
         self.runcli("alt", "update", "myexternal")
@@ -537,7 +537,7 @@ class TestExternalArt(TestHelper):
         self.touch_art(bytes(image_path), Path(str(dest, "utf8")))
         self.external_config["album_art_format"] = "JPEG"
         self.runcli("alt", "update", "myexternal")
-        dest = album.art_destination("FIXTURE.jpg", bytes(dest_dir, encoding="utf8"))
+        dest = album.art_destination("FIXTURE.jpg", dest_dir)
         assert Path(str(dest, "utf8")).is_file()
 
     def test_embed_art(self, tmp_path: Path):
