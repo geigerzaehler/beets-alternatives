@@ -513,32 +513,40 @@ class TestExternalArt(TestHelper):
         self.touch_art(artpath, image_path)
 
         dest_dir = self.get_album_path(album)
-        dest = album.art_destination(artpath, dest_dir)
+        dest = Path(str(album.art_destination(artpath, dest_dir), "utf8"))
 
         # Test that no artwork is placed
         self.runcli("alt", "update", "myexternal")
-        assert not Path(str(dest, "utf8")).is_file()
+        assert not dest.is_file()
 
         # Test that artwork is added
         album.artpath = artpath
         album.store()
         self.runcli("alt", "update", "myexternal")
 
-        assert Path(str(dest, "utf8")).is_file()
-        assert_has_artwork(Path(str(dest, "utf8")), self.IMAGE_FIXTURE1)
+        assert dest.is_file()
+        assert_has_artwork(dest, self.IMAGE_FIXTURE1)
 
         # Update art file
         shutil.copy(self.IMAGE_FIXTURE2, image_path)
         self.touch_art(artpath, image_path)
         self.runcli("alt", "update", "myexternal")
-        assert_has_artwork(Path(str(dest, "utf8")), self.IMAGE_FIXTURE2)
+        assert_has_artwork(dest, self.IMAGE_FIXTURE2)
 
         # Test that art is updated after extension was updated
-        self.touch_art(bytes(image_path), Path(str(dest, "utf8")))
+        self.touch_art(bytes(image_path), dest)
         self.external_config["album_art_format"] = "JPEG"
         self.runcli("alt", "update", "myexternal")
-        dest = album.art_destination("FIXTURE.jpg", dest_dir)
-        assert Path(str(dest, "utf8")).is_file()
+        dest = Path(str(album.art_destination("FIXTURE.jpg", dest_dir), "utf8"))
+        assert dest.is_file()
+
+        # Test that art is not updated
+        # Change dest timestamp to be newer than artpath
+        self.touch_art(artpath, dest)
+        mtime_before = dest.stat().st_mtime
+        self.runcli("alt", "update", "myexternal")
+        assert mtime_before == dest.stat().st_mtime
+
 
     def test_embed_art(self, tmp_path: Path):
         """Test that artwork is embedded and updated to match the source file.
