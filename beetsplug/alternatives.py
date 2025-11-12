@@ -26,7 +26,7 @@ import beets.plugins
 import beetsplug.convert as convert
 import confuse
 from beets import art, util
-from beets.library import Item, Library, parse_query_string
+from beets.library import Album, Item, Library, parse_query_string
 from beets.plugins import BeetsPlugin
 from beets.ui import Subcommand, UserError, get_path_formats, input_yn, print_
 from beets.util.artresizer import ArtResizer
@@ -296,9 +296,6 @@ class Action(Enum):
     #: Write album art to the track’s metadata
     SYNC_ART = "SYNC_ART"
 
-    #: Copy album art to collection
-    COPY_ART = "COPY_ART"
-
 
 class External:
     def __init__(self, log: logging.Logger, lib: Library, config: Config):
@@ -360,11 +357,11 @@ class External:
             elif self._get_stored_path(item):
                 yield (item, [Action.REMOVE])
 
-    def matched_album_action(self, album):
+    def get_album_art_update(self, album: Album) -> tuple[bytes, bytes] | None:
         dest_dir = self.album_destination(album)
 
         if not dest_dir:
-            return (album, [])
+            return None
 
         if album.artpath and Path(str(album.artpath, "utf8")).is_file():
             dest = album.art_destination(
@@ -387,16 +384,9 @@ class External:
             if (not dest.is_file()) or (
                 Path(str(album.artpath, "utf8")).stat().st_mtime > dest.stat().st_mtime
             ):
-                return (album, [Action.COPY_ART])
+                return (album.artpath, bytes(str(dest), encoding="utf8"))
 
-        return (album, [])
-
-    def albums_actions(self):
-        for album in self.lib.albums():
-            if self._config.query.match(album) or any(
-                self._config.query.match(item) for item in album.items()
-            ):
-                yield self.matched_album_action(album)
+        return None
 
     def ask_create(self, create: bool | None = None) -> bool:
         if not self._config.removable:
@@ -501,29 +491,23 @@ class External:
             if self._config.album_art_copy:
                 self.update_art()
 
-    def update_art(self, link=False):
-        for album, actions in self.albums_actions():
-            for action in actions:
-                if action == Action.COPY_ART:
-                    if link:
-                        dest = album.art_destination(
-                            album.artpath,
-                            bytes(self.album_destination(album), encoding="utf8"),
-                        )
+    def update_art(self, link: bool = False):
+        for album in self.lib.albums():
+            if (
+                self._config.query.match(album)
+                or any(self._config.query.match(item) for item in album.items())
+            ) and (paths := self.get_album_art_update(album)) is not None:
+                artpath = paths[0]
+                dest = paths[1]
+                if link:
+                    self._log.debug(f"Linking art from {album.artpath} into {dest}")
+                    util.link(artpath, dest, replace=True)
+                else:
+                    path = self.resize_art(artpath)
+                    self._log.debug(f"Copying art from {path} into {dest}")
+                    util.copy(path, dest, replace=True)
 
-                        self._log.debug(f"Linking art from {album.artpath} into {dest}")
-                        util.link(album.artpath, dest, replace=True)
-                    else:
-                        path = self.resize_art(album.artpath)
-                        dest = album.art_destination(
-                            path,
-                            bytes(self.album_destination(album), encoding="utf8"),
-                        )
-
-                        self._log.debug(f"Copying art from {path} into {dest}")
-                        util.copy(path, dest, replace=True)
-
-                    print_(f"~{dest}")
+                print_(f"~{dest}")
 
     def resize_art(self, path: bytes) -> bytes:
         """Resize the candidate artwork according to the plugin's
