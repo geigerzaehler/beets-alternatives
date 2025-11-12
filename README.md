@@ -268,8 +268,9 @@ following settings.
 
 * **`album_art_embed`** Embed album art into the media file. Default `yes`
 
-* **`album_art_copy`** Copy album art files into the collection. 
-  If `formats: link` is used then album art is linked instead.
+* **`album_art_copy`** Copy album art files into the collection. If
+  `formats: link` is used then album art is linked instead. Filename for
+  cover art is determined by the [art_filename][art_filename] option.
 
 * **`album_art_maxwidth`** Downscale the embedded album art to a width
   of maximum `album_art_maxwidth` pixels. The aspect ratio of the image
@@ -368,3 +369,4 @@ SOFTWARE.
 [query string]: http://beets.readthedocs.org/en/latest/reference/query.html
 [using plugins]: http://beets.readthedocs.org/en/latest/plugins/index.html#using-plugins
 [cover formats]: https://beets.readthedocs.io/en/stable/plugins/fetchart.html#image-formats
+[art_filename]: https://beets.readthedocs.io/en/stable/reference/config.html#art-filename
