@@ -1,5 +1,4 @@
 import io
-import os
 import platform
 import shutil
 from pathlib import Path
@@ -25,6 +24,7 @@ from .helper import (
     assert_symlink,
     control_stdin,
     convert_command,
+    touch_art,
 )
 
 
@@ -408,7 +408,6 @@ class TestExternalCopy(TestHelper):
         # Don’t update files on second run
         assert self.runcli("alt", "update", "--all") == ""
 
-
 class TestExternalArt(TestHelper):
     @pytest.fixture(autouse=True)
     def _external_art(self, tmp_path: Path, _setup: None):
@@ -428,18 +427,6 @@ class TestExternalArt(TestHelper):
         }
         self.external_config = self.config["alternatives"]["myexternal"]
 
-    def touch_art(self, artpath: bytes, image_path: Path):
-        """`touch` the image file, but don't set mtime to the current
-        time since the tests run rather fast and item and art mtimes might
-        end up identical if the filesystem has low mtime granularity or
-        mtimes are cashed as laid out in
-            https://stackoverflow.com/a/14393315/3451198
-        Considering the interpreter startup time when running `beet alt
-        update <name>` in a real use-case, this should not obscure any
-        bugs.
-        """
-        item_mtime_alt = Path(str(artpath, "utf8")).stat().st_mtime
-        os.utime(image_path, (item_mtime_alt + 2, item_mtime_alt + 2))
 
     def test_resize_art(self, tmp_path: Path):
         album = self.add_album(myexternal="true")
@@ -451,7 +438,7 @@ class TestExternalArt(TestHelper):
         image_path = tmp_path / "FIXTURE.png"
         artpath = bytes(image_path)
         shutil.copy(self.IMAGE_FIXTURE1, image_path)
-        self.touch_art(artpath, image_path)
+        touch_art(artpath, image_path)
 
         dest_dir = self.get_album_path(album)
         dest = album.art_destination(artpath, dest_dir)
@@ -510,7 +497,7 @@ class TestExternalArt(TestHelper):
         image_path = tmp_path / "FIXTURE.png"
         artpath = bytes(image_path)
         shutil.copy(self.IMAGE_FIXTURE1, image_path)
-        self.touch_art(artpath, image_path)
+        touch_art(artpath, image_path)
 
         dest_dir = self.get_album_path(album)
         dest = Path(str(album.art_destination(artpath, dest_dir), "utf8"))
@@ -529,12 +516,12 @@ class TestExternalArt(TestHelper):
 
         # Update art file
         shutil.copy(self.IMAGE_FIXTURE2, image_path)
-        self.touch_art(artpath, image_path)
+        touch_art(artpath, image_path)
         self.runcli("alt", "update", "myexternal")
         assert_same_file_content(dest, self.IMAGE_FIXTURE2)
 
         # Test that art is updated after extension was updated
-        self.touch_art(bytes(image_path), dest)
+        touch_art(bytes(image_path), dest)
         self.external_config["album_art_format"] = "JPEG"
         self.runcli("alt", "update", "myexternal")
         dest = Path(str(album.art_destination("FIXTURE.jpg", dest_dir), "utf8"))
@@ -542,7 +529,7 @@ class TestExternalArt(TestHelper):
 
         # Test that art is not updated
         # Change dest timestamp to be newer than artpath
-        self.touch_art(artpath, dest)
+        touch_art(artpath, dest)
         mtime_before = dest.stat().st_mtime
         self.runcli("alt", "update", "myexternal")
         assert mtime_before == dest.stat().st_mtime
@@ -576,7 +563,7 @@ class TestExternalArt(TestHelper):
         # affect the repository.
         image_path = tmp_path / "image.png"
         shutil.copy(self.IMAGE_FIXTURE1, image_path)
-        self.touch_art(item.path, image_path)
+        touch_art(item.path, image_path)
 
         # Add a cover image, assert that it is being embedded.
         album.artpath = bytes(image_path)
@@ -591,7 +578,7 @@ class TestExternalArt(TestHelper):
         # database.
         # Assert that artwork is re-embedded.
         shutil.copy(self.IMAGE_FIXTURE2, image_path)
-        self.touch_art(item.path, image_path)
+        touch_art(item.path, image_path)
         self.runcli("alt", "update", "myexternal")
 
         item = album.items().get()
@@ -600,7 +587,7 @@ class TestExternalArt(TestHelper):
 
         # now set a maxwidth and verify the final image has the right
         # dimensions
-        self.touch_art(item.path, image_path)
+        touch_art(item.path, image_path)
         self.external_config["album_art_maxwidth"] = 1
         self.runcli("alt", "update", "myexternal")
         mediafile = MediaFile(self.get_path(item))

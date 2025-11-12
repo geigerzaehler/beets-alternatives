@@ -301,3 +301,17 @@ def convert_command(tag: str) -> str:
         return f"bash -c \"cp '$source' '$dest'; printf {tag} >> '$dest'\""
     else:
         raise Exception(f"Unsupported system: {system}")
+
+
+def touch_art(source: bytes, dest: Path):
+    """`touch` the dest file, but don't set mtime to the current
+    time since the tests run rather fast and item and art mtimes might
+    end up identical if the filesystem has low mtime granularity or
+    mtimes are cashed as laid out in
+        https://stackoverflow.com/a/14393315/3451198
+    Considering the interpreter startup time when running `beet alt
+    update <name>` in a real use-case, this should not obscure any
+    bugs.
+    """
+    item_mtime_alt = Path(str(source, "utf8")).stat().st_mtime
+    os.utime(dest, (item_mtime_alt + 2, item_mtime_alt + 2))
