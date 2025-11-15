@@ -1,5 +1,13 @@
 # Change Log
 
+## Unreleased
+
+- Add Support for album cover art files and moved the existing options for
+  album art embedding inline to the alternatives config. [#176][]
+  ([@maxaudron](https://github.com/maxaudron))
+
+[#176]: https://github.com/geigerzaehler/beets-alternatives/pull/176
+
 ## v0.13.4 - 2025-09-13
 
 - Promote `typing-extensions` to runtime dependency
