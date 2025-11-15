@@ -357,37 +357,6 @@ class External:
             elif self._get_stored_path(item):
                 yield (item, [Action.REMOVE])
 
-    def get_album_art_update(self, album: Album) -> tuple[bytes, bytes] | None:
-        dest_dir = self.album_destination(album)
-
-        if not dest_dir:
-            return None
-
-        if album.artpath and Path(str(album.artpath, "utf8")).is_file():
-            dest = album.art_destination(
-                album.artpath, bytes(dest_dir, encoding="utf8")
-            )
-
-            if self._config.album_art_format:
-                new_format = self._config.album_art_format.lower()
-                # A nonexhaustive map of image "types" to extensions overrides
-                new_format = {
-                    "jpeg": "jpg",
-                }.get(new_format, new_format)
-
-                dest = Path(str(dest, "utf8"))
-                fname = dest.parent / dest.stem
-                dest = fname.with_suffix("." + new_format)
-            else:
-                dest = Path(str(dest, "utf8"))
-
-            if (not dest.is_file()) or (
-                Path(str(album.artpath, "utf8")).stat().st_mtime > dest.stat().st_mtime
-            ):
-                return (album.artpath, bytes(str(dest), encoding="utf8"))
-
-        return None
-
     def ask_create(self, create: bool | None = None) -> bool:
         if not self._config.removable:
             return True
@@ -493,21 +462,45 @@ class External:
 
     def update_art(self, link: bool = False):
         for album in self.lib.albums():
-            if (
-                self._config.query.match(album)
-                or any(self._config.query.match(item) for item in album.items())
-            ) and (paths := self.get_album_art_update(album)) is not None:
-                artpath = paths[0]
-                dest = paths[1]
-                if link:
-                    self._log.debug(f"Linking art from {album.artpath} into {dest}")
-                    util.link(artpath, dest, replace=True)
-                else:
-                    path = self.resize_art(artpath)
-                    self._log.debug(f"Copying art from {path} into {dest}")
-                    util.copy(path, dest, replace=True)
+            if not self._config.query.match(album) and not any(
+                self._config.query.match(item) for item in album.items()
+            ):
+                continue
 
-                print_(f"~{dest}")
+            dest_dir = self.album_destination(album)
+            if not dest_dir:
+                continue
+
+            artpath = album.artpath and Path(str(album.artpath, "utf8"))
+            if not artpath or not artpath.is_file():
+                continue
+
+            dest = album.art_destination(album.artpath, bytes(str(dest_dir), "utf8"))
+            dest = Path(str(dest, "utf8"))
+
+            if self._config.album_art_format:
+                new_format = self._config.album_art_format.lower()
+                # A nonexhaustive map of image "types" to extensions overrides
+                new_format = {"jpeg": "jpg"}.get(new_format, new_format)
+
+                fname = dest.parent / dest.stem
+                dest = fname.with_suffix("." + new_format)
+
+            if dest.is_file() and not (artpath.stat().st_mtime > dest.stat().st_mtime):
+                continue
+
+            dest = bytes(str(dest), "utf8")
+            artpath = bytes(str(artpath), "utf8")
+
+            if link:
+                self._log.debug(f"Linking art from {album.artpath} into {dest_dir}")
+                util.link(artpath, dest, replace=True)
+            else:
+                path = self.resize_art(artpath)
+                self._log.debug(f"Copying art from {path} into {dest_dir}")
+                util.copy(path, dest, replace=True)
+
+            print_(f"~{dest_dir}")
 
     def resize_art(self, path: bytes) -> bytes:
         """Resize the candidate artwork according to the plugin's
@@ -546,11 +539,10 @@ class External:
         assert isinstance(path, str)
         return self._config.directory / path
 
-    def album_destination(self, album: Album):
+    def album_destination(self, album: Album) -> Path | None:
         items = album.items()
         if len(items) > 0:
-            head, _ = os.path.split(self.destination(items[0]))
-            return head
+            return self.destination(items[0]).parent
         else:
             return None
 
