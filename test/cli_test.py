@@ -1,11 +1,9 @@
 import io
 import platform
-import shutil
 from pathlib import Path
 from time import sleep
 
 import pytest
-from beets import util
 from beets.ui import UserError
 from beets.util.artresizer import ArtResizer
 from confuse import ConfigValueError
@@ -202,24 +200,24 @@ class TestSymlinkView(TestHelper):
         with pytest.raises(ConfigValueError):
             self.runcli("alt", "update", "by-year")
 
-    def test_album_art_linked(self):
+    def test_album_art_linked(self, tmp_path: Path):
         self.alt_config["album_art_copy"] = True
+        self.config["art_filename"] = "COVER"
         album = self.add_album(
             artist="Michael Jackson",
             album="Thriller",
             year="1990",
             original_year="1982",
         )
-        album.artpath = bytes(str(self.IMAGE_FIXTURE1), encoding="utf8")
+        album.set_art(self.IMAGE_FIXTURE1)
         album.store()
         self.runcli("alt", "update", "by-year")
 
-        dest_dir = self.get_album_path(album, path_key="alt.by-year")
-        assert dest_dir is not None
-        dest = album.art_destination(album.artpath, dest_dir)
+        external_album_path = tmp_path / "beets_lib" / "by-year" / "1990" / "Thriller"
+        external_art_path = external_album_path / "COVER.png"
 
         # Symlink is created
-        assert Path(str(dest, "utf8")).is_symlink()
+        assert external_art_path.is_symlink()
 
 
 class TestExternalCopy(TestHelper):
@@ -430,58 +428,45 @@ class TestExternalArt(TestHelper):
         self.external_config = self.config["alternatives"]["myexternal"]
 
     def test_resize_art(self, tmp_path: Path):
+        def assert_art_size(path: bytes):
+            size = ArtResizer.shared.get_size(path_in=path)
+            assert size is not None
+            assert size[0] == 1  # width
+            assert size[1] < 3  # height
+
         album = self.add_album(myexternal="true")
         album.store()
         self.runcli("alt", "update", "myexternal")
 
-        # Make a copy of the artwork, so that changing mtime/content won't
-        # affect the repository.
-        image_path = tmp_path / "FIXTURE.png"
-        artpath = bytes(image_path)
-        shutil.copy(self.IMAGE_FIXTURE1, image_path)
-        touch_art(artpath, image_path)
-
-        dest_dir = self.get_album_path(album)
-        dest = album.art_destination(artpath, dest_dir)
+        external_album_path = self.external_dir / "artist 1" / "album 1"
+        external_art_path_bytes = bytes(str(external_album_path / "COVER.png"), "utf8")
 
         self.external_config["album_art_copy"] = True
         self.external_config["album_art_maxwidth"] = 1
-        album.artpath = artpath
+        album.set_art(self.IMAGE_FIXTURE1)
         album.store()
         self.runcli("alt", "update", "myexternal")
-        size = ArtResizer.shared.get_size(path_in=dest)
-        assert size is not None
-        assert size[0] == 1  # width
-        assert size[1] < 3  # height
-        assert ArtResizer.shared.get_format(path_in=dest) == "PNG"
+        assert_art_size(external_art_path_bytes)
+        assert ArtResizer.shared.get_format(path_in=external_art_path_bytes) == "PNG"
 
         self.external_config["album_art_format"] = "JPEG"
         self.runcli("alt", "update", "myexternal")
 
-        dest = album.art_destination(tmp_path / "FIXTURE.jpg", dest_dir)
+        external_art_path = external_album_path / "COVER.jpg"
+        external_art_path_bytes = bytes(str(external_art_path), "utf8")
 
-        size = ArtResizer.shared.get_size(path_in=dest)
-        assert size is not None
-        assert size[0] == 1  # width
-        assert size[1] < 3  # height
-        assert ArtResizer.shared.get_format(path_in=dest) == "JPEG"
-        assert Path(str(dest, "utf8")).name == "cover.jpg"
-        # Check that FIXTURE.png is still around to verify that
+        assert_art_size(external_art_path_bytes)
+        assert ArtResizer.shared.get_format(path_in=external_art_path_bytes) == "JPEG"
+        assert external_art_path.name == "COVER.jpg"
+        # Check that original album art is still around to verify that
         # the reformat was not done in-place
-        assert image_path.is_file()
+        assert album.artpath
+        assert Path(str(album.artpath, "utf8")).is_file()
 
         # Test that reformat is idempotent
-        image_path = tmp_path / "FIXTURE.jpg"
-        album.artpath = bytes(image_path)
-        util.copy(dest, album.artpath)
-        album.store()
+        mtime_1 = external_art_path.stat().st_mtime
         self.runcli("alt", "update", "myexternal")
-
-        dest_path = Path(str(dest, "utf8"))
-        mtime_1 = dest_path.stat().st_mtime
-        self.runcli("alt", "update", "myexternal")
-        mtime_2 = dest_path.stat().st_mtime
-
+        mtime_2 = external_art_path.stat().st_mtime
         assert mtime_1 == mtime_2
 
     def test_copy_art(self):
@@ -518,6 +503,7 @@ class TestExternalArt(TestHelper):
 
         # Test that art is not updated
         # Change dest timestamp to be newer than artpath
+        assert album.artpath
         touch_art(album.artpath, external_art_path)
         mtime_before = external_art_path.stat().st_mtime
         self.runcli("alt", "update", "myexternal")
@@ -547,14 +533,8 @@ class TestExternalArt(TestHelper):
         assert item
         assert_has_not_embedded_artwork(self.get_path(item))
 
-        # Make a copy of the artwork, so that changing mtime/content won't
-        # affect the repository.
-        image_path = tmp_path / "image.png"
-        shutil.copy(self.IMAGE_FIXTURE1, image_path)
-        touch_art(item.path, image_path)
-
         # Add a cover image, assert that it is being embedded.
-        album.artpath = bytes(image_path)
+        album.set_art(self.IMAGE_FIXTURE1)
         album.store()
         self.runcli("alt", "update", "myexternal")
 
@@ -565,8 +545,7 @@ class TestExternalArt(TestHelper):
         # Change content and update mtime, but do not change the item/album in
         # database.
         # Assert that artwork is re-embedded.
-        shutil.copy(self.IMAGE_FIXTURE2, image_path)
-        touch_art(item.path, image_path)
+        album.set_art(self.IMAGE_FIXTURE2)
         self.runcli("alt", "update", "myexternal")
 
         item = album.items().get()
@@ -575,7 +554,8 @@ class TestExternalArt(TestHelper):
 
         # now set a maxwidth and verify the final image has the right
         # dimensions
-        touch_art(item.path, image_path)
+        assert album.artpath
+        touch_art(item.path, Path(str(album.artpath, "utf8")))
         self.external_config["album_art_maxwidth"] = 1
         self.runcli("alt", "update", "myexternal")
         mediafile = MediaFile(self.get_path(item))
