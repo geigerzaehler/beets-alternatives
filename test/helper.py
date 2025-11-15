@@ -107,6 +107,7 @@ def assert_has_embedded_artwork(path: Path, compare_file: Path | None = None):
                 f"expectations (CRC32: {crc_expected})."
             )
 
+
 def assert_same_file_content(a: Path, b: Path):
     assert a.is_file()
     assert b.is_file()
@@ -118,6 +119,7 @@ def assert_same_file_content(a: Path, b: Path):
             f"content (CRC32: {crc_is}) doesn't match "
             f"expectations (CRC32: {crc_expected})."
         )
+
 
 def assert_has_not_embedded_artwork(path: Path):
     mediafile = MediaFile(path)
@@ -278,12 +280,10 @@ class TestHelper:
     def get_path(self, item: Item, path_key: str = "alt.myexternal") -> Path:
         return Path(item[path_key])
 
-    def get_album_path(self, album: Album, path_key: str = "alt.myexternal") -> bytes | None:
+    def get_album_path(self, album: Album, path_key: str = "alt.myexternal") -> Path:
         item = album.items().get()
-        if item:
-            return bytes(self.get_path(item, path_key=path_key).parent)
-        else:
-            return None
+        assert item
+        return self.get_path(item, path_key=path_key).parent
 
 
 def convert_command(tag: str) -> str:
