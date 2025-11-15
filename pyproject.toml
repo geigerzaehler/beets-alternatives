@@ -54,6 +54,7 @@ filterwarnings = [
   "error",
   "ignore:.*pkgutil.get_loader.*:DeprecationWarning:confuse.util",
   "ignore:.*beets.art.*:DeprecationWarning:beets",
+  "ignore::ResourceWarning:beets.util.artresizer",
 ]
 
 [tool.pyright]
