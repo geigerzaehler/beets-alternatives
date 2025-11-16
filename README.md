@@ -272,27 +272,22 @@ following settings.
   `formats: link` is used then album art is linked instead. Filename for
   cover art is determined by the [art_filename][art_filename] option.
 
-* **`album_art_maxwidth`** Downscale the embedded album art to a width
-  of maximum `album_art_maxwidth` pixels. The aspect ratio of the image
-  will be preserved. This is comparable to the setting with the same
-  name of the [convert plugin][convert plugin].
+* **`album_art_maxwidth`** If set, resize album art to this maximum width while
+  preserving aspect ratio. Comparable to the [convert plugin][convert plugin]
+  setting with the same name.
 
-* **`album_art_format`** If set forces album art to be converted to the
-  specified format. Most often, this will be either JPEG or PNG.
-  Support the same options as [`fetchart.cover_formats`][cover formats]
+* **`album_art_format`** If set, convert album art to the specified format (e.g.
+  "jpg"). Supports the same values as [`fetchart.cover_formats`][cover formats].
 
-* **`album_art_deinterlace`** If enabled, Pillow or ImageMagick backends
-  are instructed to store cover art as non-progressive JPEG. You might
-  need this if you use DAPs that don’t support progressive images.
-  Default: no.
+* **`album_art_deinterlace`** If true, JPEG album art is encoded as
+  a non-progressive image. Enable this if your device does not support
+  progressive images.
 
-* **`album_art_quality`** The JPEG quality level to use when compressing
-  images (when maxwidth is set). This should be either a number
-  from 1 to 100 or 0 to use the default quality. 65–75 is usually a
-  good starting point. The default behavior depends on the imaging
-  tool used for scaling: ImageMagick tries to estimate the input image
-  quality and uses 92 if it cannot be determined, and PIL defaults 
-  to 75. Default: 0 (disabled)
+* **`album_art_quality`** JPEG quality level (1–100) when compressing images
+  (requires `album_art_max_width`). Use 0 for default quality. 65–75 is
+  typically a good range. The default behavior depends on the backend:
+  ImageMagick estimates input quality (using 92 if unknown), PIL uses 75.
+  Default: 0 (disabled) (optional)
 
 Events
 ------
