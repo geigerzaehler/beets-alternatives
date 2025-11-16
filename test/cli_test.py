@@ -1,4 +1,5 @@
 import io
+import os
 import platform
 from pathlib import Path
 from time import sleep
@@ -439,7 +440,7 @@ class TestExternalArt(TestHelper):
         self.runcli("alt", "update", "myexternal")
 
         external_album_path = self.external_dir / "artist 1" / "album 1"
-        external_art_path_bytes = bytes(str(external_album_path / "COVER.png"), "utf8")
+        external_art_path_bytes = bytes(external_album_path / "COVER.png")
 
         self.external_config["album_art_copy"] = True
         self.external_config["album_art_maxwidth"] = 1
@@ -453,7 +454,7 @@ class TestExternalArt(TestHelper):
         self.runcli("alt", "update", "myexternal")
 
         external_art_path = external_album_path / "COVER.jpg"
-        external_art_path_bytes = bytes(str(external_art_path), "utf8")
+        external_art_path_bytes = bytes(external_art_path)
 
         assert_art_size(external_art_path_bytes)
         assert ArtResizer.shared.get_format(path_in=external_art_path_bytes) == "JPEG"
@@ -461,7 +462,7 @@ class TestExternalArt(TestHelper):
         # Check that original album art is still around to verify that
         # the reformat was not done in-place
         assert album.artpath
-        assert Path(str(album.artpath, "utf8")).is_file()
+        assert Path(os.fsdecode(album.artpath)).is_file()
 
         # Test that reformat is idempotent
         mtime_1 = external_art_path.stat().st_mtime
@@ -555,7 +556,7 @@ class TestExternalArt(TestHelper):
         # now set a maxwidth and verify the final image has the right
         # dimensions
         assert album.artpath
-        touch_art(item.path, Path(str(album.artpath, "utf8")))
+        touch_art(item.path, Path(os.fsdecode(album.artpath)))
         self.external_config["album_art_maxwidth"] = 1
         self.runcli("alt", "update", "myexternal")
         mediafile = MediaFile(self.get_path(item))

@@ -471,12 +471,12 @@ class External:
             if not dest_dir:
                 continue
 
-            artpath = album.artpath and Path(str(album.artpath, "utf8"))
+            artpath = album.artpath and Path(os.fsdecode(album.artpath))
             if not artpath or not artpath.is_file():
                 continue
 
-            dest = album.art_destination(album.artpath, bytes(str(dest_dir), "utf8"))
-            dest = Path(str(dest, "utf8"))
+            dest = album.art_destination(album.artpath, bytes(dest_dir))
+            dest = Path(os.fsdecode(dest))
 
             if self._config.album_art_format and not link:
                 new_format = self._config.album_art_format.lower()
@@ -488,8 +488,8 @@ class External:
             if dest.is_file() and dest.stat().st_mtime >= artpath.stat().st_mtime:
                 continue
 
-            dest = bytes(str(dest), "utf8")
-            artpath = bytes(str(artpath), "utf8")
+            dest = bytes(dest)
+            artpath = bytes(artpath)
 
             if link:
                 self._log.debug(f"Linking art from {album.artpath} into {dest_dir}")
@@ -581,7 +581,7 @@ class External:
     def _sync_art(self, item: Item, path: Path):
         """Embed artwork in the file at `path`."""
         album = item.get_album()
-        if album and album.artpath and Path(str(album.artpath, "utf8")).is_file():
+        if album and album.artpath and Path(os.fsdecode(album.artpath)).is_file():
             self._log.debug(f"Embedding art from {album.artpath} into {path}")
 
             artpath = self.resize_art(album.artpath)
