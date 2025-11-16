@@ -441,11 +441,15 @@ class TestExternalArt(TestHelper):
         self.runcli("alt", "update", "myexternal")
 
         external_album_path = self.external_dir / "artist 1" / "album 1"
-        external_art_path_bytes = bytes(external_album_path / "COVER.png")
+        external_art_path = external_album_path / "COVER.png"
+        external_art_path_bytes = bytes(external_art_path)
 
         self.external_config["album_art_copy"] = True
         self.external_config["album_art_maxwidth"] = 1
         album.set_art(self.IMAGE_FIXTURE1)
+        assert album.artpath
+        artpath = Path(os.fsdecode(album.artpath))
+        touch_art(album.artpath, artpath)
         album.store()
         self.runcli("alt", "update", "myexternal")
         assert_art_size(external_art_path_bytes)
@@ -462,10 +466,10 @@ class TestExternalArt(TestHelper):
         assert external_art_path.name == "COVER.jpg"
         # Check that original album art is still around to verify that
         # the reformat was not done in-place
-        assert album.artpath
-        assert Path(os.fsdecode(album.artpath)).is_file()
+        assert artpath.is_file()
 
         # Test that reformat is idempotent
+        touch_art(album.artpath, external_art_path)
         mtime_1 = external_art_path.stat().st_mtime
         self.runcli("alt", "update", "myexternal")
         mtime_2 = external_art_path.stat().st_mtime
@@ -476,24 +480,27 @@ class TestExternalArt(TestHelper):
         self.external_config["album_art_embed"] = False
         self.external_config["album_art_copy"] = True
 
+        external_album_path = self.external_dir / "artist 1" / "album 1"
+        external_art_path = external_album_path / "COVER.png"
+
         album = self.add_album(myexternal="true")
         album.store()
         self.runcli("alt", "update", "myexternal")
-
-        external_album_path = self.external_dir / "artist 1" / "album 1"
-        external_art_path = external_album_path / "COVER.png"
 
         # Test that no artwork is placed
         self.runcli("alt", "update", "myexternal")
         assert not external_art_path.is_file()
 
         album.set_art(self.IMAGE_FIXTURE1)
+        assert album.artpath
+        touch_art(album.artpath, Path(os.fsdecode(album.artpath)))
         album.store()
         self.runcli("alt", "update", "myexternal")
         assert_same_file_content(external_art_path, self.IMAGE_FIXTURE1)
 
         # Update art file
         album.set_art(self.IMAGE_FIXTURE2)
+        touch_art(album.artpath, Path(os.fsdecode(album.artpath)))
         self.runcli("alt", "update", "myexternal")
         assert_same_file_content(external_art_path, self.IMAGE_FIXTURE2)
 
@@ -505,7 +512,6 @@ class TestExternalArt(TestHelper):
 
         # Test that art is not updated
         # Change dest timestamp to be newer than artpath
-        assert album.artpath
         touch_art(album.artpath, external_art_path)
         mtime_before = external_art_path.stat().st_mtime
         self.runcli("alt", "update", "myexternal")
