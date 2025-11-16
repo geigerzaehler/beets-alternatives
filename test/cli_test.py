@@ -1,13 +1,11 @@
 import io
-import os
 import platform
-import shutil
 from pathlib import Path
 from time import sleep
 
 import pytest
-from beets.library import Item
 from beets.ui import UserError
+from beets.util.artresizer import ArtResizer
 from confuse import ConfigValueError
 from mediafile import MediaFile
 from PIL import Image
@@ -20,9 +18,11 @@ from .helper import (
     assert_is_not_file,
     assert_media_file_fields,
     assert_not_file_tag,
+    assert_same_file_content,
     assert_symlink,
     control_stdin,
     convert_command,
+    touch_art,
 )
 
 
@@ -200,6 +200,26 @@ class TestSymlinkView(TestHelper):
         with pytest.raises(ConfigValueError):
             self.runcli("alt", "update", "by-year")
 
+    def test_album_art_linked(self, tmp_path: Path):
+        self.alt_config["album_art_copy"] = True
+        self.config["art_filename"] = "COVER"
+        album = self.add_album(
+            artist="Michael Jackson",
+            album="Thriller",
+            year="1990",
+            original_year="1982",
+        )
+        album.set_art(self.IMAGE_FIXTURE1)
+        album.store()
+        self.runcli("alt", "update", "by-year")
+
+        external_album_path = tmp_path / "beets_lib" / "by-year" / "1990" / "Thriller"
+        external_art_path = external_album_path / "COVER.png"
+
+        # Symlink is created
+        assert album.artpath
+        assert_symlink(external_art_path, Path(str(album.artpath, "utf8")))
+
 
 class TestExternalCopy(TestHelper):
     """Test alternatives with empty ``format `` option, i.e. only copying
@@ -350,78 +370,6 @@ class TestExternalCopy(TestHelper):
             self.runcli("alt", "update", "unkown")
         assert str(e.value) == "Alternative collection 'unkown' not found."
 
-    def test_embed_art(self, tmp_path: Path):
-        """Test that artwork is embedded and updated to match the source file.
-
-        There used to be a bug that meant that albumart was only embedded
-        once on initial addition to the alternative collection, but not if
-        the artwork was added or changed later.
-
-        This test comprehensively checks that embedded artwork is up-to-date
-        with the artwork file, even if no changes to the database happen.
-
-        It also tests if the album_art_maxwidth is applied
-        """
-
-        def touch_art(item: Item, image_path: Path):
-            """`touch` the image file, but don't set mtime to the current
-            time since the tests run rather fast and item and art mtimes might
-            end up identical if the filesystem has low mtime granularity or
-            mtimes are cashed as laid out in
-                https://stackoverflow.com/a/14393315/3451198
-            Considering the interpreter startup time when running `beet alt
-            update <name>` in a real use-case, this should not obscure any
-            bugs.
-            """
-            item_mtime_alt = Path(str(item.path, "utf8")).stat().st_mtime
-            os.utime(image_path, (item_mtime_alt + 2, item_mtime_alt + 2))
-
-        # Initially add album without artwork. Do not do resizing
-        self.config["alternatives"]["myexternal"]["album_art_maxwidth"] = None
-        album = self.add_album(myexternal="true")
-        album.store()
-        self.runcli("alt", "update", "myexternal")
-
-        item = album.items().get()
-        assert item
-        assert_has_not_embedded_artwork(self.get_path(item))
-
-        # Make a copy of the artwork, so that changing mtime/content won't
-        # affect the repository.
-        image_path = tmp_path / "image.png"
-        shutil.copy(self.IMAGE_FIXTURE1, image_path)
-        touch_art(item, image_path)
-
-        # Add a cover image, assert that it is being embedded.
-        album.artpath = bytes(image_path)
-        album.store()
-        self.runcli("alt", "update", "myexternal")
-
-        item = album.items().get()
-        assert item
-        assert_has_embedded_artwork(self.get_path(item), self.IMAGE_FIXTURE1)
-
-        # Change content and update mtime, but do not change the item/album in
-        # database.
-        # Assert that artwork is re-embedded.
-        shutil.copy(self.IMAGE_FIXTURE2, image_path)
-        touch_art(item, image_path)
-        self.runcli("alt", "update", "myexternal")
-
-        item = album.items().get()
-        assert item
-        assert_has_embedded_artwork(self.get_path(item), self.IMAGE_FIXTURE2)
-
-        # now set a maxwidth and verify the final image has the right
-        # dimensions
-        touch_art(item, image_path)
-        self.config["alternatives"]["myexternal"]["album_art_maxwidth"] = 1
-        self.runcli("alt", "update", "myexternal")
-        mediafile = MediaFile(self.get_path(item))
-        width, height = Image.open(io.BytesIO(mediafile.art)).size  # pyright: ignore
-        assert width == 1
-        assert height < 3
-
     def test_update_all(self, tmp_path: Path):
         dir_a = tmp_path / "a"
         dir_a.mkdir()
@@ -458,6 +406,169 @@ class TestExternalCopy(TestHelper):
 
         # Don’t update files on second run
         assert self.runcli("alt", "update", "--all") == ""
+
+
+class TestExternalArt(TestHelper):
+    @pytest.fixture(autouse=True)
+    def _external_art(self, tmp_path: Path, _setup: None):
+        self.external_dir = tmp_path
+        self.config["convert"]["embed"] = False
+        self.config["art_filename"] = "COVER"
+        self.config["alternatives"] = {
+            "myexternal": {
+                "directory": str(self.external_dir),
+                "query": "myexternal:true",
+                "formats": "mp3",
+                "album_art_copy": False,
+                "album_art_maxwidth": None,
+                "album_art_format": None,
+                "album_art_deinterlace": False,
+                "album_art_quality": 0,
+            }
+        }
+        self.external_config = self.config["alternatives"]["myexternal"]
+
+    def test_resize_art(self, tmp_path: Path):
+        def assert_art_size(path: bytes):
+            size = ArtResizer.shared.get_size(path_in=path)
+            assert size is not None
+            assert size[0] == 1  # width
+            assert size[1] < 3  # height
+
+        album = self.add_album(myexternal="true")
+        album.store()
+        self.runcli("alt", "update", "myexternal")
+
+        external_album_path = self.external_dir / "artist 1" / "album 1"
+        external_art_path = external_album_path / "COVER.png"
+        external_art_path_bytes = bytes(external_art_path)
+
+        self.external_config["album_art_copy"] = True
+        self.external_config["album_art_maxwidth"] = 1
+        album.set_art(self.IMAGE_FIXTURE1)
+        assert album.artpath
+        artpath = Path(str(album.artpath, "utf8"))
+        touch_art(album.artpath, artpath)
+        album.store()
+        self.runcli("alt", "update", "myexternal")
+        assert_art_size(external_art_path_bytes)
+        assert ArtResizer.shared.get_format(path_in=external_art_path_bytes) == "PNG"
+
+        self.external_config["album_art_format"] = "JPEG"
+        self.runcli("alt", "update", "myexternal")
+
+        external_art_path = external_album_path / "COVER.jpg"
+        external_art_path_bytes = bytes(external_art_path)
+
+        assert_art_size(external_art_path_bytes)
+        assert ArtResizer.shared.get_format(path_in=external_art_path_bytes) == "JPEG"
+        assert external_art_path.name == "COVER.jpg"
+        # Check that original album art is still around to verify that
+        # the reformat was not done in-place
+        assert artpath.is_file()
+
+        # Test that reformat is idempotent
+        touch_art(album.artpath, external_art_path)
+        mtime_1 = external_art_path.stat().st_mtime
+        self.runcli("alt", "update", "myexternal")
+        mtime_2 = external_art_path.stat().st_mtime
+        assert mtime_1 == mtime_2
+
+    def test_copy_art(self):
+        # Initially add album without artwork. Do not do resizing
+        self.external_config["album_art_embed"] = False
+        self.external_config["album_art_copy"] = True
+
+        external_album_path = self.external_dir / "artist 1" / "album 1"
+        external_art_path = external_album_path / "COVER.png"
+
+        album = self.add_album(myexternal="true")
+        album.store()
+        self.runcli("alt", "update", "myexternal")
+
+        # Test that no artwork is placed
+        self.runcli("alt", "update", "myexternal")
+        assert not external_art_path.is_file()
+
+        album.set_art(self.IMAGE_FIXTURE1)
+        assert album.artpath
+        touch_art(album.artpath, Path(str(album.artpath, "utf8")))
+        album.store()
+        self.runcli("alt", "update", "myexternal")
+        assert_same_file_content(external_art_path, self.IMAGE_FIXTURE1)
+
+        # Update art file
+        album.set_art(self.IMAGE_FIXTURE2)
+        touch_art(album.artpath, Path(str(album.artpath, "utf8")))
+        self.runcli("alt", "update", "myexternal")
+        assert_same_file_content(external_art_path, self.IMAGE_FIXTURE2)
+
+        # Test that art is updated after extension was updated
+        self.external_config["album_art_format"] = "JPEG"
+        self.runcli("alt", "update", "myexternal")
+        external_art_path = external_album_path / "COVER.jpg"
+        assert external_art_path.is_file()
+
+        # Test that art is not updated
+        # Change dest timestamp to be newer than artpath
+        touch_art(album.artpath, external_art_path)
+        mtime_before = external_art_path.stat().st_mtime
+        self.runcli("alt", "update", "myexternal")
+        assert mtime_before == external_art_path.stat().st_mtime
+
+    def test_embed_art(self, tmp_path: Path):
+        """Test that artwork is embedded and updated to match the source file.
+
+        There used to be a bug that meant that albumart was only embedded
+        once on initial addition to the alternative collection, but not if
+        the artwork was added or changed later.
+
+        This test comprehensively checks that embedded artwork is up-to-date
+        with the artwork file, even if no changes to the database happen.
+
+        It also tests if the album_art_maxwidth is applied
+        """
+
+        # Initially add album without artwork. Do not do resizing
+        self.external_config["embed"] = True
+        self.external_config["album_art_maxwidth"] = None
+        album = self.add_album(myexternal="true")
+        album.store()
+        self.runcli("alt", "update", "myexternal")
+
+        item = album.items().get()
+        assert item
+        assert_has_not_embedded_artwork(self.get_path(item))
+
+        # Add a cover image, assert that it is being embedded.
+        album.set_art(self.IMAGE_FIXTURE1)
+        album.store()
+        self.runcli("alt", "update", "myexternal")
+
+        item = album.items().get()
+        assert item
+        assert_has_embedded_artwork(self.get_path(item), self.IMAGE_FIXTURE1)
+
+        # Change content and update mtime, but do not change the item/album in
+        # database.
+        # Assert that artwork is re-embedded.
+        album.set_art(self.IMAGE_FIXTURE2)
+        self.runcli("alt", "update", "myexternal")
+
+        item = album.items().get()
+        assert item
+        assert_has_embedded_artwork(self.get_path(item), self.IMAGE_FIXTURE2)
+
+        # now set a maxwidth and verify the final image has the right
+        # dimensions
+        assert album.artpath
+        touch_art(item.path, Path(str(album.artpath, "utf8")))
+        self.external_config["album_art_maxwidth"] = 1
+        self.runcli("alt", "update", "myexternal")
+        mediafile = MediaFile(self.get_path(item))
+        width, height = Image.open(io.BytesIO(mediafile.art)).size  # pyright: ignore
+        assert width == 1
+        assert height < 3
 
 
 class TestExternalConvert(TestHelper):

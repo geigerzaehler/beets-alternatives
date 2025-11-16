@@ -258,11 +258,6 @@ following settings.
 
   By default no transcoding is done.
 
-* **`albumart_maxwidth`** Downscale the embedded album art to a width
-  of maximum `albumart_maxwidth` pixels. The aspect ratio of the image
-  will be preserved. This is comparable to the setting with the same
-  name of the [convert plugin][convert plugin].
-
 * **`removable`** If this is `true` (the default) and `directory` does
   not exist, the `update` command will ask you to confirm the creation
   of the external collection. (optional)
@@ -270,6 +265,29 @@ following settings.
 * **`link_type`** Can be `absolute` (default) or `relative`. If
   **`formats`** is `link`, it sets the type of links to create. For
   differences between link types and examples see [Symlink Views](#symlink-views).
+
+* **`album_art_embed`** Embed album art into the media file. Default `yes`
+
+* **`album_art_copy`** Copy album art files into the collection. If
+  `formats: link` is used then album art is linked instead. Filename for
+  cover art is determined by the [art_filename][art_filename] option.
+
+* **`album_art_maxwidth`** If set, resize album art to this maximum width while
+  preserving aspect ratio. Comparable to the [convert plugin][convert plugin]
+  setting with the same name.
+
+* **`album_art_format`** If set, convert album art to the specified format (e.g.
+  "jpg"). Supports the same values as [`fetchart.cover_formats`][cover formats].
+
+* **`album_art_deinterlace`** If true, JPEG album art is encoded as
+  a non-progressive image. Enable this if your device does not support
+  progressive images.
+
+* **`album_art_quality`** JPEG quality level (1–100) when compressing images
+  (requires `album_art_max_width`). Use 0 for default quality. 65–75 is
+  typically a good range. The default behavior depends on the backend:
+  ImageMagick estimates input quality (using 92 if unknown), PIL uses 75.
+  Default: 0 (disabled) (optional)
 
 Events
 ------
@@ -345,3 +363,5 @@ SOFTWARE.
 [convert plugin]: http://beets.readthedocs.org/en/latest/plugins/convert.html
 [query string]: http://beets.readthedocs.org/en/latest/reference/query.html
 [using plugins]: http://beets.readthedocs.org/en/latest/plugins/index.html#using-plugins
+[cover formats]: https://beets.readthedocs.io/en/stable/plugins/fetchart.html#image-formats
+[art_filename]: https://beets.readthedocs.io/en/stable/reference/config.html#art-filename

@@ -16,7 +16,7 @@ import beetsplug.convert
 import beetsplug.hook
 import pytest
 from beets import logging, ui
-from beets.library import Item
+from beets.library import Album, Item
 from beets.util import MoveOperation
 from mediafile import MediaFile
 
@@ -106,6 +106,19 @@ def assert_has_embedded_artwork(path: Path, compare_file: Path | None = None):
                 f"content (CRC32: {crc_is}) doesn't match "
                 f"expectations (CRC32: {crc_expected})."
             )
+
+
+def assert_same_file_content(a: Path, b: Path):
+    assert a.is_file()
+    assert b.is_file()
+    with b.open("rb") as compare_fh, a.open("rb") as path_fh:
+        crc_is = crc32(path_fh.read())
+        crc_expected = crc32(compare_fh.read())
+        assert crc_is == crc_expected, (
+            "artwork file exists, but "
+            f"content (CRC32: {crc_is}) doesn't match "
+            f"expectations (CRC32: {crc_expected})."
+        )
 
 
 def assert_has_not_embedded_artwork(path: Path):
@@ -267,6 +280,11 @@ class TestHelper:
     def get_path(self, item: Item, path_key: str = "alt.myexternal") -> Path:
         return Path(item[path_key])
 
+    def get_album_path(self, album: Album, path_key: str = "alt.myexternal") -> Path:
+        item = album.items().get()
+        assert item
+        return self.get_path(item, path_key=path_key).parent
+
 
 def convert_command(tag: str) -> str:
     """Return a convert shell command that copies the file and adds a tag to the files end."""
@@ -283,3 +301,17 @@ def convert_command(tag: str) -> str:
         return f"bash -c \"cp '$source' '$dest'; printf {tag} >> '$dest'\""
     else:
         raise Exception(f"Unsupported system: {system}")
+
+
+def touch_art(source: bytes, dest: Path):
+    """`touch` the dest file, but don't set mtime to the current
+    time since the tests run rather fast and item and art mtimes might
+    end up identical if the filesystem has low mtime granularity or
+    mtimes are cashed as laid out in
+        https://stackoverflow.com/a/14393315/3451198
+    Considering the interpreter startup time when running `beet alt
+    update <name>` in a real use-case, this should not obscure any
+    bugs.
+    """
+    item_mtime_alt = Path(str(source, "utf8")).stat().st_mtime
+    os.utime(dest, (item_mtime_alt + 2, item_mtime_alt + 2))

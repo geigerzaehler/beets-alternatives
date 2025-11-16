@@ -26,9 +26,10 @@ import beets.plugins
 import beetsplug.convert as convert
 import confuse
 from beets import art, util
-from beets.library import Item, Library, parse_query_string
+from beets.library import Album, Item, Library, parse_query_string
 from beets.plugins import BeetsPlugin
 from beets.ui import Subcommand, UserError, get_path_formats, input_yn, print_
+from beets.util.artresizer import ArtResizer
 from typing_extensions import Never, override
 
 
@@ -172,8 +173,24 @@ class Config:
     removable: bool
     """If true, the user is asked to confirm root directory creation."""
 
+    album_art_embed: bool
+    """Embed album art in converted items. Default: yes."""
+
+    album_art_copy: bool
+    """Copy or symlink album art to collection"""
+
     album_art_maxwidth: int | None
     """Maximum width of embedded album art. Larger art is resized."""
+
+    album_art_format: str | None
+    """If enabled forced album art to be converted to specified format for the collection. Most often, this will be either JPEG or PNG."""
+
+    album_art_deinterlace: bool
+    """If enabled, Pillow or ImageMagick backends are instructed to store cover art as non-progressive JPEG. 
+    You might need this if you use DAPs that don’t support progressive images. Default: no."""
+
+    album_art_quality: int
+    """JPEG Quality for album art if it is resized. Default: 0"""
 
     def __init__(self, collection_id: str, config: confuse.ConfigView, lib: Library):
         self.collection_id = collection_id
@@ -203,11 +220,41 @@ class Config:
         assert isinstance(removable, bool)
         self.removable = removable
 
+        album_art_embed = config["album_art_embed"].get(
+            confuse.TypeTemplate(bool, default=True)
+        )
+        assert isinstance(album_art_embed, bool)
+        self.album_art_embed = album_art_embed
+
+        album_art_copy = config["album_art_copy"].get(
+            confuse.TypeTemplate(bool, default=False)
+        )
+        assert isinstance(album_art_copy, bool)
+        self.album_art_copy = album_art_copy
+
         album_art_maxwidth = config["album_art_maxwidth"].get(
             confuse.Optional(confuse.Integer())
         )
         assert album_art_maxwidth is None or isinstance(album_art_maxwidth, int)
         self.album_art_maxwidth = album_art_maxwidth
+
+        album_art_format = config["album_art_format"].get(
+            confuse.Optional(confuse.String())
+        )
+        assert album_art_format is None or isinstance(album_art_format, str)
+        self.album_art_format = album_art_format
+
+        album_art_deinterlace = config["album_art_deinterlace"].get(
+            confuse.TypeTemplate(bool, default=False)
+        )
+        assert isinstance(album_art_deinterlace, bool)
+        self.album_art_deinterlace = album_art_deinterlace
+
+        album_art_quality = config["album_art_quality"].get(
+            confuse.TypeTemplate(int, default=0)
+        )
+        assert isinstance(album_art_quality, int)
+        self.album_art_quality = album_art_quality
 
         if "directory" in config:
             dir = config["directory"].as_path()
@@ -254,7 +301,6 @@ class External:
     def __init__(self, log: logging.Logger, lib: Library, config: Config):
         self._log = log
         self._config = config
-        self._embed = False
         self.lib = lib
         self.path_key = f"alt.{config.collection_id}"
         self.max_workers = int(str(beets.config["convert"]["threads"]))
@@ -276,7 +322,8 @@ class External:
         album = item.get_album()
 
         if (
-            album
+            self._config.album_art_embed
+            and album
             and album.artpath
             and Path(str(album.artpath, "utf8")).is_file()
             and (item_mtime_alt < Path(str(album.artpath, "utf8")).stat().st_mtime)
@@ -331,7 +378,7 @@ class External:
         def finalize_converted_item(item: Item, dest: Path):
             # Don't rely on the converter to write correct/complete tags.
             item.write(path=bytes(dest))
-            if self._embed:
+            if self._config.album_art_embed:
                 self._sync_art(item, dest)
             self._set_stored_path(item, dest)
             item.store()
@@ -382,7 +429,7 @@ class External:
                         else:
                             self._log.debug(f"copying {dest}")
                             shutil.copyfile(item.path, dest)
-                            if self._embed:
+                            if self._config.album_art_embed:
                                 self._sync_art(item, dest)
                             self._set_stored_path(item, dest)
                             item.store()
@@ -410,6 +457,78 @@ class External:
                 for item, dest in _get_queue_available(converting_done):
                     finalize_converted_item(item, dest)
 
+            if self._config.album_art_copy:
+                self.update_art()
+
+    def update_art(self, link: bool = False):
+        for album in self.lib.albums():
+            if not self._config.query.match(album) and not any(
+                self._config.query.match(item) for item in album.items()
+            ):
+                continue
+
+            dest_dir = self.album_destination(album)
+            if not dest_dir:
+                continue
+
+            artpath = album.artpath and Path(str(album.artpath, "utf8"))
+            if not artpath or not artpath.is_file():
+                continue
+
+            dest = album.art_destination(album.artpath, bytes(dest_dir))
+            dest = Path(str(dest, "utf8"))
+
+            if self._config.album_art_format and not link:
+                new_format = self._config.album_art_format.lower()
+                if new_format == "jpeg":
+                    new_format = "jpg"
+
+                dest = dest.with_suffix(f".{new_format}")
+
+            if dest.is_file() and dest.stat().st_mtime >= artpath.stat().st_mtime:
+                continue
+
+            artpath = bytes(artpath)
+
+            if link:
+                self._log.debug(f"Linking art from {album.artpath} to {dest}")
+                util.link(artpath, bytes(dest), replace=True)
+            else:
+                path = self.resize_art(artpath)
+                self._log.debug(f"Copying art from {path} to {dest}")
+                util.copy(path, bytes(dest), replace=True)
+
+            print_(f"~{dest}")
+
+    def resize_art(self, path: bytes) -> bytes:
+        """Resize the candidate artwork according to the plugin's
+        configuration and the specified check.
+        """
+        if self._config.album_art_maxwidth:
+            self._log.debug(f"Resizing {path} to {self._config.album_art_maxwidth}")
+            path = ArtResizer.shared.resize(
+                self._config.album_art_maxwidth,
+                path,
+                quality=self._config.album_art_quality,
+            )
+
+        format = ArtResizer.shared.get_format(path)
+        if self._config.album_art_format and self._config.album_art_format != format:
+            self._log.debug(f"Reformatting {path} to {self._config.album_art_format}")
+            tmp_path = util.get_temp_filename(__name__, "reformat", path)
+            util.copy(path, tmp_path, replace=True)
+            path = ArtResizer.shared.reformat(
+                tmp_path,
+                self._config.album_art_format,
+                deinterlaced=self._config.album_art_deinterlace,
+            )
+
+        elif self._config.album_art_deinterlace:
+            self._log.debug(f"Deinterlacing {path}")
+            path = ArtResizer.shared.deinterlace(path)
+
+        return path
+
     def destination(self, item: Item) -> Path:
         """Returns the path for `item` in the external collection."""
         path = _item_destination_relative_compat(
@@ -417,6 +536,13 @@ class External:
         )
         assert isinstance(path, str)
         return self._config.directory / path
+
+    def album_destination(self, album: Album) -> Path | None:
+        items = album.items()
+        if len(items) > 0:
+            return self.destination(items[0]).parent
+        else:
+            return None
 
     def _set_stored_path(self, item: Item, path: Path):
         item[self.path_key] = str(path)
@@ -457,10 +583,12 @@ class External:
         if album and album.artpath and Path(str(album.artpath, "utf8")).is_file():
             self._log.debug(f"Embedding art from {album.artpath} into {path}")
 
+            artpath = self.resize_art(album.artpath)
+
             art.embed_item(
                 self._log,
                 item,
-                album.artpath,
+                artpath,
                 maxwidth=self._config.album_art_maxwidth,
                 itempath=bytes(path),
             )
@@ -479,7 +607,6 @@ class ExternalConvert(External):
         super().__init__(log, lib, config)
         convert_plugin = convert.ConvertPlugin()
         self._encode = convert_plugin.encode
-        self._embed = convert_plugin.config["embed"].get(bool)
         self._formats = [convert.ALIASES.get(f, f) for f in config.formats]
         self.convert_cmd, self.ext = convert.get_format(self._formats[0])
 
@@ -560,6 +687,9 @@ class SymlinkView(External):
                     item=item,
                     action=action,
                 )
+
+        if self._config.album_art_copy:
+            self.update_art(link=True)
 
     def _create_symlink(self, item: Item):
         dest = self.destination(item)
