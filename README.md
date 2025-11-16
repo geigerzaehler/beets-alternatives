@@ -18,11 +18,11 @@ documentation](./DEVELOPING.md).
 Getting Started
 ---------------
 
-Install the plugin and make sure you using at least version 1.6.1 of beets and
+Install the plugin and make sure you using at least version 2.1 of beets and
 Python 3.10.
 
 ```bash
-pip install --upgrade beets>=1.6.0 beets-alternatives
+pip install --upgrade "beets>=2.1" beets-alternatives
 ```
 
 Then, [enable the plugin][using plugins]. You may use the `beet config --edit`

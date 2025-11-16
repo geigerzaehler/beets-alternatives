@@ -14,14 +14,14 @@ jobs:
       matrix:
         os: ["ubuntu-latest"]
         python:
-        - "3.10" # minimum required
-        - "3.13"
-        - "3.14" # latest
+          - "3.10" # minimum required
+          - "3.13"
+          - "3.14" # latest
         include:
-        - python: "3.10"
-          os: windows-latest
-        - python: "3.10"
-          os: macos-latest
+          - python: "3.10"
+            os: windows-latest
+          - python: "3.10"
+            os: macos-latest
 
     runs-on: ${{ matrix.os }}
     continue-on-error: ${{ matrix.python == '3.14' }}
@@ -29,24 +29,24 @@ jobs:
       UV_PYTHON: ${{ matrix.python }}
 
     steps:
-    - uses: actions/checkout@v5
-    - uses: astral-sh/setup-uv@v7
-      with:
-        version: "0.9.x"
-    - run: uv sync
-    - run: uv run ruff format --check
-    - run: uv run ruff check
-    - run: uv run pyright --warnings
-    - run: uv run pytest
-    - run: uv run coverage xml
-    - uses: coverallsapp/github-action@v2
-      if: >
-        (github.event_name == 'pull_request' || github.ref_name == 'main') &&
-        matrix.python == '3.10' &&
-        matrix.os == 'ubuntu-latest'
-      with:
-        # Ignore .coverage, which has limited support from coveralls
-        file: coverage.xml
+      - uses: actions/checkout@v5
+      - uses: astral-sh/setup-uv@v7
+        with:
+          version: "0.9.x"
+      - run: uv sync
+      - run: uv run ruff format --check
+      - run: uv run ruff check
+      - run: uv run pyright --warnings
+      - run: uv run pytest
+      - run: uv run coverage xml
+      - uses: coverallsapp/github-action@v2
+        if: >
+          (github.event_name == 'pull_request' || github.ref_name == 'main') &&
+          matrix.python == '3.10' &&
+          matrix.os == 'ubuntu-latest'
+        with:
+          # Ignore .coverage, which has limited support from coveralls
+          file: coverage.xml
 
   build-beets-versions:
     runs-on: ubuntu-latest
@@ -54,18 +54,17 @@ jobs:
       matrix:
         beets:
           - "git+https://github.com/beetbox/beets#master"
-          - "beets==1.6.1"
-          - "beets==2.0.*"
           - "beets==2.1.*"
           - "beets==2.2.*"
           - "beets==2.3.*"
+          - "beets==2.4.*"
     env:
       UV_PYTHON: "3.10"
 
     continue-on-error: ${{ contains(matrix.beets, 'master') }}
     steps:
-    - uses: actions/checkout@v5
-    - uses: astral-sh/setup-uv@v7
-    - run: uv add ${{ matrix.beets }}
-    - run: uv sync
-    - run: uv run pytest
+      - uses: actions/checkout@v5
+      - uses: astral-sh/setup-uv@v7
+      - run: uv add ${{ matrix.beets }}
+      - run: uv sync
+      - run: uv run pytest
