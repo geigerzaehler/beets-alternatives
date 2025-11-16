@@ -24,7 +24,7 @@ jobs:
       - name: Get version
         id: version
         run: |
-          version=$(python -c "import tomli; print(tomli.load(open('pyproject.toml', 'rb'))['project']['version'])")
+          version=$(sed -n '0,/^version = "\(.*\)"/{s/^version = "\(.*\)"/\1/p}' pyproject.toml)
           echo "version=${version}" >> "$GITHUB_OUTPUT"
       - run: uv build
       - uses: actions/upload-artifact@v5
