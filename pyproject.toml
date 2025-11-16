@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "beets-alternatives"
-version = "0.13.4"
+version = "0.14.0"
 description = "beets plugin to manage multiple files"
 authors = [
   { name = "Thomas Scholtes", email = "geigerzaehler@axiom.fm" },

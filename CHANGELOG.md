@@ -1,13 +1,13 @@
 # Change Log
 
-## Unreleased
+## v0.14.0 - 2025-11-16
 
-- Add Support for album cover art files and moved the existing options for
-  album art embedding inline to the alternatives config. [#176][]
-  ([@maxaudron](https://github.com/maxaudron))
-
-[#176]: https://github.com/geigerzaehler/beets-alternatives/pull/176
+- Added `album_art_copy` option which copies album art to alternative
+  collections ([@maxaudron][])
+- Added options to resize and reformat embedded or copied album art ([@maxaudron][])
 - Require beets >= 2.1
+
+[@maxaudron]: https://github.com/maxaudron
 
 ## v0.13.4 - 2025-09-13
 
