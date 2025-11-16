@@ -313,5 +313,5 @@ def touch_art(source: bytes, dest: Path):
     update <name>` in a real use-case, this should not obscure any
     bugs.
     """
-    item_mtime_alt = Path(os.fsdecode(source)).stat().st_mtime
+    item_mtime_alt = Path(str(source, "utf8")).stat().st_mtime
     os.utime(dest, (item_mtime_alt + 2, item_mtime_alt + 2))
