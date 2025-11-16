@@ -218,7 +218,8 @@ class TestSymlinkView(TestHelper):
         external_art_path = external_album_path / "COVER.png"
 
         # Symlink is created
-        assert external_art_path.is_symlink()
+        assert album.artpath
+        assert_symlink(external_art_path, Path(os.fsdecode(album.artpath)))
 
 
 class TestExternalCopy(TestHelper):
