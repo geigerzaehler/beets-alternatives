@@ -478,15 +478,14 @@ class External:
             dest = album.art_destination(album.artpath, bytes(str(dest_dir), "utf8"))
             dest = Path(str(dest, "utf8"))
 
-            if self._config.album_art_format:
+            if self._config.album_art_format and not link:
                 new_format = self._config.album_art_format.lower()
-                # A nonexhaustive map of image "types" to extensions overrides
-                new_format = {"jpeg": "jpg"}.get(new_format, new_format)
+                if new_format == "jpeg":
+                    new_format = "jpg"
 
-                fname = dest.parent / dest.stem
-                dest = fname.with_suffix("." + new_format)
+                dest = dest.with_suffix(f".{new_format}")
 
-            if dest.is_file() and not (artpath.stat().st_mtime > dest.stat().st_mtime):
+            if dest.is_file() and dest.stat().st_mtime >= artpath.stat().st_mtime:
                 continue
 
             dest = bytes(str(dest), "utf8")
