@@ -488,18 +488,17 @@ class External:
             if dest.is_file() and dest.stat().st_mtime >= artpath.stat().st_mtime:
                 continue
 
-            dest = bytes(dest)
             artpath = bytes(artpath)
 
             if link:
-                self._log.debug(f"Linking art from {album.artpath} into {dest_dir}")
-                util.link(artpath, dest, replace=True)
+                self._log.debug(f"Linking art from {album.artpath} to {dest}")
+                util.link(artpath, bytes(dest), replace=True)
             else:
                 path = self.resize_art(artpath)
-                self._log.debug(f"Copying art from {path} into {dest_dir}")
-                util.copy(path, dest, replace=True)
+                self._log.debug(f"Copying art from {path} to {dest}")
+                util.copy(path, bytes(dest), replace=True)
 
-            print_(f"~{dest_dir}")
+            print_(f"~{dest}")
 
     def resize_art(self, path: bytes) -> bytes:
         """Resize the candidate artwork according to the plugin's
