@@ -15,11 +15,12 @@ import logging
 import os.path
 import queue
 import shutil
+import sys
 from collections.abc import Callable, Iterator, Sequence
 from concurrent import futures
 from enum import Enum
 from pathlib import Path
-from typing import Literal, TypeVar
+from typing import Any, Literal, TypeVar
 
 import beets
 import beets.plugins
@@ -161,6 +162,16 @@ class Config:
     directory: Path
     """Directory under which items in the collection are located."""
 
+    playlist_dir: Path
+    """Directory under which playlists in the collection are located"""
+
+    playlist_path_type: Literal["absolute", "relative"]
+    """Whether track paths in playlists should use absolute paths or paths relative to the playlist directory."""
+
+    playlists: Sequence[Path]
+    """List of playlists for the collection.
+    If a directory is specified, it is recursively searched for m3u files."""
+
     path_formats: Sequence[tuple[str, str]]
     """Formats that determine the path of items in the collection. See
     <https://beets.readthedocs.io/en/stable/reference/pathformat.html>.
@@ -256,13 +267,14 @@ class Config:
         assert isinstance(album_art_quality, int)
         self.album_art_quality = album_art_quality
 
+        lib_dir = Path(str(lib.directory, "utf8"))
         if "directory" in config:
             dir = config["directory"].as_path()
             assert isinstance(dir, Path)
         else:
             dir = Path(collection_id)
         if not dir.is_absolute():
-            dir = Path(str(lib.directory, "utf8")) / dir
+            dir = lib_dir / dir
         self.directory = dir
 
         link_type = config["link_type"].get(
@@ -276,6 +288,35 @@ class Config:
         )
         assert isinstance(link_type, SymlinkType)
         self.link_type = link_type
+
+        self._setup_playlist_fields(config, lib_dir)
+
+    def _setup_playlist_fields(self, config: confuse.ConfigView, lib_dir: Path):
+        if "playlist_dir" in config:
+            playlist_dir = config["playlist_dir"].as_path()
+            assert isinstance(playlist_dir, Path)
+        else:
+            playlist_dir = self.directory / "playlists"
+        if not playlist_dir.is_absolute():
+            playlist_dir = self.directory / playlist_dir
+        self.playlist_dir = playlist_dir
+
+        if "playlist_path_type" in config:
+            playlist_path_type = config["playlist_path_type"].as_choice(["absolute", "relative"])
+            if playlist_path_type != "absolute" and playlist_path_type != "relative":
+                raise ValueError("playlist_path_type must be either 'absolute' or 'relative'")
+        else:
+            playlist_path_type = "relative"
+        self.playlist_path_type = playlist_path_type
+
+        if "playlists" in config:
+            playlists = [Path(playlist) for playlist in config["playlists"].as_str_seq()]
+            playlists = [(playlist if playlist.is_absolute() else lib_dir / playlist).resolve() for playlist in playlists]
+            assert isinstance(playlists, Sequence)
+        else:
+            playlists: Sequence[Path] = []
+        self.playlists = playlists
+        
 
 
 class Action(Enum):
@@ -344,13 +385,22 @@ class External:
         else:
             return [Action.ADD]
 
-    def _items_actions(self) -> Iterator[tuple[Item, Sequence[Action]]]:
+    def _get_album_item_ids(self) -> set[Any]:
         matched_ids = set()
         for album in self.lib.albums():
             if self._config.query.match(album):
                 matched_items = album.items()
                 matched_ids.update(item.id for item in matched_items)
+        return matched_ids
 
+    def _items(self) -> Iterator[Item]:
+        matched_ids = self._get_album_item_ids()
+        for item in self.lib.items():
+            if item.id in matched_ids or self._config.query.match(item):
+                yield item
+    
+    def _items_actions(self) -> Iterator[tuple[Item, Sequence[Action]]]:
+        matched_ids = self._get_album_item_ids()
         for item in self.lib.items():
             if item.id in matched_ids or self._config.query.match(item):
                 yield (item, self._matched_item_action(item))
@@ -460,6 +510,80 @@ class External:
             if self._config.album_art_copy:
                 self.update_art()
 
+        self.update_playlists()
+
+    def _update_playlist(self, playlist_path: Path, collection_paths: dict[Path, Item]):
+        self._config.playlist_dir.mkdir(parents=True, exist_ok=True)
+        converted_playlist_path = self._config.playlist_dir / playlist_path.name
+        track_comments = ""
+        with playlist_path.open("r") as playlist_file, converted_playlist_path.open("w") as converted_playlist_file:
+            for line in playlist_file:
+                # Ensure playlist header
+                if line.strip() == "#EXTM3U":
+                    converted_playlist_file.write(line)
+                    continue
+
+                # Keep track of comments
+                if line[0] == "#":
+                    track_comments += line.rstrip() + os.linesep
+                    continue
+
+                # Get track path
+                track_path = Path(line.rstrip())
+                if not track_path.is_absolute():
+                    track_path = playlist_path.parent / track_path
+                track_path = track_path.resolve()
+                if not track_path.exists():
+                    track_comments = ""
+                    continue
+
+                # Check that playlist track exists in collection
+                if track_path in collection_paths:
+                    if self._config.playlist_path_type == "relative":
+                        dest_path = self._relativize_path(
+                            self.destination(collection_paths[track_path]),
+                            self._config.playlist_dir,
+                            walk_up=True,
+                        )
+                    else:
+                        dest_path = self.destination(collection_paths[track_path]).resolve()
+
+                    converted_playlist_file.write(track_comments)
+                    converted_playlist_file.write(str(dest_path))
+                    converted_playlist_file.write(os.linesep)
+                
+                track_comments = ""
+        print_(f"*{converted_playlist_path}")
+
+    def update_playlists(self):
+        if len(self._config.playlists) == 0:
+            return
+
+        collection_paths: dict[Path, Item] = {item.filepath.resolve(): item for item in self._items()}
+
+        # Remove existing playlists, they will be repopulated
+        for existing_playlist in self._config.playlist_dir.iterdir():
+            if existing_playlist.is_dir() or existing_playlist.suffix not in {".m3u", ".m3u8"}:
+                continue
+            existing_playlist.unlink()
+
+        for playlist_path in self._config.playlists:
+            if playlist_path.is_dir():
+                for child_path in playlist_path.iterdir():
+                    self._update_playlist(child_path, collection_paths)
+            else:
+                self._update_playlist(playlist_path, collection_paths)
+
+    def _relativize_path(self, path: Path, other: Path, walk_up: bool = False) -> Path:
+        if walk_up:
+            if (sys.version_info.major, sys.version_info.minor) >= (3, 12):
+                return path.relative_to(other, walk_up=True)
+
+            # Not Python >= 3.12, need to reimplement
+            return Path(os.path.relpath(str(path), str(other)))
+        
+        return path.relative_to(other)
+    
     def update_art(self, link: bool = False):
         for album in self.lib.albums():
             if not self._config.query.match(album) and not any(
@@ -690,6 +814,8 @@ class SymlinkView(External):
 
         if self._config.album_art_copy:
             self.update_art(link=True)
+
+        self.update_playlists()
 
     def _create_symlink(self, item: Item):
         dest = self.destination(item)
