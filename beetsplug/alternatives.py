@@ -11,6 +11,7 @@
 # all copies or substantial portions of the Software.
 
 import argparse
+from io import TextIOWrapper
 import logging
 import os.path
 import queue
@@ -512,7 +513,31 @@ class External:
 
         self.update_playlists()
 
+    def _is_playlist_file(self, playlist_path: Path) -> bool:
+        return playlist_path.suffix in {".m3u", ".m3u8"}
+
+    def _write_playlist_track(self, file: TextIOWrapper, comments: str, item: Item):
+        if self._config.playlist_path_type == "relative":
+            dest_path = self._relativize_path(
+                self.destination(item),
+                self._config.playlist_dir,
+                walk_up=True,
+            )
+        else:
+            dest_path = self.destination(item).resolve()
+
+        file.write(comments)
+        file.write(str(dest_path))
+        file.write(os.linesep)
+
     def _update_playlist(self, playlist_path: Path, collection_paths: dict[Path, Item]):
+        if playlist_path.is_dir():
+            for child in playlist_path.iterdir():
+                self._update_playlist(child, collection_paths)
+        
+        if not self._is_playlist_file(playlist_path):
+            return
+        
         self._config.playlist_dir.mkdir(parents=True, exist_ok=True)
         converted_playlist_path = self._config.playlist_dir / playlist_path.name
         track_comments = ""
@@ -539,19 +564,11 @@ class External:
 
                 # Check that playlist track exists in collection
                 if track_path in collection_paths:
-                    if self._config.playlist_path_type == "relative":
-                        dest_path = self._relativize_path(
-                            self.destination(collection_paths[track_path]),
-                            self._config.playlist_dir,
-                            walk_up=True,
-                        )
-                    else:
-                        dest_path = self.destination(collection_paths[track_path]).resolve()
-
-                    converted_playlist_file.write(track_comments)
-                    converted_playlist_file.write(str(dest_path))
-                    converted_playlist_file.write(os.linesep)
-                
+                    self._write_playlist_track(
+                        converted_playlist_file,
+                        track_comments,
+                        collection_paths[track_path],
+                    )
                 track_comments = ""
         print_(f"*{converted_playlist_path}")
 
@@ -564,16 +581,12 @@ class External:
         # Remove existing playlists, they will be repopulated
         # TODO: Would be nice to have a CLI option to rip playlists from this collection
         for existing_playlist in self._config.playlist_dir.iterdir():
-            if existing_playlist.is_dir() or existing_playlist.suffix not in {".m3u", ".m3u8"}:
+            if existing_playlist.is_dir() or not self._is_playlist_file(existing_playlist):
                 continue
             existing_playlist.unlink()
 
         for playlist_path in self._config.playlists:
-            if playlist_path.is_dir():
-                for child_path in playlist_path.iterdir():
-                    self._update_playlist(child_path, collection_paths)
-            else:
-                self._update_playlist(playlist_path, collection_paths)
+            self._update_playlist(playlist_path, collection_paths)
 
     def _relativize_path(self, path: Path, other: Path, walk_up: bool = False) -> Path:
         if walk_up:
