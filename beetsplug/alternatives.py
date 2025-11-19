@@ -578,7 +578,7 @@ class External:
     def _relativize_path(self, path: Path, other: Path, walk_up: bool = False) -> Path:
         if walk_up:
             if (sys.version_info.major, sys.version_info.minor) >= (3, 12):
-                return path.relative_to(other, walk_up=True)
+                return path.relative_to(other, walk_up=True) # pyright: ignore[reportCallIssue]
 
             # Not Python >= 3.12, need to reimplement
             return Path(os.path.relpath(str(path), str(other)))
