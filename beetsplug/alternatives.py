@@ -562,6 +562,7 @@ class External:
         collection_paths: dict[Path, Item] = {item.filepath.resolve(): item for item in self._items()}
 
         # Remove existing playlists, they will be repopulated
+        # TODO: Would be nice to have a CLI option to rip playlists from this collection
         for existing_playlist in self._config.playlist_dir.iterdir():
             if existing_playlist.is_dir() or existing_playlist.suffix not in {".m3u", ".m3u8"}:
                 continue
