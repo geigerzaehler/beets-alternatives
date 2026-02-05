@@ -6,9 +6,10 @@
   "semanticCommits": "disabled",
   "packageRules": [
     {
-      "managers": ["pep621"],
-      "updateTypes": ["patch"],
-      "enabled": false
+      "updateTypes": ["minor", "patch"],
+      "matchDepTypes": ["dependency-groups"],
+      "matchPackageNames": ["!ruff", "!pyright"],
+      "groupName": "non-major dev"
     }
   ],
   "lockFileMaintenance": {
