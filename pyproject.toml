@@ -30,7 +30,7 @@ Repository = "http://www.github.com/geigerzaehler/beets-alternatives"
 dev = [
   "confuse==2.2.0",
   "coverage==7.13.3",
-  "mediafile==0.13.0",
+  "mediafile==0.14.0",
   "mock==5.2.0",
   "pyright==1.1.408",
   "pytest==9.0.2",
