@@ -29,7 +29,7 @@ Repository = "http://www.github.com/geigerzaehler/beets-alternatives"
 [dependency-groups]
 dev = [
   "confuse==2.2.0",
-  "coverage==7.13.3",
+  "coverage==7.13.4",
   "mediafile==0.14.0",
   "mock==5.2.0",
   "pyright==1.1.408",
