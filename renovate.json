@@ -9,7 +9,9 @@
       "updateTypes": ["minor", "patch"],
       "matchDepTypes": ["dependency-groups"],
       "matchPackageNames": ["!ruff", "!pyright"],
-      "groupName": "non-major dev"
+      "groupName": "non-major dev",
+      "automerge": true,
+      "schedule": ["* 0-7 1,15 * *"]
     }
   ],
   "lockFileMaintenance": {
