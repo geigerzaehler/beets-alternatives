@@ -23,7 +23,6 @@ from typing import Literal, TypeVar
 
 import beets
 import beets.plugins
-import beetsplug.convert as convert
 import confuse
 from beets import art, util
 from beets.library import Album, Item, Library, parse_query_string
@@ -31,6 +30,8 @@ from beets.plugins import BeetsPlugin
 from beets.ui import Subcommand, UserError, get_path_formats, input_yn, print_
 from beets.util.artresizer import ArtResizer
 from typing_extensions import Never, override
+
+from beetsplug import convert
 
 
 class AlternativesPlugin(BeetsPlugin):
@@ -155,7 +156,7 @@ class ArgumentParser(argparse.ArgumentParser):
 class Config:
     collection_id: str
 
-    type: Literal["copy_convert"] | Literal["link"]
+    type: Literal["copy_convert", "link"]
     """Determines whether item files are copied and/or converted or symlinked"""
 
     directory: Path
