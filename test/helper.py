@@ -297,10 +297,10 @@ def convert_command(tag: str) -> str:
             f"Add-Content -Path '$dest' -Value {tag} -NoNewline"
             '"'
         )
-    elif system == "Linux" or system == "Darwin":
+    elif system in {"Linux", "Darwin"}:
         return f"bash -c \"cp '$source' '$dest'; printf {tag} >> '$dest'\""
     else:
-        raise Exception(f"Unsupported system: {system}")
+        raise RuntimeError(f"Unsupported system: {system}")
 
 
 def touch_art(source: bytes, dest: Path):

@@ -74,12 +74,7 @@ class TestDoc(TestHelper):
         list_output = self.runcli(
             "alt", "list-tracks", "myplayer", "--format", "$artist $title"
         )
-        assert list_output == "\n".join([
-            "Bach was mp3",
-            "Bach was m4a",
-            "Bach was ogg",
-            "",
-        ])
+        assert list_output == "Bach was mp3\nBach was m4a\nBach was ogg\n"
 
         self.runcli("alt", "update", "myplayer")
         mediafile = MediaFile(external_from_ogg)
