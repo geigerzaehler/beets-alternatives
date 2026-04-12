@@ -1,6 +1,6 @@
 # Change Log
 
-## v0.14.1 - 2026-11-16
+## v0.14.1 - 2026-04-12
 
 - Ensure tests pass with beets v2.9
 
