@@ -268,14 +268,14 @@ class TestExternalCopy(TestHelper):
     def test_update_older(self):
         item = self.add_external_track("myexternal")
         sleep(0.1)
-        item["composer"] = "JSB"
+        item.comments = "foo"
         item.store()
         item.write()
 
         self.runcli("alt", "update", "myexternal")
         item.load()
         mediafile = MediaFile(self.get_path(item))
-        assert mediafile.composer == "JSB"
+        assert mediafile.comments == "foo"
 
     def test_no_update_newer(self):
         item = self.add_external_track("myexternal")
