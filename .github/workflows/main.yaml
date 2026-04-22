@@ -30,7 +30,7 @@ jobs:
 
     steps:
       - uses: actions/checkout@v6
-      - uses: astral-sh/setup-uv@v7
+      - uses: astral-sh/setup-uv@v8.1.0
         with:
           version: "0.11.x"
       - run: uv sync
@@ -69,7 +69,7 @@ jobs:
     continue-on-error: ${{ contains(matrix.beets, 'master') }}
     steps:
       - uses: actions/checkout@v6
-      - uses: astral-sh/setup-uv@v7
+      - uses: astral-sh/setup-uv@v8.1.0
       - run: uv add ${{ matrix.beets }}
       - run: uv sync
       - run: uv run pytest
