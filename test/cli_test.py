@@ -104,6 +104,7 @@ class TestSymlinkView(TestHelper):
     @pytest.fixture(autouse=True)
     def _symlink_view(self):
         self.lib.path_formats = (("default", "$artist/$album/$title"),)
+        self.config["paths"] = {"default": "$artist/$album/$title"}
         self.config["alternatives"] = {
             "by-year": {
                 "paths": {"default": "$year/$album/$title"},

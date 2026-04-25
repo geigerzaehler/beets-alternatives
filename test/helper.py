@@ -133,6 +133,21 @@ def assert_media_file_fields(path: Path, **kwargs: str):
         assert actual == v, f"MediaFile has tag {k}='{actual}' instead of '{v}'"
 
 
+class _LibraryTracker(beets.plugins.BeetsPlugin):
+    def __init__(self):
+        super().__init__()
+        self._opened: list[beets.library.Library] = []
+        self.register_listener("library_opened", self._on_library_opened)
+
+    def _on_library_opened(self, lib: beets.library.Library):
+        self._opened.append(lib)
+
+    def close_all(self):
+        for lib in self._opened:
+            lib._close()
+        self._opened.clear()
+
+
 class TestHelper:
     @pytest.fixture(autouse=True)
     def _setup(self, tmp_path: Path):
@@ -140,6 +155,7 @@ class TestHelper:
         self.config.clear()
         self.config.read()
 
+        self.config["library"] = str(tmp_path / "db.sqlite3")
         self.config["plugins"] = []
         self.config["verbose"] = True
         self.config["ui"]["color"] = False
@@ -151,7 +167,7 @@ class TestHelper:
         self.config["directory"] = str(self.libdir)
 
         self.lib = beets.library.Library(
-            ":memory:",
+            self.config["library"].as_filename(),
             str(self.libdir),
         )
         self.fixture_dir = Path(__file__).parent / "fixtures"
@@ -159,11 +175,14 @@ class TestHelper:
         self.IMAGE_FIXTURE1 = self.fixture_dir / "image.png"
         self.IMAGE_FIXTURE2 = self.fixture_dir / "image_black.png"
 
+        self._lib_tracker = _LibraryTracker()
+
         if _beets_version > (2, 3, 1):
             beets.plugins._instances = [
                 beetsplug.alternatives.AlternativesPlugin(),
                 beetsplug.convert.ConvertPlugin(),
                 beetsplug.hook.HookPlugin(),
+                self._lib_tracker,
             ]
         else:
             beets.plugins._classes = {  # type: ignore (compatibility with beets<2.4)
@@ -175,6 +194,8 @@ class TestHelper:
 
         yield
 
+        self._lib_tracker.close_all()
+
         if _beets_version > (2, 3, 1):
             beets.plugins.BeetsPlugin.listeners = defaultdict(list)
         else:
@@ -182,6 +203,8 @@ class TestHelper:
                 # Instantiating a plugin will modify register event listeners which
                 # are stored in a class variable
                 plugin.listeners = None  # type: ignore (compatibility with beets<2.4)
+
+        self.lib._close()
 
     @pytest.fixture
     def event_log(self, tmp_path: Path, _setup: None) -> Path:
@@ -221,7 +244,10 @@ class TestHelper:
     def runcli(self, *args: str) -> str:
         # TODO mock stdin
         with capture_stdout() as out:
-            ui._raw_main(list(args), self.lib)
+            ui._raw_main(list(args))
+        # _raw_main opens a separate library connection; increment revision
+        # so that item.load() re-reads from DB instead of using cached state.
+        self.lib.revision += 1
         return out.getvalue()
 
     def item_fixture_path(self, fmt: str):
