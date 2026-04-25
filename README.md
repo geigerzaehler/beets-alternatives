@@ -18,7 +18,7 @@ documentation](./DEVELOPING.md).
 Getting Started
 ---------------
 
-Install the plugin and make sure you using at least version 2.4 of beets and
+Install the plugin and make sure you are using at least version 2.4 of beets and
 Python 3.10.
 
 ```bash
