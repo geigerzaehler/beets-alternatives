@@ -27,8 +27,6 @@ beetsLogger.propagate = True
 for h in beetsLogger.handlers:
     beetsLogger.removeHandler(h)
 
-_beets_version = tuple(map(int, beets.__version__.split(".")[0:3]))
-
 
 @contextmanager
 def capture_stdout():
@@ -177,32 +175,18 @@ class TestHelper:
 
         self._lib_tracker = _LibraryTracker()
 
-        if _beets_version > (2, 3, 1):
-            beets.plugins._instances = [
-                beetsplug.alternatives.AlternativesPlugin(),
-                beetsplug.convert.ConvertPlugin(),
-                beetsplug.hook.HookPlugin(),
-                self._lib_tracker,
-            ]
-        else:
-            beets.plugins._classes = {  # type: ignore (compatibility with beets<2.4)
-                beetsplug.alternatives.AlternativesPlugin,
-                beetsplug.convert.ConvertPlugin,
-                beetsplug.hook.HookPlugin,
-            }
-            beets.plugins._instances = {}
+        beets.plugins._instances = [
+            beetsplug.alternatives.AlternativesPlugin(),
+            beetsplug.convert.ConvertPlugin(),
+            beetsplug.hook.HookPlugin(),
+            self._lib_tracker,
+        ]
 
         yield
 
         self._lib_tracker.close_all()
 
-        if _beets_version > (2, 3, 1):
-            beets.plugins.BeetsPlugin.listeners = defaultdict(list)
-        else:
-            for plugin in beets.plugins._classes:  # type: ignore (compatibility with beets<2.4)
-                # Instantiating a plugin will modify register event listeners which
-                # are stored in a class variable
-                plugin.listeners = None  # type: ignore (compatibility with beets<2.4)
+        beets.plugins.BeetsPlugin.listeners = defaultdict(list)
 
         self.lib._close()
 
@@ -229,15 +213,9 @@ class TestHelper:
             },
         ]
 
-        if _beets_version > (2, 3, 1):
-            beets.plugins._instances.append(  # type: ignore
-                beetsplug.hook.HookPlugin(),
-            )
-
-        else:
-            beets.plugins._classes.add(  # type: ignore (compatibility with beets<2.4)
-                beetsplug.hook.HookPlugin,
-            )
+        beets.plugins._instances.append(  # type: ignore
+            beetsplug.hook.HookPlugin(),
+        )
 
         return hook_log
 
