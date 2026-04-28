@@ -179,6 +179,54 @@ symlinks. E.g:
 Now, if you move the `/music/` folder to another location, the links
 will continue working
 
+### Playlists
+
+You can specify playlists in each collection so that they are copied over
+and automatically redirected to tracks inside the collection.
+Any tracks in the playlist that are not in the collection are omitted.
+
+```yaml
+alternatives:
+  myplayer:
+    directory: /player
+    paths:
+      default: $album/$title
+    formats: aac mp3
+    query: "onplayer:true"
+    playlist_dir: /player/playlists
+    playlists:
+      - /path/to/playlist.m3u
+      - /path/to/another-playlist.m3u8
+      - /path/to/directory/containing/playlists/
+    removable: true
+```
+
+Say you had a playlist that looked like this:
+
+```m3u
+#EXTM3U
+/home/user/Music/Michael Jackson/Thriller/Beat It.flac
+/home/user/Music/Michael Jackson/Thriller/Billie Jean.flac
+/home/user/Music/Michael Jackson/Thriller/Human Nature.flac
+```
+
+Using this config, the `beet alt update myplayer` command would then produce
+this playlist file under `/player/playlists`:
+```m3u
+#EXTM3U
+../Thriller/Beat It.mp3
+../Thriller/Billie Jean.mp3
+../Thriller/Human Nature.mp3
+```
+
+You can specify the `playlist_path_type` configuration option to be `absolute`
+if you need your playlist file to use absolute paths.
+
+Currently, playlists in alternative collections will always be replaced
+with playlists defined from the config.
+However, there is a plan to allow collection playlists to be merged with
+main playlists.
+
 CLI Reference
 -------------
 
@@ -288,6 +336,20 @@ following settings.
   typically a good range. The default behavior depends on the backend:
   ImageMagick estimates input quality (using 92 if unknown), PIL uses 75.
   Default: 0 (disabled) (optional)
+
+* **`playlist_dir`** The root directory to store playlists under.
+  Relative paths are resolved with respect to the collection's root directory.
+  If omitted it defaults to a directory named `playlists` under the
+  collection directory. (optional)
+
+* **`playlists`** A list of paths to m3u, m3u8, or directories containing such
+  files. These playlists are copied into a directory specified by `playlist_dir`,
+  and automatically retargeted to the files inside the collection. If any tracks
+  inside the playlist are not inside the collection, they are omitted.
+
+* **`playlist_path_type`** Can be `absolute` or `relative` (default). This determines
+  the types of paths used inside of playlists in the collection. If set to `relative`,
+  the paths are relative to the playlist file's parent directory.
 
 Events
 ------
