@@ -575,15 +575,20 @@ class External:
     def update_playlists(self):
         if len(self._config.playlists) == 0:
             return
-
+        
         collection_paths: dict[Path, Item] = {item.filepath.resolve(): item for item in self._items()}
 
         # Remove existing playlists, they will be repopulated
         # TODO: Would be nice to have a CLI option to rip playlists from this collection
-        for existing_playlist in self._config.playlist_dir.iterdir():
-            if existing_playlist.is_dir() or not self._is_playlist_file(existing_playlist):
-                continue
-            existing_playlist.unlink()
+        if self._config.playlist_dir.exists():
+            if not self._config.playlist_dir.is_dir():
+                print_("Unable to populate playlists: config value `playlist_dir` must point to a directory")
+                return
+
+            for existing_playlist in self._config.playlist_dir.iterdir():
+                if existing_playlist.is_dir() or not self._is_playlist_file(existing_playlist):
+                    continue
+                existing_playlist.unlink()
 
         for playlist_path in self._config.playlists:
             self._update_playlist(playlist_path, collection_paths)
