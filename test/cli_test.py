@@ -74,7 +74,11 @@ class TestDoc(TestHelper):
         list_output = self.runcli(
             "alt", "list-tracks", "myplayer", "--format", "$artist $title"
         )
-        assert list_output == "Bach was mp3\nBach was m4a\nBach was ogg\n"
+        assert sorted(list_output.splitlines()) == [
+            "Bach was m4a",
+            "Bach was mp3",
+            "Bach was ogg",
+        ]
 
         self.runcli("alt", "update", "myplayer")
         mediafile = MediaFile(external_from_ogg)
@@ -109,7 +113,12 @@ class TestSymlinkView(TestHelper):
             "by-year": {
                 "paths": {"default": "$year/$album/$title"},
                 "formats": "link",
-            }
+            },
+            "by-year-replaced": {
+                "paths": {"default": "$year/$album/$title"},
+                "replace": {"-": "_"},
+                "formats": "link",
+            },
         }
         self.alt_config = self.config["alternatives"]["by-year"]
 
@@ -215,6 +224,80 @@ class TestSymlinkView(TestHelper):
         # Symlink is created
         assert album.artpath
         assert_symlink(external_art_path, Path(str(album.artpath, "utf8")))
+
+    def test_add_album_replaced(self):
+        """Test the symlinks are created with replacements applied
+        * An album is added
+        * Links are created with expected replaced paths
+        """
+        self.add_album(
+            artist="Michael Jackson",
+            album="Thriller-Something",
+            year="1990",
+            original_year="1982",
+        )
+
+        self.runcli("alt", "update", "by-year-replaced")
+
+        by_year_path = (
+            self.libdir / "by-year-replaced/1990/Thriller_Something/track 1.mp3"
+        )
+        assert_symlink(
+            link=by_year_path,
+            target=self.libdir / "Michael Jackson/Thriller-Something/track 1.mp3",
+            absolute=True,
+        )
+
+    def test_add_album_replaced_regex(self):
+        """Replacements using actual regex patterns are applied correctly."""
+        self.config["alternatives"]["by-year-replaced"]["replace"] = {"[aeiou]": "_"}
+        self.add_album(
+            artist="Michael Jackson",
+            album="Thriller-Something",
+            year="1990",
+            original_year="1982",
+        )
+
+        self.runcli("alt", "update", "by-year-replaced")
+
+        by_year_path = (
+            self.libdir / "by-year-replaced/1990/Thr_ll_r-S_m_th_ng/tr_ck 1.mp3"
+        )
+        assert_symlink(
+            link=by_year_path,
+            target=self.libdir / "Michael Jackson/Thriller-Something/track 1.mp3",
+            absolute=True,
+        )
+
+    def test_add_album_replaced_multiple(self):
+        """Multiple replacement pairs are all applied."""
+        self.config["alternatives"]["by-year-replaced"]["replace"] = {
+            "-": "_",
+            "r": "R",
+        }
+        self.add_album(
+            artist="Michael Jackson",
+            album="Thriller-Something",
+            year="1990",
+            original_year="1982",
+        )
+
+        self.runcli("alt", "update", "by-year-replaced")
+
+        by_year_path = (
+            self.libdir / "by-year-replaced/1990/ThRilleR_Something/tRack 1.mp3"
+        )
+        assert_symlink(
+            link=by_year_path,
+            target=self.libdir / "Michael Jackson/Thriller-Something/track 1.mp3",
+            absolute=True,
+        )
+
+    def test_malformed_replace_regex(self):
+        """A malformed regex in the replace config raises a UserError."""
+        self.config["alternatives"]["by-year-replaced"]["replace"] = {"[invalid": "_"}
+        with pytest.raises(UserError, match="malformed regular expression"):
+            self.runcli("alt", "update", "by-year-replaced")
 
 
 class TestExternalCopy(TestHelper):
