@@ -163,13 +163,13 @@ class Config:
     directory: Path
     """Directory under which items in the collection are located."""
 
-    playlist_dir: Path
+    playlist_dest_dir: Path
     """Directory under which playlists in the collection are located"""
 
     playlist_path_type: Literal["absolute", "relative"]
     """Whether track paths in playlists should use absolute paths or paths relative to the playlist directory."""
 
-    playlists: Sequence[Path]
+    playlist_sources: Sequence[Path]
     """List of playlists for the collection.
     If a directory is specified, it is recursively searched for m3u files."""
 
@@ -293,14 +293,14 @@ class Config:
         self._setup_playlist_fields(config, lib_dir)
 
     def _setup_playlist_fields(self, config: confuse.ConfigView, lib_dir: Path):
-        if "playlist_dir" in config:
-            playlist_dir = config["playlist_dir"].as_path()
-            assert isinstance(playlist_dir, Path)
+        if "playlist_dest_dir" in config:
+            playlist_dest_dir = config["playlist_dest_dir"].as_path()
+            assert isinstance(playlist_dest_dir, Path)
         else:
-            playlist_dir = self.directory / "playlists"
-        if not playlist_dir.is_absolute():
-            playlist_dir = self.directory / playlist_dir
-        self.playlist_dir = playlist_dir
+            playlist_dest_dir = self.directory / "playlists"
+        if not playlist_dest_dir.is_absolute():
+            playlist_dest_dir = self.directory / playlist_dest_dir
+        self.playlist_dest_dir = playlist_dest_dir
 
         if "playlist_path_type" in config:
             playlist_path_type = config["playlist_path_type"].as_choice(["absolute", "relative"])
@@ -310,13 +310,13 @@ class Config:
             playlist_path_type = "relative"
         self.playlist_path_type = playlist_path_type
 
-        if "playlists" in config:
-            playlists = [Path(playlist) for playlist in config["playlists"].as_str_seq()]
-            playlists = [(playlist if playlist.is_absolute() else lib_dir / playlist).resolve() for playlist in playlists]
-            assert isinstance(playlists, Sequence)
+        if "playlist_sources" in config:
+            playlist_sources = [Path(playlist) for playlist in config["playlist_sources"].as_str_seq()]
+            playlist_sources = [(playlist if playlist.is_absolute() else lib_dir / playlist).resolve() for playlist in playlist_sources]
+            assert isinstance(playlist_sources, Sequence)
         else:
-            playlists: Sequence[Path] = []
-        self.playlists = playlists
+            playlist_sources: Sequence[Path] = []
+        self.playlist_sources = playlist_sources
         
 
 
@@ -520,7 +520,7 @@ class External:
         if self._config.playlist_path_type == "relative":
             dest_path = self._relativize_path(
                 self.destination(item),
-                self._config.playlist_dir,
+                self._config.playlist_dest_dir,
                 walk_up=True,
             )
         else:
@@ -538,8 +538,8 @@ class External:
         if not self._is_playlist_file(playlist_path):
             return
         
-        self._config.playlist_dir.mkdir(parents=True, exist_ok=True)
-        converted_playlist_path = self._config.playlist_dir / playlist_path.name
+        self._config.playlist_dest_dir.mkdir(parents=True, exist_ok=True)
+        converted_playlist_path = self._config.playlist_dest_dir / playlist_path.name
         track_comments = ""
         with playlist_path.open("r") as playlist_file, converted_playlist_path.open("w") as converted_playlist_file:
             for line in playlist_file:
@@ -573,24 +573,24 @@ class External:
         print_(f"*{converted_playlist_path}")
 
     def update_playlists(self):
-        if len(self._config.playlists) == 0:
+        if len(self._config.playlist_sources) == 0:
             return
         
         collection_paths: dict[Path, Item] = {item.filepath.resolve(): item for item in self._items()}
 
         # Remove existing playlists, they will be repopulated
         # TODO: Would be nice to have a CLI option to rip playlists from this collection
-        if self._config.playlist_dir.exists():
-            if not self._config.playlist_dir.is_dir():
-                print_("Unable to populate playlists: config value `playlist_dir` must point to a directory")
+        if self._config.playlist_dest_dir.exists():
+            if not self._config.playlist_dest_dir.is_dir():
+                print_("Unable to populate playlists: config value `playlist_dest_dir` must point to a directory")
                 return
 
-            for existing_playlist in self._config.playlist_dir.iterdir():
+            for existing_playlist in self._config.playlist_dest_dir.iterdir():
                 if existing_playlist.is_dir() or not self._is_playlist_file(existing_playlist):
                     continue
                 existing_playlist.unlink()
 
-        for playlist_path in self._config.playlists:
+        for playlist_path in self._config.playlist_sources:
             self._update_playlist(playlist_path, collection_paths)
 
     def _relativize_path(self, path: Path, other: Path, walk_up: bool = False) -> Path:

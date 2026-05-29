@@ -193,8 +193,8 @@ alternatives:
       default: $album/$title
     formats: aac mp3
     query: "onplayer:true"
-    playlist_dir: /player/playlists
-    playlists:
+    playlist_dest_dir: /player/playlists
+    playlist_sources:
       - /path/to/playlist.m3u
       - /path/to/another-playlist.m3u8
       - /path/to/directory/containing/playlists/
@@ -337,13 +337,13 @@ following settings.
   ImageMagick estimates input quality (using 92 if unknown), PIL uses 75.
   Default: 0 (disabled) (optional)
 
-* **`playlist_dir`** The root directory to store playlists under.
+* **`playlist_dest_dir`** The root directory to store playlists under.
   Relative paths are resolved with respect to the collection's root directory.
   If omitted it defaults to a directory named `playlists` under the
   collection directory. (optional)
 
-* **`playlists`** A list of paths to m3u, m3u8, or directories containing such
-  files. These playlists are copied into a directory specified by `playlist_dir`,
+* **`playlist_sources`** A list of paths to m3u, m3u8, or directories containing such
+  files. These playlists are copied into a directory specified by `playlist_dest_dir`,
   and automatically retargeted to the files inside the collection. If any tracks
   inside the playlist are not inside the collection, they are omitted.
 
