@@ -11,17 +11,17 @@
 # all copies or substantial portions of the Software.
 
 import argparse
-from io import TextIOWrapper
 import logging
 import os.path
 import queue
 import shutil
 import sys
-from collections.abc import Callable, Iterator, Sequence
+from collections.abc import Callable, Iterable, Iterator, Sequence
 from concurrent import futures
 from enum import Enum
+from io import TextIOWrapper
 from pathlib import Path
-from typing import Any, Literal, TypeVar
+from typing import Literal, TypeVar
 
 import beets
 import beets.plugins
@@ -386,22 +386,13 @@ class External:
         else:
             return [Action.ADD]
 
-    def _get_album_item_ids(self) -> set[Any]:
+    def _items_actions(self) -> Iterator[tuple[Item, Sequence[Action]]]:
         matched_ids = set()
         for album in self.lib.albums():
             if self._config.query.match(album):
                 matched_items = album.items()
                 matched_ids.update(item.id for item in matched_items)
-        return matched_ids
 
-    def _items(self) -> Iterator[Item]:
-        matched_ids = self._get_album_item_ids()
-        for item in self.lib.items():
-            if item.id in matched_ids or self._config.query.match(item):
-                yield item
-    
-    def _items_actions(self) -> Iterator[tuple[Item, Sequence[Action]]]:
-        matched_ids = self._get_album_item_ids()
         for item in self.lib.items():
             if item.id in matched_ids or self._config.query.match(item):
                 yield (item, self._matched_item_action(item))
@@ -440,9 +431,11 @@ class External:
                 action=action,
             )
 
+        items: list[Item] = []
         converter, converting_done = self._converter()
         with converter as converter:
             for item, actions in self._items_actions():
+                items.append(item)
                 dest = self.destination(item)
                 path = self._get_stored_path(item)
                 for action in actions:
@@ -511,7 +504,7 @@ class External:
             if self._config.album_art_copy:
                 self.update_art()
 
-        self.update_playlists()
+        self.update_playlists(items)
 
     def _is_playlist_file(self, playlist_path: Path) -> bool:
         return playlist_path.suffix in {".m3u", ".m3u8"}
@@ -530,10 +523,10 @@ class External:
         file.write(str(dest_path))
         file.write(os.linesep)
 
-    def _update_playlist(self, playlist_path: Path, collection_paths: dict[Path, Item]):
+    def _update_playlist(self, playlist_path: Path, collection_items: dict[Path, Item]):
         if playlist_path.is_dir():
             for child in playlist_path.iterdir():
-                self._update_playlist(child, collection_paths)
+                self._update_playlist(child, collection_items)
         
         if not self._is_playlist_file(playlist_path):
             return
@@ -563,20 +556,20 @@ class External:
                     continue
 
                 # Check that playlist track exists in collection
-                if track_path in collection_paths:
+                if track_path in collection_items:
                     self._write_playlist_track(
                         converted_playlist_file,
                         track_comments,
-                        collection_paths[track_path],
+                        collection_items[track_path],
                     )
                 track_comments = ""
         print_(f"*{converted_playlist_path}")
 
-    def update_playlists(self):
+    def update_playlists(self, items: Iterable[Item]):
         if len(self._config.playlist_sources) == 0:
             return
         
-        collection_paths: dict[Path, Item] = {item.filepath.resolve(): item for item in self._items()}
+        collection_paths: dict[Path, Item] = {item.filepath.resolve(): item for item in items}
 
         # Remove existing playlists, they will be repopulated
         # TODO: Would be nice to have a CLI option to rip playlists from this collection
@@ -802,7 +795,9 @@ class SymlinkView(External):
 
     @override
     def update(self, create: bool | None = None):
+        items: list[Item] = []
         for item, actions in self._items_actions():
+            items.append(item)
             dest = self.destination(item)
             path = self._get_stored_path(item)
             for action in actions:
@@ -834,7 +829,7 @@ class SymlinkView(External):
         if self._config.album_art_copy:
             self.update_art(link=True)
 
-        self.update_playlists()
+        self.update_playlists(items)
 
     def _create_symlink(self, item: Item):
         dest = self.destination(item)
