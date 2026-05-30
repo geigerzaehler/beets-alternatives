@@ -15,12 +15,12 @@ import logging
 import os.path
 import queue
 import shutil
+import sys
 from collections.abc import Callable, Iterable, Iterator, Sequence
 from concurrent import futures
 from enum import Enum
 from io import TextIOWrapper
 from pathlib import Path
-import sys
 from typing import Literal, TypeVar
 
 import beets
