@@ -313,11 +313,25 @@ class Config:
         if "playlist_sources" in config:
             playlist_sources = [Path(playlist) for playlist in config["playlist_sources"].as_str_seq()]
             playlist_sources = [(playlist if playlist.is_absolute() else lib_dir / playlist).resolve() for playlist in playlist_sources]
+            playlist_sources = self._expand_playlist_globs(playlist_sources)
             assert isinstance(playlist_sources, Sequence)
         else:
             playlist_sources: Sequence[Path] = []
         self.playlist_sources = playlist_sources
-        
+
+    def _expand_playlist_globs(self, playlist_glob_paths: Sequence[Path]) -> Sequence[Path]:
+        globbed_playlists: list[Path] = []
+        for playlist_source in playlist_glob_paths:
+            assert playlist_source.is_absolute()
+            playlist_root = playlist_source.parents[-1]
+            root_relative_path = _relativize_path(
+                playlist_source,
+                playlist_root,
+                walk_up=True,
+            )
+            globbed_paths = playlist_root.glob(str(root_relative_path))
+            globbed_playlists.extend(globbed_paths)
+        return globbed_playlists
 
 
 class Action(Enum):
@@ -511,7 +525,7 @@ class External:
 
     def _write_playlist_track(self, file: TextIOWrapper, comments: str, item: Item):
         if self._config.playlist_path_type == "relative":
-            dest_path = self._relativize_path(
+            dest_path = _relativize_path(
                 self.destination(item),
                 self._config.playlist_dest_dir,
                 walk_up=True,
@@ -524,10 +538,6 @@ class External:
         file.write(os.linesep)
 
     def _update_playlist(self, playlist_path: Path, collection_items: dict[Path, Item]):
-        if playlist_path.is_dir():
-            for child in playlist_path.iterdir():
-                self._update_playlist(child, collection_items)
-        
         if not self._is_playlist_file(playlist_path):
             return
         
@@ -586,16 +596,6 @@ class External:
         for playlist_path in self._config.playlist_sources:
             self._update_playlist(playlist_path, collection_paths)
 
-    def _relativize_path(self, path: Path, other: Path, walk_up: bool = False) -> Path:
-        if walk_up:
-            if (sys.version_info.major, sys.version_info.minor) >= (3, 12):
-                return path.relative_to(other, walk_up=True) # pyright: ignore[reportCallIssue]
-
-            # Not Python >= 3.12, need to reimplement
-            return Path(os.path.relpath(str(path), str(other)))
-        
-        return path.relative_to(other)
-    
     def update_art(self, link: bool = False):
         for album in self.lib.albums():
             if not self._config.query.match(album) and not any(
@@ -908,3 +908,15 @@ else:
         path = item.destination(path_formats=path_formats, fragment=True)  # type: ignore
         assert isinstance(path, str)
         return path
+
+
+def _relativize_path(path: Path, other: Path, walk_up: bool = False) -> Path:
+    if walk_up:
+        if (sys.version_info.major, sys.version_info.minor) >= (3, 12):
+            return path.relative_to(other, walk_up=True) # pyright: ignore[reportCallIssue]
+
+        # Not Python >= 3.12, need to reimplement
+        return Path(os.path.relpath(str(path), str(other)))
+        
+    return path.relative_to(other)
+    
