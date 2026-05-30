@@ -29,10 +29,10 @@ jobs:
       UV_PYTHON: ${{ matrix.python }}
 
     steps:
-      - uses: actions/checkout@v5
-      - uses: astral-sh/setup-uv@v7
+      - uses: actions/checkout@v6
+      - uses: astral-sh/setup-uv@v8.1.0
         with:
-          version: "0.9.x"
+          version: "0.11.x"
       - run: uv sync
       - run: uv run ruff format --check
       - run: uv run ruff check
@@ -54,17 +54,19 @@ jobs:
       matrix:
         beets:
           - "git+https://github.com/beetbox/beets#master"
-          - "beets==2.1.*"
-          - "beets==2.2.*"
-          - "beets==2.3.*"
           - "beets==2.4.*"
+          - "beets==2.5.*"
+          - "beets==2.6.*"
+          - "beets==2.7.*"
+          - "beets==2.8.*"
+          - "beets==2.9.*"
     env:
       UV_PYTHON: "3.10"
 
     continue-on-error: ${{ contains(matrix.beets, 'master') }}
     steps:
-      - uses: actions/checkout@v5
-      - uses: astral-sh/setup-uv@v7
+      - uses: actions/checkout@v6
+      - uses: astral-sh/setup-uv@v8.1.0
       - run: uv add ${{ matrix.beets }}
       - run: uv sync
       - run: uv run pytest

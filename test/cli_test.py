@@ -74,12 +74,7 @@ class TestDoc(TestHelper):
         list_output = self.runcli(
             "alt", "list-tracks", "myplayer", "--format", "$artist $title"
         )
-        assert list_output == "\n".join([
-            "Bach was mp3",
-            "Bach was m4a",
-            "Bach was ogg",
-            "",
-        ])
+        assert list_output == "Bach was mp3\nBach was m4a\nBach was ogg\n"
 
         self.runcli("alt", "update", "myplayer")
         mediafile = MediaFile(external_from_ogg)
@@ -109,6 +104,7 @@ class TestSymlinkView(TestHelper):
     @pytest.fixture(autouse=True)
     def _symlink_view(self):
         self.lib.path_formats = (("default", "$artist/$album/$title"),)
+        self.config["paths"] = {"default": "$artist/$album/$title"}
         self.config["alternatives"] = {
             "by-year": {
                 "paths": {"default": "$year/$album/$title"},
@@ -273,14 +269,14 @@ class TestExternalCopy(TestHelper):
     def test_update_older(self):
         item = self.add_external_track("myexternal")
         sleep(0.1)
-        item["composer"] = "JSB"
+        item.comments = "foo"
         item.store()
         item.write()
 
         self.runcli("alt", "update", "myexternal")
         item.load()
         mediafile = MediaFile(self.get_path(item))
-        assert mediafile.composer == "JSB"
+        assert mediafile.comments == "foo"
 
     def test_no_update_newer(self):
         item = self.add_external_track("myexternal")

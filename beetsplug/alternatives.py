@@ -25,7 +25,6 @@ from typing import Literal, TypeVar
 
 import beets
 import beets.plugins
-import beetsplug.convert as convert
 import confuse
 from beets import art, util
 from beets.library import Album, Item, Library, parse_query_string
@@ -33,6 +32,8 @@ from beets.plugins import BeetsPlugin
 from beets.ui import Subcommand, UserError, get_path_formats, input_yn, print_
 from beets.util.artresizer import ArtResizer
 from typing_extensions import Never, override
+
+from beetsplug import convert
 
 
 class AlternativesPlugin(BeetsPlugin):
@@ -157,7 +158,7 @@ class ArgumentParser(argparse.ArgumentParser):
 class Config:
     collection_id: str
 
-    type: Literal["copy_convert"] | Literal["link"]
+    type: Literal["copy_convert", "link"]
     """Determines whether item files are copied and/or converted or symlinked"""
 
     directory: Path
@@ -667,9 +668,9 @@ class External:
 
     def destination(self, item: Item) -> Path:
         """Returns the path for `item` in the external collection."""
-        path = _item_destination_relative_compat(
-            item, path_formats=self._config.path_formats
-        )
+        path = item.destination(
+            path_formats=self._config.path_formats, relative_to_libdir=True
+        ).decode("utf-8")
         assert isinstance(path, str)
         return self._config.directory / path
 
@@ -886,37 +887,3 @@ def _send_item_updated(*, collection: str, path: Path, item: Item, action: Actio
         item=item,
         action=action.value,
     )
-
-
-_beets_version = tuple(map(int, beets.__version__.split(".")[0:2]))
-
-if _beets_version >= (2, 3):
-
-    def _item_destination_relative_compat(
-        item: Item, path_formats: object = None
-    ) -> str:
-        path_bytes = item.destination(
-            path_formats=path_formats, relative_to_libdir=True
-        )
-        return path_bytes.decode("utf-8")
-
-else:
-
-    def _item_destination_relative_compat(
-        item: Item, path_formats: object = None
-    ) -> str:
-        path = item.destination(path_formats=path_formats, fragment=True)  # type: ignore
-        assert isinstance(path, str)
-        return path
-
-
-def _relativize_path(path: Path, other: Path, walk_up: bool = False) -> Path:
-    if walk_up:
-        if (sys.version_info.major, sys.version_info.minor) >= (3, 12):
-            return path.relative_to(other, walk_up=True) # pyright: ignore[reportCallIssue]
-
-        # Not Python >= 3.12, need to reimplement
-        return Path(os.path.relpath(str(path), str(other)))
-        
-    return path.relative_to(other)
-    

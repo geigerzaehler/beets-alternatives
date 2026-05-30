@@ -1,5 +1,13 @@
 # Change Log
 
+## Unreleased
+
+- Drop support for beets <= 2.3
+
+## v0.14.1 - 2026-04-12
+
+- Ensure tests pass with beets v2.9
+
 ## v0.14.0 - 2025-11-16
 
 - Added `album_art_copy` option which copies album art to alternative
