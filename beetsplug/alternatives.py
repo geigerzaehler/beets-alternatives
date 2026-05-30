@@ -15,12 +15,12 @@ import logging
 import os.path
 import queue
 import shutil
-import sys
 from collections.abc import Callable, Iterable, Iterator, Sequence
 from concurrent import futures
 from enum import Enum
 from io import TextIOWrapper
 from pathlib import Path
+import sys
 from typing import Literal, TypeVar
 
 import beets
@@ -887,3 +887,13 @@ def _send_item_updated(*, collection: str, path: Path, item: Item, action: Actio
         item=item,
         action=action.value,
     )
+
+def _relativize_path(path: Path, other: Path, walk_up: bool = False) -> Path:
+    if walk_up:
+        if (sys.version_info.major, sys.version_info.minor) >= (3, 12):
+            return path.relative_to(other, walk_up=True) # pyright: ignore[reportCallIssue]
+
+        # Not Python >= 3.12, need to reimplement
+        return Path(os.path.relpath(str(path), str(other)))
+        
+    return path.relative_to(other)
