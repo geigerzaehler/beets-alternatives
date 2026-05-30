@@ -338,6 +338,7 @@ following settings.
   Default: 0 (disabled) (optional)
 
 * **`playlist_dest_dir`** The root directory to store playlists under.
+  Any playlists found in this directory **will be deleted** before repopulating them.
   Relative paths are resolved with respect to the collection's root directory.
   If omitted it defaults to a directory named `playlists` under the
   collection directory. (optional)
