@@ -60,6 +60,7 @@ jobs:
           - "beets==2.7.*"
           - "beets==2.8.*"
           - "beets==2.9.*"
+          - "beets==2.10.*"
     env:
       UV_PYTHON: "3.10"
 
