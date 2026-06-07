@@ -1,4 +1,5 @@
 import io
+import os
 import platform
 from pathlib import Path
 from time import sleep
@@ -742,6 +743,92 @@ class TestExternalRemovable(TestHelper):
             assert "Do you want to create the collection?" not in out
         item.load()
         assert "alt.myexternal" in item
+
+
+class TestPlaylist(TestHelper):
+    """Test mirroring of m3u playlists into the alternative collection."""
+
+    @pytest.fixture(autouse=True)
+    def _playlist(self, tmp_path: Path, _setup: None):
+        self.external_dir = tmp_path / "external"
+        self.source_dir = tmp_path / "source-playlists"
+        self.source_dir.mkdir()
+        self.config["alternatives"] = {
+            "myexternal": {
+                "directory": str(self.external_dir),
+                "query": "myexternal:true",
+                "removable": False,
+                "playlist_sources": [str(self.source_dir / "*.m3u")],
+            }
+        }
+
+    def test_retargets_tracks_and_omits_foreign_ones(self):
+        included = self.add_track(title="included", myexternal="true")
+        excluded = self.add_track(title="excluded")
+
+        (self.source_dir / "mix.m3u").write_text(
+            "#EXTM3U\n"
+            "#EXTINF:1,included\n"
+            f"{Path(str(included.path, 'utf8'))}\n"
+            f"#EXTINF:1,excluded\n"
+            f"{Path(str(excluded.path, 'utf8'))}\n"
+        )
+
+        self.runcli("alt", "update", "myexternal")
+
+        included.load()
+        dest_dir = self.external_dir / "playlists"
+        rel = Path(os.path.relpath(self.get_path(included), dest_dir))
+        assert (dest_dir / "mix.m3u").read_text().splitlines() == [
+            "#EXTM3U",
+            "#EXTINF:1,included",
+            str(rel),
+        ]
+
+    def test_absolute_track_paths(self):
+        self.config["alternatives"]["myexternal"]["playlist_path_type"] = "absolute"
+        included = self.add_track(title="included", myexternal="true")
+
+        (self.source_dir / "mix.m3u").write_text(
+            f"#EXTM3U\n{Path(str(included.path, 'utf8'))}\n"
+        )
+
+        self.runcli("alt", "update", "myexternal")
+
+        included.load()
+        dest_dir = self.external_dir / "playlists"
+        assert (dest_dir / "mix.m3u").read_text().splitlines() == [
+            "#EXTM3U",
+            str(self.get_path(included).resolve()),
+        ]
+
+    def test_omits_tracks_removed_from_collection(self):
+        """A track that leaves the collection must not linger in regenerated
+        playlists with a stale, now-deleted destination.
+        """
+        kept = self.add_track(title="kept", myexternal="true")
+        leaving = self.add_track(title="leaving", myexternal="true")
+
+        (self.source_dir / "mix.m3u").write_text(
+            "#EXTM3U\n"
+            f"{Path(str(kept.path, 'utf8'))}\n"
+            f"{Path(str(leaving.path, 'utf8'))}\n"
+        )
+
+        self.runcli("alt", "update", "myexternal")
+
+        # `leaving` no longer matches the query and is removed on the next update
+        leaving["myexternal"] = "false"
+        leaving.store()
+        self.runcli("alt", "update", "myexternal")
+
+        kept.load()
+        dest_dir = self.external_dir / "playlists"
+        rel = Path(os.path.relpath(self.get_path(kept), dest_dir))
+        assert (dest_dir / "mix.m3u").read_text().splitlines() == [
+            "#EXTM3U",
+            str(rel),
+        ]
 
 
 class TestCompletion(TestHelper):
