@@ -27,9 +27,23 @@ import confuse
 from beets import art, util
 from beets.library import Album, Item, Library, parse_query_string
 from beets.plugins import BeetsPlugin
-from beets.ui import Subcommand, UserError, get_path_formats, input_yn, print_
+from beets.ui import Subcommand, input_yn, print_
 from beets.util.artresizer import ArtResizer
+from beets.util.functemplate import Template
 from typing_extensions import Never, override
+
+# beets master moved these out of `beets.ui`; fall back for the 2.11.0 release.
+try:
+    from beets.exceptions import UserError  # pyright: ignore[reportMissingImports]
+except ImportError:
+    from beets.ui import UserError  # pyright: ignore[reportPrivateImportUsage]
+
+try:
+    from beets.util.pathformats import (  # pyright: ignore[reportMissingImports]
+        get_path_formats,
+    )
+except ImportError:
+    from beets.ui import get_path_formats
 
 from beetsplug import convert
 
@@ -162,7 +176,7 @@ class Config:
     directory: Path
     """Directory under which items in the collection are located."""
 
-    path_formats: Sequence[tuple[str, str]]
+    path_formats: Sequence[tuple[str, str | Template]]
     """Formats that determine the path of items in the collection. See
     <https://beets.readthedocs.io/en/stable/reference/pathformat.html>.
     """
@@ -599,6 +613,9 @@ class External:
 
 
 class ExternalConvert(External):
+    convert_cmd: bytes
+    ext: bytes
+
     def __init__(
         self,
         log: logging.Logger,
@@ -609,7 +626,15 @@ class ExternalConvert(External):
         convert_plugin = convert.ConvertPlugin()
         self._encode = convert_plugin.encode
         self._formats = [convert.ALIASES.get(f, f) for f in config.formats]
-        self.convert_cmd, self.ext = convert.get_format(self._formats[0])
+        # beets master replaced the module-level `convert.get_format` with the
+        # `ConvertPlugin.command` property (driven by the plugin's `format`
+        # config). `getattr` keeps both paths type-clean across versions.
+        get_format = getattr(convert, "get_format", None)
+        if get_format is not None:
+            self.convert_cmd, self.ext = get_format(self._formats[0])
+        else:
+            convert_plugin.config["format"].set(self._formats[0])
+            self.convert_cmd, self.ext = convert_plugin.command  # pyright: ignore[reportAttributeAccessIssue]
 
     @override
     def _converter(self) -> tuple["Worker", queue.Queue[tuple[Item, Path]]]:
