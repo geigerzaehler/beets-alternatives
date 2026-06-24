@@ -1,6 +1,6 @@
 # Change Log
 
-## Unreleased
+## v0.14.2 - 2026-06-24
 
 - Ensure tests pass with beets v2.12
 - Drop support for beets <= 2.3
