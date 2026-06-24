@@ -35,7 +35,7 @@ dev = [
   "pyright==1.1.410",
   "pytest==9.1.0",
   "pytest-cov==7.1.0",
-  "ruff==0.15.16",
+  "ruff==0.15.17",
   "typeguard==4.5.2",
   "pillow==12.2.0",
   "pytest-watcher==0.6.3",
@@ -94,6 +94,8 @@ ignore = [
   "SIM108",
   # Allow __init__ modules to not be empty
   "RUF067",
+  # Allow `@pytest.fixture(autouse=True)`
+  "RUF076",
 ]
 
 allowed-confusables = ["’"]
