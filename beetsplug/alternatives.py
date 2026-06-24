@@ -34,16 +34,16 @@ from typing_extensions import Never, override
 
 # beets master moved these out of `beets.ui`; fall back for the 2.11.0 release.
 try:
-    from beets.exceptions import UserError  # pyright: ignore[reportMissingImports]
+    from beets.exceptions import UserError
 except ImportError:
     from beets.ui import UserError  # pyright: ignore[reportPrivateImportUsage]
 
 try:
-    from beets.util.pathformats import (  # pyright: ignore[reportMissingImports]
+    from beets.util.pathformats import (
         get_path_formats,
     )
 except ImportError:
-    from beets.ui import get_path_formats
+    from beets.ui import get_path_formats  # pyright: ignore[reportAttributeAccessIssue]
 
 from beetsplug import convert
 
@@ -52,7 +52,7 @@ class AlternativesPlugin(BeetsPlugin):
     def __init__(self):
         super().__init__()
 
-    def commands(self):  # pyright: ignore[reportIncompatibleMethodOverride]
+    def commands(self):
         return [AlternativesCommand(self)]
 
     def update(self, lib: Library, options: argparse.Namespace):
@@ -421,7 +421,7 @@ class External:
                         # beets types are confusing
                         util.prune_dirs(
                             str(path.parent), root=str(self._config.directory)
-                        )  # pyright: ignore
+                        )
                         self._set_stored_path(item, dest)
                         item.store()
                         path = dest
@@ -579,7 +579,7 @@ class External:
         if path:
             path.unlink(missing_ok=True)
             # beets types are confusing
-            util.prune_dirs(str(path), root=str(self._config.directory))  # pyright: ignore
+            util.prune_dirs(str(path), root=str(self._config.directory))
         del item[self.path_key]
 
     def _converter(self) -> tuple["Worker", queue.Queue[tuple[Item, Path]]]:
@@ -634,7 +634,7 @@ class ExternalConvert(External):
             self.convert_cmd, self.ext = get_format(self._formats[0])
         else:
             convert_plugin.config["format"].set(self._formats[0])
-            self.convert_cmd, self.ext = convert_plugin.command  # pyright: ignore[reportAttributeAccessIssue]
+            self.convert_cmd, self.ext = convert_plugin.command
 
     @override
     def _converter(self) -> tuple["Worker", queue.Queue[tuple[Item, Path]]]:

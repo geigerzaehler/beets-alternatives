@@ -4,8 +4,12 @@ from pathlib import Path
 from time import sleep
 
 import pytest
-from beets.ui import UserError
+try:
+    from beets.exceptions import UserError
+except ImportError:
+    from beets.ui import UserError  # pyright: ignore[reportPrivateImportUsage]
 from beets.util.artresizer import ArtResizer
+from beets.util.functemplate import Template
 from confuse import ConfigValueError
 from mediafile import MediaFile
 from PIL import Image
@@ -103,7 +107,7 @@ class TestSymlinkView(TestHelper):
 
     @pytest.fixture(autouse=True)
     def _symlink_view(self):
-        self.lib.path_formats = [("default", "$artist/$album/$title")]
+        self.lib.path_formats = [("default", Template("$artist/$album/$title"))]
         self.config["paths"] = {"default": "$artist/$album/$title"}
         self.config["alternatives"] = {
             "by-year": {
@@ -371,7 +375,7 @@ class TestExternalCopy(TestHelper):
         dir_a.mkdir()
         dir_b = tmp_path / "b"
         dir_b.mkdir()
-        self.config["alternatives"].get().clear()  # type: ignore
+        self.config["alternatives"].get().clear()
         self.config["alternatives"] = {
             "a": {
                 "directory": str(dir_a),

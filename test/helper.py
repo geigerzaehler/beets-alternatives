@@ -97,7 +97,7 @@ def assert_has_embedded_artwork(path: Path, compare_file: Path | None = None):
     assert mediafile.art is not None, "MediaFile has no embedded artwork"
     if compare_file:
         with compare_file.open("rb") as compare_fh:
-            crc_is = crc32(mediafile.art)  # pyright: ignore[reportArgumentType]
+            crc_is = crc32(mediafile.art)
             crc_expected = crc32(compare_fh.read())
             assert crc_is == crc_expected, (
                 "MediaFile has embedded artwork, but "
@@ -213,7 +213,7 @@ class TestHelper:
             },
         ]
 
-        beets.plugins._instances.append(  # type: ignore
+        beets.plugins._instances.append(
             beetsplug.hook.HookPlugin(),
         )
 
