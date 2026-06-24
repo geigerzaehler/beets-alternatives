@@ -2,32 +2,41 @@
 name: release
 run-name: publish ${{ github.event.workflow_run.head_commit.message }}
 
-on:
+# Pushes to `release/candidate` are restricted to maintainers, the run is
+# gated on a successful `Check and test` run, and every job checks out the
+# triggering `head_sha` explicitly.
+on: # zizmor: ignore[dangerous-triggers]
   workflow_run:
     workflows: ["Check and test"]
     branches: ["release/candidate"]
     types:
       - completed
 
+permissions: {}
+
 jobs:
   build:
     runs-on: ubuntu-latest
     if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    permissions:
+      contents: read
+      actions: write
     outputs:
       version: ${{ steps.version.outputs.version }}
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           ref: ${{ github.event.workflow_run.head_sha }}
-      - uses: astral-sh/setup-uv@v8.2.0
-      - uses: actions/setup-python@v6
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@fac544c07dec837d0ccb6301d7b5580bf5edae39 # v8.2.0
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
       - name: Get version
         id: version
         run: |
           version=$(sed -n '0,/^version = "\(.*\)"/{s/^version = "\(.*\)"/\1/p}' pyproject.toml)
           echo "version=${version}" >> "$GITHUB_OUTPUT"
       - run: uv build
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: python-package-dist
           path: dist/
@@ -36,16 +45,18 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    permissions:
+      contents: read
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           ref: ${{ github.event.workflow_run.head_sha }}
+          persist-credentials: false
       - name: Verify release notes
         run: pipx run dev/get_release_notes.py
       - name: Verify commit message format
         run: |
-          version="${{ needs.build.outputs.version }}"
-          expected="release: v${version}"
+          expected="release: v${VERSION}"
 
           if [[ "$COMMIT_MESSAGE" != "$expected" ]]; then
             echo "❌ Invalid commit message format" | tee -a "$GITHUB_STEP_SUMMARY"
@@ -54,6 +65,7 @@ jobs:
             exit 1
           fi
         env:
+          VERSION: ${{ needs.build.outputs.version }}
           COMMIT_MESSAGE: ${{ github.event.workflow_run.head_commit.message }}
 
   # Create release tag vX.Y.Z and merge release candidate into `main`
@@ -63,10 +75,11 @@ jobs:
       contents: write
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           fetch-depth: 0
           ref: ${{ github.event.workflow_run.head_sha }}
+          persist-credentials: true
 
       - name: Create and push git tag
         continue-on-error: true
@@ -100,9 +113,10 @@ jobs:
       contents: write
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           ref: ${{ github.event.workflow_run.head_sha }}
+          persist-credentials: false
       - name: Create GitHub Release
         run: |
           name="v${VERSION}"
@@ -129,16 +143,18 @@ jobs:
     needs: [verify, build]
     permissions:
       id-token: write
+      actions: read
     runs-on: ubuntu-latest
     environment:
       name: pypi
       url: https://pypi.org/p/oidc-provider-mock
     steps:
-      - uses: actions/download-artifact@v8
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: python-package-dist
           path: dist/
 
-      - uses: pypa/gh-action-pypi-publish@release/v1
+      # Trusted publishing action; PyPA recommends tracking the release/v1 branch.
+      - uses: pypa/gh-action-pypi-publish@release/v1 # zizmor: ignore[unpinned-uses]
         with:
           repository-url: https://upload.pypi.org/legacy/

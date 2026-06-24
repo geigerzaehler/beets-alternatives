@@ -8,6 +8,8 @@ on:
 env:
   FORCE_COLOR: 1
 
+permissions: {}
+
 jobs:
   build:
     strategy:
@@ -25,21 +27,27 @@ jobs:
 
     runs-on: ${{ matrix.os }}
     continue-on-error: ${{ matrix.python == '3.14' }}
+    permissions:
+      contents: read
+      checks: write
     env:
       UV_PYTHON: ${{ matrix.python }}
 
     steps:
-      - uses: actions/checkout@v7
-      - uses: astral-sh/setup-uv@v8.2.0
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@fac544c07dec837d0ccb6301d7b5580bf5edae39 # v8.2.0
         with:
           version: "0.11.x"
+          enable-cache: false
       - run: uv sync
       - run: uv run ruff format --check
       - run: uv run ruff check
       - run: uv run pyright --warnings
       - run: uv run pytest
       - run: uv run coverage xml
-      - uses: coverallsapp/github-action@v2
+      - uses: coverallsapp/github-action@5cbfd81b66ca5d10c19b062c04de0199c215fb6e # v2.3.7
         if: >
           (github.event_name == 'pull_request' || github.ref_name == 'main') &&
           matrix.python == '3.10' &&
@@ -50,6 +58,8 @@ jobs:
 
   build-beets-versions:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     strategy:
       matrix:
         beets:
@@ -66,8 +76,12 @@ jobs:
 
     continue-on-error: ${{ contains(matrix.beets, 'master') }}
     steps:
-      - uses: actions/checkout@v7
-      - uses: astral-sh/setup-uv@v8.2.0
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@fac544c07dec837d0ccb6301d7b5580bf5edae39 # v8.2.0
+        with:
+          enable-cache: false
       - run: uv add ${{ matrix.beets }}
       - run: uv sync
       - run: uv run pytest
