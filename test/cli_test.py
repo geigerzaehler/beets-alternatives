@@ -4,6 +4,7 @@ from pathlib import Path
 from time import sleep
 
 import pytest
+
 try:
     from beets.exceptions import UserError
 except ImportError:
