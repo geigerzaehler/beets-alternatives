@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Ensure tests pass with beets v2.12
 - Drop support for beets <= 2.3
 
 ## v0.14.1 - 2026-04-12
