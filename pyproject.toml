@@ -93,6 +93,8 @@ ignore = [
   "SIM108",
   # Allow __init__ modules to not be empty
   "RUF067",
+  # Allow `@pytest.fixture(autouse=True)`
+  "RUF076",
 ]
 
 allowed-confusables = ["’"]
