@@ -32,7 +32,7 @@ dev = [
   "coverage==7.14.1",
   "mediafile>=0.14.0",
   "mock==5.2.0",
-  "pyright==1.1.410",
+  "pyright==1.1.411",
   "pytest==9.1.0",
   "pytest-cov==7.1.0",
   "ruff==0.15.19",
