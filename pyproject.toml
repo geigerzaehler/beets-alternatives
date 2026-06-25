@@ -35,7 +35,7 @@ dev = [
   "pyright==1.1.411",
   "pytest==9.1.0",
   "pytest-cov==7.1.0",
-  "ruff==0.15.17",
+  "ruff==0.15.19",
   "typeguard==4.5.2",
   "pillow==12.2.0",
   "pytest-watcher==0.6.3",
