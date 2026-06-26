@@ -12,6 +12,11 @@
       "groupName": "non-major dev",
       "automerge": true,
       "schedule": ["* 0-7 1,15 * *"]
+    },
+    {
+      "matchPackageNames": ["ruff", "pyright"],
+      "schedule": ["* 0-7 1,15 * *"],
+      "automerge": true
     }
   ],
   "lockFileMaintenance": {
