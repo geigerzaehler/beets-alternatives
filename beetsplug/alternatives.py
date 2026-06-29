@@ -318,7 +318,11 @@ class External:
         self._config = config
         self.lib = lib
         self.path_key = f"alt.{config.collection_id}"
-        self.max_workers = int(str(beets.config["convert"]["threads"]))
+        threads = beets.config["convert"]["threads"].get(
+            confuse.Optional(confuse.Integer(), default=os.cpu_count() or 1)
+        )
+        assert isinstance(threads, int)
+        self.max_workers = threads
 
     def item_change_actions(
         self, item: Item, actual: Path, dest: Path
