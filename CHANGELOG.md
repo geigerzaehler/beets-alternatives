@@ -1,6 +1,6 @@
 # Change Log
 
-## Upcoming
+## v0.14.3 - 2026-06-29
 
 - Don't require the `convert` plugin to be enabled.
 
