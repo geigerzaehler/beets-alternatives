@@ -12,7 +12,6 @@ from zlib import crc32
 import beets
 import beets.library
 import beets.plugins
-import beetsplug.convert
 import beetsplug.hook
 import pytest
 from beets import logging, ui
@@ -177,7 +176,6 @@ class TestHelper:
 
         beets.plugins._instances = [
             beetsplug.alternatives.AlternativesPlugin(),
-            beetsplug.convert.ConvertPlugin(),
             beetsplug.hook.HookPlugin(),
             self._lib_tracker,
         ]
