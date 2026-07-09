@@ -14,6 +14,7 @@ import argparse
 import logging
 import os.path
 import queue
+import re
 import shutil
 from collections.abc import Callable, Iterator, Sequence
 from concurrent import futures
@@ -201,11 +202,13 @@ class Config:
     """If enabled forced album art to be converted to specified format for the collection. Most often, this will be either JPEG or PNG."""
 
     album_art_deinterlace: bool
-    """If enabled, Pillow or ImageMagick backends are instructed to store cover art as non-progressive JPEG. 
+    """If enabled, Pillow or ImageMagick backends are instructed to store cover art as non-progressive JPEG.
     You might need this if you use DAPs that don’t support progressive images. Default: no."""
 
     album_art_quality: int
     """JPEG Quality for album art if it is resized. Default: 0"""
+
+    replacements: list[tuple[re.Pattern[str], str]] | None
 
     def __init__(self, collection_id: str, config: confuse.ConfigView, lib: Library):
         self.collection_id = collection_id
@@ -270,6 +273,16 @@ class Config:
         )
         assert isinstance(album_art_quality, int)
         self.album_art_quality = album_art_quality
+
+        if "replace" in config:
+            try:
+                self.replacements = get_replacements(config["replace"])
+            except UserError as exc:
+                raise UserError(
+                    f"Error in alternatives.{self.collection_id}.replace: {exc}"
+                ) from exc
+        else:
+            self.replacements = None
 
         if "directory" in config:
             dir = config["directory"].as_path()
@@ -553,6 +566,8 @@ class External:
         path = item.destination(
             path_formats=self._config.path_formats, relative_to_libdir=True
         ).decode("utf-8")
+        if self._config.replacements:
+            path = util.sanitize_path(path, self._config.replacements)
         assert isinstance(path, str)
         return self._config.directory / path
 
@@ -776,3 +791,23 @@ def _send_item_updated(*, collection: str, path: Path, item: Item, action: Actio
         item=item,
         action=action.value,
     )
+
+
+def get_replacements(
+    replace_config: confuse.ConfigView,
+) -> list[tuple[re.Pattern[str], str]]:
+    """Read regex/string replacement pairs from a confuse config view.
+
+    Adapted from beets' own `get_replacements` in `beets.ui`, which reads
+    from the global config. This version accepts an arbitrary config view.
+    """
+    replacements = []
+    for pattern, repl in replace_config.get(dict).items():  # type: ignore[arg-type]
+        repl = repl or ""
+        try:
+            replacements.append((re.compile(pattern), repl))
+        except (re.error, TypeError) as e:
+            raise UserError(
+                f"malformed regular expression in replace: {pattern}"
+            ) from e
+    return replacements
