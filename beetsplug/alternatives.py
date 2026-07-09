@@ -30,6 +30,7 @@ from beets.plugins import BeetsPlugin
 from beets.ui import Subcommand, input_yn, print_
 from beets.util.artresizer import ArtResizer
 from beets.util.functemplate import Template
+from mediafile import MediaFile
 from typing_extensions import Never, override
 
 # beets master moved these out of `beets.ui`; fall back for the 2.11.0 release.
@@ -167,6 +168,22 @@ class ArgumentParser(argparse.ArgumentParser):
         return []
 
 
+class AlbumArtSource(Enum):
+    """Source preference for album art."""
+
+    #: Prefer embedded art from source files, fallback to external art file
+    EMBEDDED = "embedded"
+
+    #: Prefer external art files, fallback to embedded art
+    EXTERNAL = "external"
+
+    #: Only use embedded art from source files
+    EMBEDDED_ONLY = "embedded-only"
+
+    #: Only use external art files
+    EXTERNAL_ONLY = "external-only"
+
+
 class Config:
     collection_id: str
 
@@ -194,6 +211,14 @@ class Config:
     album_art_copy: bool
     """Copy or symlink album art to collection"""
 
+    album_art_source: AlbumArtSource
+    """Source to prefer for album art when embedding. Options:
+    - `embedded`: prefer embedded art from source files, fallback to external art file
+    - `external`: prefer external art files, fallback to embedded art
+    - `embedded-only`: only use embedded art from source files
+    - `external-only`: only use external art files
+    Default: `embedded`."""
+
     album_art_maxwidth: int | None
     """Maximum width of embedded album art. Larger art is resized."""
 
@@ -201,7 +226,7 @@ class Config:
     """If enabled forced album art to be converted to specified format for the collection. Most often, this will be either JPEG or PNG."""
 
     album_art_deinterlace: bool
-    """If enabled, Pillow or ImageMagick backends are instructed to store cover art as non-progressive JPEG. 
+    """If enabled, Pillow or ImageMagick backends are instructed to store cover art as non-progressive JPEG.
     You might need this if you use DAPs that don’t support progressive images. Default: no."""
 
     album_art_quality: int
@@ -246,6 +271,15 @@ class Config:
         )
         assert isinstance(album_art_copy, bool)
         self.album_art_copy = album_art_copy
+
+        album_art_source_str = config["album_art_source"].get(
+            confuse.Choice(
+                {source.value: source.value for source in AlbumArtSource},
+                default=AlbumArtSource.EMBEDDED.value,
+            )
+        )
+        assert isinstance(album_art_source_str, str)
+        self.album_art_source = AlbumArtSource(album_art_source_str)
 
         album_art_maxwidth = config["album_art_maxwidth"].get(
             confuse.Optional(confuse.Integer())
@@ -324,6 +358,32 @@ class External:
         assert isinstance(threads, int)
         self.max_workers = threads
 
+    def _should_embed_art(self, item: Item, actual: Path) -> bool:
+        if not self._config.album_art_embed:
+            return False
+
+        item_mtime_alt = actual.stat().st_mtime
+        source_is_newer = item_mtime_alt < Path(str(item.path, "utf8")).stat().st_mtime
+        source_has_art = source_is_newer and self._has_embedded_art(item)
+
+        album = item.get_album()
+        external_is_newer = bool(
+            album
+            and album.artpath
+            and Path(str(album.artpath, "utf8")).is_file()
+            and (item_mtime_alt < Path(str(album.artpath, "utf8")).stat().st_mtime)
+        )
+
+        source_pref = self._config.album_art_source
+        if source_pref == AlbumArtSource.EMBEDDED:
+            return source_has_art or external_is_newer
+        elif source_pref == AlbumArtSource.EXTERNAL:
+            return external_is_newer or source_has_art
+        elif source_pref == AlbumArtSource.EMBEDDED_ONLY:
+            return source_has_art
+        else:  # EXTERNAL_ONLY
+            return external_is_newer
+
     def item_change_actions(
         self, item: Item, actual: Path, dest: Path
     ) -> Sequence[Action]:
@@ -338,15 +398,8 @@ class External:
         item_mtime_alt = actual.stat().st_mtime
         if item_mtime_alt < Path(str(item.path, "utf8")).stat().st_mtime:
             actions.append(Action.WRITE)
-        album = item.get_album()
 
-        if (
-            self._config.album_art_embed
-            and album
-            and album.artpath
-            and Path(str(album.artpath, "utf8")).is_file()
-            and (item_mtime_alt < Path(str(album.artpath, "utf8")).stat().st_mtime)
-        ):
+        if self._should_embed_art(item, actual):
             actions.append(Action.SYNC_ART)
 
         return actions
@@ -450,6 +503,9 @@ class External:
                             shutil.copyfile(item.path, dest)
                             if self._config.album_art_embed:
                                 self._sync_art(item, dest)
+                            else:
+                                # Strip embedded art if not embedding
+                                self._clear_embedded_art(dest)
                             self._set_stored_path(item, dest)
                             item.store()
 
@@ -490,11 +546,19 @@ class External:
             if not dest_dir:
                 continue
 
-            artpath = album.artpath and Path(str(album.artpath, "utf8"))
-            if not artpath or not artpath.is_file():
+            # Determine which art source to use based on preference
+            artpath = self._get_art_for_album(album, link)
+            if not artpath:
                 continue
 
-            dest = album.art_destination(album.artpath, bytes(dest_dir))
+            # Determine destination path and filename
+            if album.artpath:
+                dest = album.art_destination(album.artpath, bytes(dest_dir))
+            else:
+                # Fallback filename when no external artpath - use configured art_filename
+                art_filename = beets.config["art_filename"].get(str) or "cover"
+                dest = bytes(dest_dir) + b"/" + art_filename.encode("utf8") + b".jpg"
+
             dest = Path(str(dest, "utf8"))
 
             if self._config.album_art_format and not link:
@@ -518,6 +582,39 @@ class External:
                 util.copy(path, bytes(dest), replace=True)
 
             print_(f"~{dest}")
+
+    def _get_art_for_album(self, album: Album, link: bool = False) -> Path | None:
+        """Get art for an album based on album_art_source preference.
+
+        Returns the path to the art file to use, or None if no art should be copied.
+        For embedded art, extracts to a temp file and returns that path.
+        """
+        source_pref = self._config.album_art_source
+
+        # Check what art sources are available
+        external_art = None
+        if album.artpath:
+            external_art = Path(str(album.artpath, "utf8"))
+            if not external_art.is_file():
+                external_art = None
+
+        embedded_art: Path | None = None
+        if not link:  # Don't try to extract embedded for symlinks
+            items = album.items()
+            if items:
+                embedded_art_bytes = self._extract_embedded_art(items[0])
+                if embedded_art_bytes:
+                    embedded_art = Path(str(embedded_art_bytes, "utf8"))
+
+        # Choose which art to use based on preference
+        if source_pref == AlbumArtSource.EMBEDDED:
+            return embedded_art or external_art
+        elif source_pref == AlbumArtSource.EXTERNAL:
+            return external_art or embedded_art
+        elif source_pref == AlbumArtSource.EMBEDDED_ONLY:
+            return embedded_art
+        else:  # EXTERNAL_ONLY
+            return external_art
 
     def resize_art(self, path: bytes) -> bytes:
         """Resize the candidate artwork according to the plugin's
@@ -599,11 +696,29 @@ class External:
     def _sync_art(self, item: Item, path: Path):
         """Embed artwork in the file at `path`."""
         album = item.get_album()
-        if album and album.artpath and Path(str(album.artpath, "utf8")).is_file():
-            self._log.debug(f"Embedding art from {album.artpath} into {path}")
+        artpath: bytes | None = None
+        source_pref = self._config.album_art_source
 
-            artpath = self.resize_art(album.artpath)
+        if source_pref in (AlbumArtSource.EMBEDDED, AlbumArtSource.EMBEDDED_ONLY):
+            # Prefer or only use embedded art from source file
+            artpath = self._extract_embedded_art(item)
+            if (
+                not artpath
+                and source_pref == AlbumArtSource.EMBEDDED
+                and album
+                and album.artpath
+            ):
+                self._log.debug(f"Embedding art from {album.artpath} into {path}")
+                artpath = self.resize_art(album.artpath)
+        else:
+            # Prefer or only use external artpath
+            if album and album.artpath and Path(str(album.artpath, "utf8")).is_file():
+                self._log.debug(f"Embedding art from {album.artpath} into {path}")
+                artpath = self.resize_art(album.artpath)
+            if not artpath and source_pref == AlbumArtSource.EXTERNAL:
+                artpath = self._extract_embedded_art(item)
 
+        if artpath:
             art.embed_item(
                 self._log,
                 item,
@@ -611,6 +726,47 @@ class External:
                 maxwidth=self._config.album_art_maxwidth,
                 itempath=bytes(path),
             )
+        elif source_pref == AlbumArtSource.EXTERNAL_ONLY:
+            # external-only mode with no external art: clear any embedded art
+            self._clear_embedded_art(Path(path))
+
+    def _has_embedded_art(self, item: Item) -> bool:
+        """Check if the source item has embedded artwork."""
+        try:
+            mf = MediaFile(str(item.path, "utf8"))
+            return mf.art is not None
+        except (OSError, KeyError):
+            return False
+
+    def _clear_embedded_art(self, path: Path) -> None:
+        """Remove embedded artwork from a media file."""
+        try:
+            mf = MediaFile(str(path))
+            if mf.art is not None:
+                mf.art = None
+                mf.save()
+                self._log.debug(f"Cleared embedded art from {path}")
+        except (OSError, KeyError):
+            pass
+
+    def _extract_embedded_art(self, item: Item) -> bytes | None:
+        """Extract embedded artwork from the source item and optionally resize it.
+
+        Returns the path to the resized art as bytes, or None if no art was found.
+        """
+        # Read embedded art from the source item file
+        mf = MediaFile(str(item.path, "utf8"))
+        if not mf.art:
+            return None
+
+        # Save the embedded art to a temporary file
+        temp_path = util.get_temp_filename(__name__, "embedded_art", suffix=".jpg")
+        Path(str(temp_path, "utf8")).write_bytes(mf.art)
+
+        self._log.debug(f"Extracted embedded art from {item.path} to {temp_path}")
+
+        # Resize the art if needed
+        return self.resize_art(temp_path)
 
     def _should_transcode(self, item: Item) -> bool:
         return False

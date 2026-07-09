@@ -1,5 +1,6 @@
 import io
 import platform
+from itertools import product
 from pathlib import Path
 from time import sleep
 
@@ -14,6 +15,8 @@ from beets.util.functemplate import Template
 from confuse import ConfigValueError
 from mediafile import MediaFile
 from PIL import Image
+
+from beetsplug.alternatives import AlbumArtSource
 
 from .helper import (
     TestHelper,
@@ -570,6 +573,72 @@ class TestExternalArt(TestHelper):
         width, height = Image.open(io.BytesIO(mediafile.art)).size  # pyright: ignore
         assert width == 1
         assert height < 3
+
+    @pytest.mark.parametrize(
+        ("album_art_source", "album_art_embed", "album_art_copy", "embed", "external"),
+        [
+            # Test all preferences with both embed and copy enabled across source combinations
+            *list(product(AlbumArtSource, [True], [True], [True], [False])),  # embed only
+            *list(product(AlbumArtSource, [True], [True], [False], [True])),  # external only
+            *list(product(AlbumArtSource, [True], [True], [True], [True])),  # both sources
+            # Test other cases
+            (AlbumArtSource.EMBEDDED, True, False, True, False),  # embed only, no copy
+            (AlbumArtSource.EMBEDDED, False, True, False, True),  # copy only, no embed
+            (AlbumArtSource.EMBEDDED, False, False, False, False),  # neither embed nor copy
+        ]
+    )
+    def test_album_art_source(self, album_art_source: AlbumArtSource,
+                              album_art_embed: bool, album_art_copy: bool,
+                              embed: bool, external: bool):
+        self.external_config["album_art_source"] = album_art_source.value
+        self.external_config["album_art_copy"] = album_art_copy
+        self.external_config["album_art_embed"] = album_art_embed
+
+        album = self.add_album(myexternal="true")
+        item = album.items().get()
+        assert item
+
+        embedded_image = self.IMAGE_FIXTURE1
+        if embed:
+            source_mf = MediaFile(str(item.path, "utf8"))
+            with self.IMAGE_FIXTURE1.open("rb") as f:
+                source_mf.art = f.read()
+            source_mf.save()
+
+        external_image = self.IMAGE_FIXTURE2
+        if external:
+            album.set_art(self.IMAGE_FIXTURE2)
+            album.store()
+
+        expected_image = None
+        if embed or external:
+            if album_art_source == AlbumArtSource.EMBEDDED:
+                expected_image = embedded_image if embed else external_image
+            elif album_art_source == AlbumArtSource.EXTERNAL:
+                expected_image = external_image if external else embedded_image
+            elif album_art_source == AlbumArtSource.EMBEDDED_ONLY and embed:
+                expected_image = embedded_image
+            elif album_art_source == AlbumArtSource.EXTERNAL_ONLY and external:
+                expected_image = external_image
+
+        self.runcli("alt", "update", "myexternal")
+        item.load()
+
+        external_path = self.get_path(item)
+
+        # Assert embedded art
+        if album_art_embed and expected_image:
+            assert_has_embedded_artwork(external_path, expected_image)
+        else:
+            assert_has_not_embedded_artwork(external_path)
+
+        # Assert external art file
+        art_files = list(external_path.parent.glob("COVER*"))
+        if album_art_copy and expected_image:
+            assert art_files, "Expected art file but none found"
+            assert_same_file_content(art_files[0], expected_image)
+        else:
+            assert not art_files, f"Unexpected art files: {art_files}"
 
 
 class TestExternalConvert(TestHelper):

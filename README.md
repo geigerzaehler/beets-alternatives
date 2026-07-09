@@ -93,8 +93,8 @@ if the device is not mounted. Since this is our first go, we answer the
 question with yes.
 
 The command will copy all files with the artist ‘Bach’ and format either ‘AAC’
-or ‘MP3’ to the `/player` directory. All other formats will be transcodec to the
-‘AAC’ format unsing the [*convert* plugin][convert plugin]. The transcoding
+or ‘MP3’ to the `/player` directory. All other formats will be transcoded to the
+‘AAC’ format using the [*convert* plugin][convert plugin]. The transcoding
 process can be configured through [*convert’s* configuration][convert config].
 
 If you update some tracks in your main collection, the `alt update`
@@ -107,7 +107,7 @@ beet modify composer="Johann Sebastian Bach" artist:Bach
 beet alt update myplayer
 ```
 
-After going for a run you mitght realize that Bach is probably not the
+After going for a run you might realize that Bach is probably not the
 right thing to work out to. So you decide to put Beethoven on your
 player.
 
@@ -249,7 +249,7 @@ following settings.
   audio file formats in the external collection. If the ‘format’ field
   of a track is included in the list, the file is copied. Otherwise,
   the file is transcoded to the first format in the list. The name of
-  the first format must correpond to a key in the
+  the first format must correspond to a key in the
   [`convert.formats`][convert plugin] configuration. This configuration
   controls the transcoding process.
 
@@ -266,11 +266,23 @@ following settings.
   **`formats`** is `link`, it sets the type of links to create. For
   differences between link types and examples see [Symlink Views](#symlink-views).
 
-* **`album_art_embed`** Embed album art into the media file. Default `yes`
+* **`album_art_embed`** If this is `true` (the default), embed album art into
+  the media file. If `false`, any embedded album art will be stripped from the
+  files in the external collection.
 
 * **`album_art_copy`** Copy album art files into the collection. If
   `formats: link` is used then album art is linked instead. Filename for
   cover art is determined by the [art_filename][art_filename] option.
+
+* **`album_art_source`** Controls which art source to prefer when syncing album
+  art. Applies to both embedding art into audio files (`album_art_embed`) and
+  copying art as separate files (`album_art_copy`). The plugin will extract
+  embedded art and save it as files if needed. Options:
+  - `embedded` (default): Prefer embedded art from source files, fallback to
+    external art file
+  - `external`: Prefer external art files, fallback to embedded art
+  - `embedded-only`: Only use embedded art from source files
+  - `external-only`: Only use external art files
 
 * **`album_art_maxwidth`** If set, resize album art to this maximum width while
   preserving aspect ratio. Comparable to the [convert plugin][convert plugin]
