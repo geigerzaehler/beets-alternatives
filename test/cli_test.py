@@ -21,6 +21,7 @@ from beetsplug.alternatives import AlbumArtSource
 from .helper import (
     TestHelper,
     assert_file_tag,
+    assert_has_artwork,
     assert_has_embedded_artwork,
     assert_has_not_embedded_artwork,
     assert_is_not_file,
@@ -594,51 +595,66 @@ class TestExternalArt(TestHelper):
         self.external_config["album_art_copy"] = album_art_copy
         self.external_config["album_art_embed"] = album_art_embed
 
-        album = self.add_album(myexternal="true")
+        embedded_art = self.IMAGE_FIXTURE1 if embed else None
+        external_art = self.IMAGE_FIXTURE2 if external else None
+        album = self.add_album(embed_art=embedded_art, external_art=external_art, myexternal="true")
         item = album.items().get()
         assert item
 
-        embedded_image = self.IMAGE_FIXTURE1
-        if embed:
-            source_mf = MediaFile(str(item.path, "utf8"))
-            with self.IMAGE_FIXTURE1.open("rb") as f:
-                source_mf.art = f.read()
-            source_mf.save()
-
-        external_image = self.IMAGE_FIXTURE2
-        if external:
-            album.set_art(self.IMAGE_FIXTURE2)
-            album.store()
-
-        expected_image = None
+        expected_art = None
         if embed or external:
             if album_art_source == AlbumArtSource.EMBEDDED:
-                expected_image = embedded_image if embed else external_image
+                expected_art = embedded_art if embed else external_art
             elif album_art_source == AlbumArtSource.EXTERNAL:
-                expected_image = external_image if external else embedded_image
+                expected_art = external_art if external else embedded_art
             elif album_art_source == AlbumArtSource.EMBEDDED_ONLY and embed:
-                expected_image = embedded_image
+                expected_art = embedded_art
             elif album_art_source == AlbumArtSource.EXTERNAL_ONLY and external:
-                expected_image = external_image
+                expected_art = external_art
 
         self.runcli("alt", "update", "myexternal")
         item.load()
 
-        external_path = self.get_path(item)
+        assert_has_artwork(self.get_path(item), album_art_embed, album_art_copy, expected_art)
 
-        # Assert embedded art
-        if album_art_embed and expected_image:
-            assert_has_embedded_artwork(external_path, expected_image)
-        else:
-            assert_has_not_embedded_artwork(external_path)
+    @pytest.mark.parametrize(
+        ("embed_art_indicies", "user_resp", "result_index"),
+        [
+            ([0, 0, 0], None, 0),
+            ([1, 1, 1], None, 1),
+            ([0, 1, 2], "y", 1),
+            ([0, 1, 2], "n", None),
+        ]
+    )
+    def test_different_embedded_art(self, embed_art_indicies, user_resp, result_index):
+        self.external_config["album_art_source"] = AlbumArtSource.EMBEDDED.value
+        self.external_config["album_art_copy"] = True
+        self.external_config["album_art_embed"] = False
 
-        # Assert external art file
-        art_files = list(external_path.parent.glob("COVER*"))
-        if album_art_copy and expected_image:
-            assert art_files, "Expected art file but none found"
-            assert_same_file_content(art_files[0], expected_image)
+        imgs = [None, self.IMAGE_FIXTURE1, self.IMAGE_FIXTURE1]
+        album = self.add_album(
+            track_count=len(embed_art_indicies),
+            embed_art=[imgs[i] for i in embed_art_indicies],
+            myexternal="true",
+        )
+
+        if user_resp is None:
+            out = self.runcli("alt", "update", "myexternal")
+        elif user_resp == "n":
+            with control_stdin(user_resp), pytest.raises(
+                UserError, match="Update cancelled by user"
+            ):
+                self.runcli("alt", "update", "myexternal")
+            return
         else:
-            assert not art_files, f"Unexpected art files: {art_files}"
+            with control_stdin(user_resp):
+                out = self.runcli("alt", "update", "myexternal")
+                assert "Use first art found?" in out
+
+        result_img = imgs[result_index]
+        for item in album.items():
+            item.load()
+            assert_has_artwork(self.get_path(item), False, True, result_img)
 
 
 class TestExternalConvert(TestHelper):

@@ -6,6 +6,7 @@ import sys
 from collections import defaultdict
 from contextlib import contextmanager
 from io import StringIO
+from itertools import zip_longest
 from pathlib import Path
 from zlib import crc32
 
@@ -123,6 +124,21 @@ def assert_has_not_embedded_artwork(path: Path):
     assert mediafile.art is None, "MediaFile has embedded artwork"
 
 
+def assert_has_artwork(path: Path, compare_embedded: bool, compare_external: bool,
+                       compare_file: Path | None):
+    if compare_embedded and compare_file:
+        assert_has_embedded_artwork(path, compare_file)
+    else:
+        assert_has_not_embedded_artwork(path)
+
+    art_files = list(path.parent.glob("COVER*"))
+    if compare_external and compare_file:
+        assert art_files, "Expected art file but none found"
+        assert_same_file_content(art_files[0], compare_file)
+    else:
+        assert not art_files, f"Unexpected art files: {art_files}"
+
+
 def assert_media_file_fields(path: Path, **kwargs: str):
     mediafile = MediaFile(path)
     for k, v in kwargs.items():
@@ -172,6 +188,13 @@ class TestHelper:
         self.IMAGE_FIXTURE1 = self.fixture_dir / "image.png"
         self.IMAGE_FIXTURE2 = self.fixture_dir / "image_black.png"
 
+        # Record checksums for all fixture files to ensure tests don't modify them
+        self._fixture_checksums = {}
+        for fixture_file in self.fixture_dir.rglob("*"):
+            if fixture_file.is_file():
+                relative_path = fixture_file.relative_to(self.fixture_dir)
+                self._fixture_checksums[str(relative_path)] = crc32(fixture_file.read_bytes())
+
         self._lib_tracker = _LibraryTracker()
 
         beets.plugins._instances = [
@@ -181,6 +204,20 @@ class TestHelper:
         ]
 
         yield
+
+        # Verify fixture files weren't modified during the test
+        fixtures_modified = []
+        for fixture_file in self.fixture_dir.rglob("*"):
+            if fixture_file.is_file():
+                relative_path = fixture_file.relative_to(self.fixture_dir)
+                path_str = str(relative_path)
+                if crc32(fixture_file.read_bytes()) != self._fixture_checksums[path_str]:
+                    fixtures_modified.append(path_str)
+
+        if fixtures_modified:
+            raise AssertionError(
+                f"Test modified fixture file(s): {', '.join(fixtures_modified)}"
+            )
 
         self._lib_tracker.close_all()
 
@@ -230,29 +267,35 @@ class TestHelper:
         assert fmt in {"mp3", "m4a", "ogg"}
         return self.fixture_dir / f"min.{fmt}"
 
-    def add_album(self, **kwargs: str):
-        values = {
-            "title": "track 1",
-            "artist": "artist 1",
-            "album": "album 1",
-            "format": "mp3",
-        }
-        values.update(kwargs)
-        item = Item.from_path(str(self.item_fixture_path(values.pop("format"))))
-        item.add(self.lib)
-        item.update(values)
-        item.move(MoveOperation.COPY)
-        item.write()
-        album = self.lib.add_album([item])
-        album.albumartist = item.artist
+    def add_album(self, track_count=1, embed_art=None, external_art=None, **kwargs):
+        assert track_count >= 1
+        if embed_art is None:
+            embed_art = []
+        elif not isinstance(embed_art, list):
+            embed_art = [embed_art]
+        tracks = []
+        for i, art in zip_longest(range(track_count), embed_art):
+            if i is None:
+                break
+            track = self.add_track(title_no=i + 1, embed_art=art, **kwargs)
+            tracks.append(track)
+
+        album = self.lib.add_album(tracks)
+        album.albumartist = tracks[0].artist
+        if external_art is not None:
+            album.set_art(external_art)
         album.store()
         return album
 
     def add_track(self, **kwargs: str):
+        embed_art = kwargs.pop("embed_art", None)
+        title_no = kwargs.pop("title_no", 1)
+        artist_no = kwargs.pop("artist_no", 1)
+        album_no = kwargs.pop("album_no", 1)
         values = {
-            "title": "track 1",
-            "artist": "artist 1",
-            "album": "album 1",
+            "title": f"track {title_no}",
+            "artist": f"artist {artist_no}",
+            "album": f"album {album_no}",
             "format": "mp3",
         }
         values.update(kwargs)
@@ -262,6 +305,13 @@ class TestHelper:
         item.update(values)
         item.move(MoveOperation.COPY)
         item.write()
+
+        if embed_art is not None:
+            mf = MediaFile(str(item.path, "utf8"))
+            with embed_art.open("rb") as f:
+                mf.art = f.read()
+            mf.save()
+
         return item
 
     def add_external_track(self, ext_name: str, **kwargs: str):

@@ -20,6 +20,7 @@ from concurrent import futures
 from enum import Enum
 from pathlib import Path
 from typing import Literal, TypeVar
+from zlib import crc32
 
 import beets
 import beets.plugins
@@ -219,6 +220,12 @@ class Config:
     - `external-only`: only use external art files
     Default: `embedded`."""
 
+    album_art_different_embedded_prompt: bool
+    """If true, ask user when tracks in the same album have different embedded art
+    (including missing art) to confirm using the first track's art. If user declines,
+    the update is aborted. If false, silently use the first track's art without
+    prompting. Default: yes."""
+
     album_art_maxwidth: int | None
     """Maximum width of embedded album art. Larger art is resized."""
 
@@ -280,6 +287,12 @@ class Config:
         )
         assert isinstance(album_art_source_str, str)
         self.album_art_source = AlbumArtSource(album_art_source_str)
+
+        album_art_different_embedded_prompt = config["album_art_different_embedded_prompt"].get(
+            confuse.TypeTemplate(bool, default=True)
+        )
+        assert isinstance(album_art_different_embedded_prompt, bool)
+        self.album_art_different_embedded_prompt = album_art_different_embedded_prompt
 
         album_art_maxwidth = config["album_art_maxwidth"].get(
             confuse.Optional(confuse.Integer())
@@ -442,6 +455,16 @@ class External:
         )
         return input_yn(msg, require=True)
 
+    def ask_use_first_embedded_art(self, album_name: str) -> bool:
+        if not self._config.album_art_different_embedded_prompt:
+            return True
+
+        msg = (
+            f"Album '{album_name}' has tracks with different embedded art. "
+            "Use first art found? (y/n)"
+        )
+        return input_yn(msg, require=True)
+
     def update(self, create: bool | None = None):  # noqa: C901
         if not self._config.directory.is_dir() and not self.ask_create(create):
             print_(f"Skipping creation of {self._config.directory}")
@@ -583,7 +606,7 @@ class External:
 
             print_(f"~{dest}")
 
-    def _get_art_for_album(self, album: Album, link: bool = False) -> Path | None:
+    def _get_art_for_album(self, album: Album, link: bool = False) -> Path | None:  # noqa: C901
         """Get art for an album based on album_art_source preference.
 
         Returns the path to the art file to use, or None if no art should be copied.
@@ -602,9 +625,37 @@ class External:
         if not link:  # Don't try to extract embedded for symlinks
             items = album.items()
             if items:
-                embedded_art_bytes = self._extract_embedded_art(items[0])
-                if embedded_art_bytes:
-                    embedded_art = Path(str(embedded_art_bytes, "utf8"))
+                # Check if all items have the same embedded art. If items have
+                # different art or some are missing art, use the first one if
+                # there is one.
+                has_different = False
+                first_crc = None
+                first_valid_index = None
+                for i, item in enumerate(items):
+                    mf = MediaFile(str(item.path, "utf8"))
+                    art_crc = crc32(mf.art) if mf.art else None
+                    if first_valid_index is None and art_crc is not None:
+                        first_valid_index = i
+                    if i == 0:
+                        first_crc = art_crc
+                    elif first_crc != art_crc:
+                        has_different = True
+                    if has_different and first_valid_index is not None:
+                        break
+                use_embedded = True
+                if has_different:
+                    album_name = f"{album.albumartist} - {album.album}"
+                    use_embedded = self.ask_use_first_embedded_art(album_name)
+                    if not use_embedded:
+                        raise UserError(
+                            f"Update cancelled by user (different embedded art in "
+                            f"'{album_name}')"
+                        )
+
+                if use_embedded and first_valid_index is not None:
+                    embedded_art_bytes = self._extract_embedded_art(items[first_valid_index])
+                    if embedded_art_bytes:
+                        embedded_art = Path(str(embedded_art_bytes, "utf8"))
 
         # Choose which art to use based on preference
         if source_pref == AlbumArtSource.EMBEDDED:

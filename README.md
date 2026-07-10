@@ -284,6 +284,12 @@ following settings.
   - `embedded-only`: Only use embedded art from source files
   - `external-only`: Only use external art files
 
+* **`album_art_different_embedded_prompt`** If true (the default), prompt the user
+  when tracks in the same album have different embedded art (including tracks
+  missing embedded art). The user can confirm using the first track's art or abort
+  the update. If false, silently use the first track's art without prompting.
+  Default: yes.
+
 * **`album_art_maxwidth`** If set, resize album art to this maximum width while
   preserving aspect ratio. Comparable to the [convert plugin][convert plugin]
   setting with the same name.
