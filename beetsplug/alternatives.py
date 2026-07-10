@@ -288,9 +288,9 @@ class Config:
         assert isinstance(album_art_source_str, str)
         self.album_art_source = AlbumArtSource(album_art_source_str)
 
-        album_art_different_embedded_prompt = config["album_art_different_embedded_prompt"].get(
-            confuse.TypeTemplate(bool, default=True)
-        )
+        album_art_different_embedded_prompt = config[
+            "album_art_different_embedded_prompt"
+        ].get(confuse.TypeTemplate(bool, default=True))
         assert isinstance(album_art_different_embedded_prompt, bool)
         self.album_art_different_embedded_prompt = album_art_different_embedded_prompt
 
@@ -622,7 +622,12 @@ class External:
                 external_art = None
 
         embedded_art: Path | None = None
-        if not link:  # Don't try to extract embedded for symlinks
+        # Don't try to extract embedded for symlinks or if we're gonna ignore
+        # the result.
+        skip_embedded = source_pref == AlbumArtSource.EXTERNAL_ONLY or (
+            source_pref == AlbumArtSource.EXTERNAL and external_art is not None
+        )
+        if not (link or skip_embedded):
             items = album.items()
             if items:
                 # Check if all items have the same embedded art. If items have
@@ -653,7 +658,9 @@ class External:
                         )
 
                 if use_embedded and first_valid_index is not None:
-                    embedded_art_bytes = self._extract_embedded_art(items[first_valid_index])
+                    embedded_art_bytes = self._extract_embedded_art(
+                        items[first_valid_index]
+                    )
                     if embedded_art_bytes:
                         embedded_art = Path(str(embedded_art_bytes, "utf8"))
 

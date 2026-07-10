@@ -124,17 +124,18 @@ def assert_has_not_embedded_artwork(path: Path):
     assert mediafile.art is None, "MediaFile has embedded artwork"
 
 
-def assert_has_artwork(path: Path, compare_embedded: bool, compare_external: bool,
-                       compare_file: Path | None):
-    if compare_embedded and compare_file:
-        assert_has_embedded_artwork(path, compare_file)
+def assert_has_artwork(
+    path: Path, compare_embedded: Path | None, compare_external: Path | None
+):
+    if compare_embedded:
+        assert_has_embedded_artwork(path, compare_embedded)
     else:
         assert_has_not_embedded_artwork(path)
 
     art_files = list(path.parent.glob("COVER*"))
-    if compare_external and compare_file:
+    if compare_external:
         assert art_files, "Expected art file but none found"
-        assert_same_file_content(art_files[0], compare_file)
+        assert_same_file_content(art_files[0], compare_external)
     else:
         assert not art_files, f"Unexpected art files: {art_files}"
 
@@ -193,7 +194,9 @@ class TestHelper:
         for fixture_file in self.fixture_dir.rglob("*"):
             if fixture_file.is_file():
                 relative_path = fixture_file.relative_to(self.fixture_dir)
-                self._fixture_checksums[str(relative_path)] = crc32(fixture_file.read_bytes())
+                self._fixture_checksums[str(relative_path)] = crc32(
+                    fixture_file.read_bytes()
+                )
 
         self._lib_tracker = _LibraryTracker()
 
@@ -211,7 +214,10 @@ class TestHelper:
             if fixture_file.is_file():
                 relative_path = fixture_file.relative_to(self.fixture_dir)
                 path_str = str(relative_path)
-                if crc32(fixture_file.read_bytes()) != self._fixture_checksums[path_str]:
+                if (
+                    crc32(fixture_file.read_bytes())
+                    != self._fixture_checksums[path_str]
+                ):
                     fixtures_modified.append(path_str)
 
         if fixtures_modified:
@@ -267,7 +273,13 @@ class TestHelper:
         assert fmt in {"mp3", "m4a", "ogg"}
         return self.fixture_dir / f"min.{fmt}"
 
-    def add_album(self, track_count=1, embed_art=None, external_art=None, **kwargs):
+    def add_album(
+        self,
+        track_count: int = 1,
+        embed_art: Path | list[Path | None] | None = None,
+        external_art: Path | None = None,
+        **kwargs: str,
+    ):
         assert track_count >= 1
         if embed_art is None:
             embed_art = []
@@ -287,11 +299,14 @@ class TestHelper:
         album.store()
         return album
 
-    def add_track(self, **kwargs: str):
-        embed_art = kwargs.pop("embed_art", None)
-        title_no = kwargs.pop("title_no", 1)
-        artist_no = kwargs.pop("artist_no", 1)
-        album_no = kwargs.pop("album_no", 1)
+    def add_track(
+        self,
+        embed_art: Path | None = None,
+        title_no: int = 1,
+        artist_no: int = 1,
+        album_no: int = 1,
+        **kwargs: str,
+    ):
         values = {
             "title": f"track {title_no}",
             "artist": f"artist {artist_no}",
