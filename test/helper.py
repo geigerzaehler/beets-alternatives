@@ -93,17 +93,21 @@ def assert_symlink(link: Path, target: Path, absolute: bool = True):
 
 
 def assert_has_embedded_artwork(path: Path, compare_file: Path | None = None):
+    """Assert the presence (or absence, when `compare_file` is None) of
+    embedded artwork in the media file at `path`."""
     mediafile = MediaFile(path)
+    if compare_file is None:
+        assert mediafile.art is None, "MediaFile has embedded artwork"
+        return
     assert mediafile.art is not None, "MediaFile has no embedded artwork"
-    if compare_file:
-        with compare_file.open("rb") as compare_fh:
-            crc_is = crc32(mediafile.art)
-            crc_expected = crc32(compare_fh.read())
-            assert crc_is == crc_expected, (
-                "MediaFile has embedded artwork, but "
-                f"content (CRC32: {crc_is}) doesn't match "
-                f"expectations (CRC32: {crc_expected})."
-            )
+    with compare_file.open("rb") as compare_fh:
+        crc_is = crc32(mediafile.art)
+        crc_expected = crc32(compare_fh.read())
+        assert crc_is == crc_expected, (
+            "MediaFile has embedded artwork, but "
+            f"content (CRC32: {crc_is}) doesn't match "
+            f"expectations (CRC32: {crc_expected})."
+        )
 
 
 def assert_same_file_content(a: Path, b: Path):
@@ -119,25 +123,15 @@ def assert_same_file_content(a: Path, b: Path):
         )
 
 
-def assert_has_not_embedded_artwork(path: Path):
-    mediafile = MediaFile(path)
-    assert mediafile.art is None, "MediaFile has embedded artwork"
-
-
-def assert_has_artwork(
-    path: Path, compare_embedded: Path | None, compare_external: Path | None
-):
-    if compare_embedded:
-        assert_has_embedded_artwork(path, compare_embedded)
-    else:
-        assert_has_not_embedded_artwork(path)
-
+def assert_has_external_artwork(path: Path, compare_file: Path | None = None):
+    """Assert the presence (or absence, when `compare_file` is None) of a
+    COVER* art file next to `path`."""
     art_files = list(path.parent.glob("COVER*"))
-    if compare_external:
-        assert art_files, "Expected art file but none found"
-        assert_same_file_content(art_files[0], compare_external)
-    else:
+    if compare_file is None:
         assert not art_files, f"Unexpected art files: {art_files}"
+        return
+    assert art_files, "Expected art file but none found"
+    assert_same_file_content(art_files[0], compare_file)
 
 
 def assert_media_file_fields(path: Path, **kwargs: str):
@@ -301,10 +295,11 @@ class TestHelper:
 
     def add_track(
         self,
-        embed_art: Path | None = None,
-        title_no: int = 1,
         artist_no: int = 1,
         album_no: int = 1,
+        /,
+        embed_art: Path | None = None,
+        title_no: int = 1,
         **kwargs: str,
     ):
         values = {
@@ -329,15 +324,16 @@ class TestHelper:
 
         return item
 
-    def add_external_track(self, ext_name: str, **kwargs: str):
-        kwargs[ext_name] = "true"
-        item = self.add_track(**kwargs)
+    def add_external_track(self, ext_name: str):
+        item = self.add_track()
+        item[ext_name] = "true"
+        item.store()
         self.runcli("alt", "update", ext_name)
         item.load()
         return item
 
-    def add_external_album(self, ext_name: str, **kwargs: str):
-        album = self.add_album(**kwargs)
+    def add_external_album(self, ext_name: str):
+        album = self.add_album()
         album[ext_name] = "true"
         album.store()
         self.runcli("alt", "update", ext_name)

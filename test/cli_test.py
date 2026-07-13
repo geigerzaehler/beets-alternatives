@@ -1,6 +1,5 @@
 import io
 import platform
-from itertools import product
 from pathlib import Path
 from time import sleep
 
@@ -21,9 +20,8 @@ from beetsplug.alternatives import AlbumArtSource
 from .helper import (
     TestHelper,
     assert_file_tag,
-    assert_has_artwork,
     assert_has_embedded_artwork,
-    assert_has_not_embedded_artwork,
+    assert_has_external_artwork,
     assert_is_not_file,
     assert_media_file_fields,
     assert_not_file_tag,
@@ -543,7 +541,7 @@ class TestExternalArt(TestHelper):
 
         item = album.items().get()
         assert item
-        assert_has_not_embedded_artwork(self.get_path(item))
+        assert_has_embedded_artwork(self.get_path(item))
 
         # Add a cover image, assert that it is being embedded.
         album.set_art(self.IMAGE_FIXTURE1)
@@ -576,67 +574,78 @@ class TestExternalArt(TestHelper):
         assert height < 3
 
     @pytest.mark.parametrize(
-        ("album_art_source", "album_art_embed", "album_art_copy", "embed", "external"),
+        ("album_art_source", "has_embedded", "has_external", "expected"),
         [
-            # Test all preferences with both embed and copy enabled across source combinations
-            *list(
-                product(AlbumArtSource, [True], [True], [True], [False])
-            ),  # embed only
-            *list(
-                product(AlbumArtSource, [True], [True], [False], [True])
-            ),  # external only
-            *list(
-                product(AlbumArtSource, [True], [True], [True], [True])
-            ),  # both sources
-            # Test other cases
-            (AlbumArtSource.EMBEDDED, True, False, True, False),  # embed only, no copy
-            (AlbumArtSource.EMBEDDED, False, True, False, True),  # copy only, no embed
-            (
-                AlbumArtSource.EMBEDDED,
-                False,
-                False,
-                False,
-                False,
-            ),  # neither embed nor copy
+            # source                  embedded? external? -> chosen
+            (AlbumArtSource.EMBEDDED, True, True, "embedded"),
+            (AlbumArtSource.EMBEDDED, False, True, "external"),  # fallback
+            (AlbumArtSource.EMBEDDED_ONLY, True, True, "embedded"),
+            (AlbumArtSource.EMBEDDED_ONLY, False, True, None),  # no fallback
+            (AlbumArtSource.EXTERNAL, True, True, "external"),
+            (AlbumArtSource.EXTERNAL, True, False, "embedded"),  # fallback
+            (AlbumArtSource.EXTERNAL_ONLY, False, True, "external"),
+            (AlbumArtSource.EXTERNAL_ONLY, True, False, None),  # no fallback
+            (AlbumArtSource.EMBEDDED, False, False, None),  # neither
         ],
     )
-    def test_album_art_source(
+    def test_album_art_selection(
         self,
         album_art_source: AlbumArtSource,
-        album_art_embed: bool,
-        album_art_copy: bool,
-        embed: bool,
-        external: bool,
+        has_embedded: bool,
+        has_external: bool,
+        expected: str | None,
     ):
         self.external_config["album_art_source"] = album_art_source.value
-        self.external_config["album_art_copy"] = album_art_copy
-        self.external_config["album_art_embed"] = album_art_embed
+        self.external_config["album_art_embed"] = True
+        self.external_config["album_art_copy"] = True
 
-        embedded_art = self.IMAGE_FIXTURE1 if embed else None
-        external_art = self.IMAGE_FIXTURE2 if external else None
+        art = {"embedded": self.IMAGE_FIXTURE1, "external": self.IMAGE_FIXTURE2}
         album = self.add_album(
-            embed_art=embedded_art, external_art=external_art, myexternal="true"
+            embed_art=self.IMAGE_FIXTURE1 if has_embedded else None,
+            external_art=self.IMAGE_FIXTURE2 if has_external else None,
+            myexternal="true",
         )
         item = album.items().get()
         assert item
 
-        expected_art = None
-        if embed or external:
-            if album_art_source == AlbumArtSource.EMBEDDED:
-                expected_art = embedded_art if embed else external_art
-            elif album_art_source == AlbumArtSource.EXTERNAL:
-                expected_art = external_art if external else embedded_art
-            elif album_art_source == AlbumArtSource.EMBEDDED_ONLY and embed:
-                expected_art = embedded_art
-            elif album_art_source == AlbumArtSource.EXTERNAL_ONLY and external:
-                expected_art = external_art
+        self.runcli("alt", "update", "myexternal")
+        item.load()
+
+        expected_art = art.get(expected) if expected else None
+        assert_has_embedded_artwork(self.get_path(item), expected_art)
+        assert_has_external_artwork(self.get_path(item), expected_art)
+
+    @pytest.mark.parametrize(
+        ("album_art_embed", "album_art_copy"),
+        [
+            (True, True),
+            (True, False),
+            (False, True),
+            (False, False),
+        ],
+    )
+    def test_album_art_output_channels(
+        self,
+        album_art_embed: bool,
+        album_art_copy: bool,
+    ):
+        self.external_config["album_art_source"] = AlbumArtSource.EMBEDDED.value
+        self.external_config["album_art_embed"] = album_art_embed
+        self.external_config["album_art_copy"] = album_art_copy
+
+        album = self.add_album(embed_art=self.IMAGE_FIXTURE1, myexternal="true")
+        item = album.items().get()
+        assert item
 
         self.runcli("alt", "update", "myexternal")
         item.load()
 
-        compare_embedded = expected_art if album_art_embed else None
-        compare_external = expected_art if album_art_copy else None
-        assert_has_artwork(self.get_path(item), compare_embedded, compare_external)
+        assert_has_embedded_artwork(
+            self.get_path(item), self.IMAGE_FIXTURE1 if album_art_embed else None
+        )
+        assert_has_external_artwork(
+            self.get_path(item), self.IMAGE_FIXTURE1 if album_art_copy else None
+        )
 
     @pytest.mark.parametrize(
         (
@@ -701,7 +710,8 @@ class TestExternalArt(TestHelper):
         result_img = imgs[result_index]
         for item in album.items():
             item.load()
-            assert_has_artwork(self.get_path(item), None, result_img)
+            assert_has_embedded_artwork(self.get_path(item))
+            assert_has_external_artwork(self.get_path(item), result_img)
 
 
 class TestExternalConvert(TestHelper):
@@ -739,7 +749,7 @@ class TestExternalConvert(TestHelper):
         self.runcli("alt", "update", "myexternal")
         item = album.items().get()
         assert item
-        assert_has_embedded_artwork(self.get_path(item))
+        assert MediaFile(self.get_path(item)).art is not None
 
     def test_convert_write_tags(self):
         item = self.add_track(myexternal="true", format="m4a", title="TITLE")
