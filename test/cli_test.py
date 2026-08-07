@@ -1,5 +1,6 @@
 import io
 import platform
+from itertools import product
 from pathlib import Path
 from time import sleep
 
@@ -15,9 +16,12 @@ from confuse import ConfigValueError
 from mediafile import MediaFile
 from PIL import Image
 
+from beetsplug.alternatives import AlbumArtSource
+
 from .helper import (
     TestHelper,
     assert_file_tag,
+    assert_has_artwork,
     assert_has_embedded_artwork,
     assert_has_not_embedded_artwork,
     assert_is_not_file,
@@ -570,6 +574,134 @@ class TestExternalArt(TestHelper):
         width, height = Image.open(io.BytesIO(mediafile.art)).size  # pyright: ignore
         assert width == 1
         assert height < 3
+
+    @pytest.mark.parametrize(
+        ("album_art_source", "album_art_embed", "album_art_copy", "embed", "external"),
+        [
+            # Test all preferences with both embed and copy enabled across source combinations
+            *list(
+                product(AlbumArtSource, [True], [True], [True], [False])
+            ),  # embed only
+            *list(
+                product(AlbumArtSource, [True], [True], [False], [True])
+            ),  # external only
+            *list(
+                product(AlbumArtSource, [True], [True], [True], [True])
+            ),  # both sources
+            # Test other cases
+            (AlbumArtSource.EMBEDDED, True, False, True, False),  # embed only, no copy
+            (AlbumArtSource.EMBEDDED, False, True, False, True),  # copy only, no embed
+            (
+                AlbumArtSource.EMBEDDED,
+                False,
+                False,
+                False,
+                False,
+            ),  # neither embed nor copy
+        ],
+    )
+    def test_album_art_source(
+        self,
+        album_art_source: AlbumArtSource,
+        album_art_embed: bool,
+        album_art_copy: bool,
+        embed: bool,
+        external: bool,
+    ):
+        self.external_config["album_art_source"] = album_art_source.value
+        self.external_config["album_art_copy"] = album_art_copy
+        self.external_config["album_art_embed"] = album_art_embed
+
+        embedded_art = self.IMAGE_FIXTURE1 if embed else None
+        external_art = self.IMAGE_FIXTURE2 if external else None
+        album = self.add_album(
+            embed_art=embedded_art, external_art=external_art, myexternal="true"
+        )
+        item = album.items().get()
+        assert item
+
+        expected_art = None
+        if embed or external:
+            if album_art_source == AlbumArtSource.EMBEDDED:
+                expected_art = embedded_art if embed else external_art
+            elif album_art_source == AlbumArtSource.EXTERNAL:
+                expected_art = external_art if external else embedded_art
+            elif album_art_source == AlbumArtSource.EMBEDDED_ONLY and embed:
+                expected_art = embedded_art
+            elif album_art_source == AlbumArtSource.EXTERNAL_ONLY and external:
+                expected_art = external_art
+
+        self.runcli("alt", "update", "myexternal")
+        item.load()
+
+        compare_embedded = expected_art if album_art_embed else None
+        compare_external = expected_art if album_art_copy else None
+        assert_has_artwork(self.get_path(item), compare_embedded, compare_external)
+
+    @pytest.mark.parametrize(
+        (
+            "prompt",
+            "album_art_source",
+            "embed_art_indicies",
+            "user_resp",
+            "result_index",
+        ),
+        [
+            # Embedded only, but no embedded art, no prompt
+            (True, AlbumArtSource.EMBEDDED_ONLY, [0, 0, 0], None, 0),
+            # External preferred, no prompt
+            (True, AlbumArtSource.EXTERNAL, [0, 1, 2], None, 2),
+            # External only, no prompt
+            (True, AlbumArtSource.EXTERNAL_ONLY, [0, 1, 2], None, 2),
+            # Embedded preferred, all embedded the same, no prompt
+            (True, AlbumArtSource.EMBEDDED, [1, 1, 1], None, 1),
+            # Embedded preferred, different embedded, prompt yes, first image
+            (True, AlbumArtSource.EMBEDDED, [0, 1, 2], "y", 1),
+            # Embedded preferred, different embedded, prompt no, exit
+            (True, AlbumArtSource.EMBEDDED, [0, 1, 2], "n", None),
+            # Don't prompt, Embedded preferred, different embedded, no prompt, first image
+            (False, AlbumArtSource.EMBEDDED, [0, 1, 2], None, 1),
+        ],
+    )
+    def test_different_embedded_art(
+        self,
+        prompt: bool,
+        album_art_source: AlbumArtSource,
+        embed_art_indicies: list[int],
+        user_resp: str | None,
+        result_index: int,
+    ):
+        self.external_config["album_art_different_embedded_prompt"] = prompt
+        self.external_config["album_art_source"] = album_art_source.value
+        self.external_config["album_art_copy"] = True
+        self.external_config["album_art_embed"] = False
+
+        imgs = [None, self.IMAGE_FIXTURE1, self.IMAGE_FIXTURE2]
+        album = self.add_album(
+            track_count=len(embed_art_indicies),
+            embed_art=[imgs[i] for i in embed_art_indicies],
+            external_art=self.IMAGE_FIXTURE2,
+            myexternal="true",
+        )
+
+        if user_resp is None:
+            out = self.runcli("alt", "update", "myexternal")
+        elif user_resp == "n":
+            with (
+                control_stdin(user_resp),
+                pytest.raises(UserError, match="Update cancelled by user"),
+            ):
+                self.runcli("alt", "update", "myexternal")
+            return
+        else:
+            with control_stdin(user_resp):
+                out = self.runcli("alt", "update", "myexternal")
+                assert "Use first art found?" in out
+
+        result_img = imgs[result_index]
+        for item in album.items():
+            item.load()
+            assert_has_artwork(self.get_path(item), None, result_img)
 
 
 class TestExternalConvert(TestHelper):
