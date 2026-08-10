@@ -37,4 +37,4 @@ def _get_release_notes():
 
 
 if __name__ == "__main__":
-    print(_get_release_notes())  # noqa: T201
+    print(_get_release_notes())  # ruff: ignore[print]
