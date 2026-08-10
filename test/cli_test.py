@@ -210,7 +210,7 @@ class TestSymlinkView(TestHelper):
             year="1990",
             original_year="1982",
         )
-        album.set_art(self.IMAGE_FIXTURE1)
+        album.set_art(bytes(self.IMAGE_FIXTURE1))
         album.store()
         self.runcli("alt", "update", "by-year")
 
@@ -446,7 +446,7 @@ class TestExternalArt(TestHelper):
 
         self.external_config["album_art_copy"] = True
         self.external_config["album_art_maxwidth"] = 1
-        album.set_art(self.IMAGE_FIXTURE1)
+        album.set_art(bytes(self.IMAGE_FIXTURE1))
         assert album.artpath
         artpath = Path(str(album.artpath, "utf8"))
         touch_art(album.artpath, artpath)
@@ -491,7 +491,7 @@ class TestExternalArt(TestHelper):
         self.runcli("alt", "update", "myexternal")
         assert not external_art_path.is_file()
 
-        album.set_art(self.IMAGE_FIXTURE1)
+        album.set_art(bytes(self.IMAGE_FIXTURE1))
         assert album.artpath
         touch_art(album.artpath, Path(str(album.artpath, "utf8")))
         album.store()
@@ -499,7 +499,7 @@ class TestExternalArt(TestHelper):
         assert_same_file_content(external_art_path, self.IMAGE_FIXTURE1)
 
         # Update art file
-        album.set_art(self.IMAGE_FIXTURE2)
+        album.set_art(bytes(self.IMAGE_FIXTURE2))
         touch_art(album.artpath, Path(str(album.artpath, "utf8")))
         self.runcli("alt", "update", "myexternal")
         assert_same_file_content(external_art_path, self.IMAGE_FIXTURE2)
@@ -542,7 +542,7 @@ class TestExternalArt(TestHelper):
         assert_has_not_embedded_artwork(self.get_path(item))
 
         # Add a cover image, assert that it is being embedded.
-        album.set_art(self.IMAGE_FIXTURE1)
+        album.set_art(bytes(self.IMAGE_FIXTURE1))
         album.store()
         self.runcli("alt", "update", "myexternal")
 
@@ -553,7 +553,7 @@ class TestExternalArt(TestHelper):
         # Change content and update mtime, but do not change the item/album in
         # database.
         # Assert that artwork is re-embedded.
-        album.set_art(self.IMAGE_FIXTURE2)
+        album.set_art(bytes(self.IMAGE_FIXTURE2))
         self.runcli("alt", "update", "myexternal")
 
         item = album.items().get()

@@ -176,7 +176,7 @@ class Config:
     directory: Path
     """Directory under which items in the collection are located."""
 
-    path_formats: Sequence[tuple[str, str | Template]]
+    path_formats: list[tuple[str, Template]]
     """Formats that determine the path of items in the collection. See
     <https://beets.readthedocs.io/en/stable/reference/pathformat.html>.
     """
@@ -229,6 +229,7 @@ class Config:
         self.path_formats = get_path_formats(path_config)
 
         query = config["query"].get(confuse.Optional(confuse.String(), default=""))
+        assert isinstance(query, str)
         self.query, _ = parse_query_string(query, Item)
 
         removable = config["removable"].get(confuse.TypeTemplate(bool, default=True))
@@ -490,11 +491,14 @@ class External:
             if not dest_dir:
                 continue
 
-            artpath = album.artpath and Path(str(album.artpath, "utf8"))
-            if not artpath or not artpath.is_file():
+            album_artpath = album.artpath
+            if not album_artpath:
+                continue
+            artpath = Path(str(album_artpath, "utf8"))
+            if not artpath.is_file():
                 continue
 
-            dest = album.art_destination(album.artpath, bytes(dest_dir))
+            dest = album.art_destination(album_artpath, bytes(dest_dir))
             dest = Path(str(dest, "utf8"))
 
             if self._config.album_art_format and not link:
