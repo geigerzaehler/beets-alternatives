@@ -60,7 +60,7 @@ class AlternativesPlugin(BeetsPlugin):
             if not options.all:
                 raise UserError("Please specify a collection name or the --all flag")
 
-            for name in self.config.keys():  # noqa: SIM118
+            for name in self.config.keys():  # ruff: ignore[in-dict-keys]
                 self.alternative(name, lib).update(create=options.create)
         else:
             try:
@@ -389,7 +389,7 @@ class External:
         )
         return input_yn(msg, require=True)
 
-    def update(self, create: bool | None = None):  # noqa: C901
+    def update(self, create: bool | None = None):  # ruff: ignore[complex-structure]
         if not self._config.directory.is_dir() and not self.ask_create(create):
             print_(f"Skipping creation of {self._config.directory}")
             return

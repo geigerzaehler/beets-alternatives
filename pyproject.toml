@@ -89,13 +89,11 @@ extend-select = [
 ]
 ignore = [
   # Pyright checks for unused imports and does it better.
-  "F401",
+  "unused-import",
   # ternary can be less readable
-  "SIM108",
+  "if-else-block-instead-of-if-exp",
   # Allow __init__ modules to not be empty
-  "RUF067",
-  # Allow `@pytest.fixture(autouse=True)`
-  "RUF076",
+  "non-empty-init-module",
 ]
 
 allowed-confusables = ["’"]
