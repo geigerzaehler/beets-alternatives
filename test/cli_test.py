@@ -3,6 +3,7 @@ import platform
 from pathlib import Path
 from time import sleep
 
+import beets
 import pytest
 
 try:
@@ -10,7 +11,6 @@ try:
 except ImportError:
     from beets.ui import UserError  # pyright: ignore[reportPrivateImportUsage]
 from beets.util.artresizer import ArtResizer
-from beets.util.functemplate import Template
 from confuse import ConfigValueError
 from mediafile import MediaFile
 from PIL import Image
@@ -28,6 +28,11 @@ from .helper import (
     control_stdin,
     convert_command,
     touch_art,
+)
+
+event_log_broken = pytest.mark.skipif(
+    tuple(beets.__version__.split(".")[:2]) == ("2", "14"),
+    reason="event_log fixture is broken on beets 2.14",
 )
 
 
@@ -108,7 +113,7 @@ class TestSymlinkView(TestHelper):
 
     @pytest.fixture(autouse=True)
     def _symlink_view(self):
-        self.lib.path_formats = [("default", Template("$artist/$album/$title"))]
+        self.lib.path_formats = [("default", "$artist/$album/$title")]
         self.config["paths"] = {"default": "$artist/$album/$title"}
         self.config["alternatives"] = {
             "by-year": {
@@ -154,12 +159,14 @@ class TestSymlinkView(TestHelper):
             "",
         ]
 
+    @event_log_broken
     def test_add_move_remove_album_absolute(self, event_log: Path):
         """Test that absolute symlinks are created, moved and deleted."""
 
         self.alt_config["link_type"] = "absolute"
         self._test_add_move_remove_album(event_log=event_log, absolute=True)
 
+    @event_log_broken
     def test_add_move_remove_album_relative(self, event_log: Path):
         """Test that relative symlinks are created, moved and deleted."""
 
@@ -237,6 +244,7 @@ class TestExternalCopy(TestHelper):
         }
         self.external_config = self.config["alternatives"]["myexternal"]
 
+    @event_log_broken
     def test_add_singleton(self, event_log: Path):
         item = self.add_track(title="\u00e9", myexternal="true")
         self.runcli("alt", "update", "myexternal")
