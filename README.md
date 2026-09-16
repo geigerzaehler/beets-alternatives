@@ -289,6 +289,11 @@ following settings.
   ImageMagick estimates input quality (using 92 if unknown), PIL uses 75.
   Default: 0 (disabled) (optional)
 
+* **`replace`** A map of regular expression patterns to replacement strings,
+  applied to destination file paths within this collection. Configured like
+  the global beets [`replace`][config-replace] setting but scoped to this
+  collection. (optional)
+
 Events
 ------
 
@@ -365,3 +370,4 @@ SOFTWARE.
 [using plugins]: http://beets.readthedocs.org/en/latest/plugins/index.html#using-plugins
 [cover formats]: https://beets.readthedocs.io/en/stable/plugins/fetchart.html#image-formats
 [art_filename]: https://beets.readthedocs.io/en/stable/reference/config.html#art-filename
+[config-replace]: https://beets.readthedocs.io/en/stable/reference/config.html#replace
