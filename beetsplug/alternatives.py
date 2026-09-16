@@ -29,7 +29,6 @@ from beets.library import Album, Item, Library, parse_query_string
 from beets.plugins import BeetsPlugin
 from beets.ui import Subcommand, input_yn, print_
 from beets.util.artresizer import ArtResizer
-from beets.util.functemplate import Template
 from typing_extensions import Never, override
 
 # beets master moved these out of `beets.ui`; fall back for the 2.11.0 release.
@@ -147,9 +146,9 @@ class AlternativesCommand(Subcommand):
                 Path Formats for more information.""",
         )
 
-        super().__init__(self.name, parser, self.help)
+        super().__init__(self.name, parser, self.help)  # pyright: ignore[reportArgumentType]
 
-    def func(self, lib: Library, opts: argparse.Namespace, _):  # pyright: ignore[reportIncompatibleMethodOverride]
+    def func(self, lib: Library, opts: argparse.Namespace, _):
         opts.func(lib, opts)
 
     def parse_args(self, args: list[str]):  # pyright: ignore
@@ -176,7 +175,7 @@ class Config:
     directory: Path
     """Directory under which items in the collection are located."""
 
-    path_formats: list[tuple[str, Template]]
+    path_formats: list[tuple[str, str]]
     """Formats that determine the path of items in the collection. See
     <https://beets.readthedocs.io/en/stable/reference/pathformat.html>.
     """

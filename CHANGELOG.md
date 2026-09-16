@@ -1,5 +1,9 @@
 # Change Log
 
+## Unreleased
+
+- Ensure tests pass with beets v2.14
+
 ## v0.14.3 - 2026-06-29
 
 - Don't require the `convert` plugin to be enabled.
