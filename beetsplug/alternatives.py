@@ -372,6 +372,11 @@ class External:
 
         for item in self.lib.items():
             if item.id in matched_ids or self._config.query.match(item):
+                if not Path(str(item.path, "utf8")).is_file():
+                    self._log.warning(
+                        f"skipping {item}. Could not find file {str(item.path, 'utf8')}"
+                    )
+                    continue
                 yield (item, self._matched_item_action(item))
             elif self._get_stored_path(item):
                 yield (item, [Action.REMOVE])
