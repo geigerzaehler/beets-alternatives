@@ -108,7 +108,7 @@ jobs:
           fi
 
   publish-github-release:
-    needs: [verify, build]
+    needs: [verify, build, publish-git]
     permissions:
       contents: write
     runs-on: ubuntu-latest
