@@ -270,6 +270,31 @@ class TestExternalCopy(TestHelper):
         self.runcli("alt", "update", "myexternal")
         assert path.is_file()
 
+    def test_source_file_missing(self, caplog: pytest.LogCaptureFixture):
+        item = self.add_track(myexternal="true")
+        Path(str(item.path, "utf8")).unlink()
+
+        self.runcli("alt", "update", "myexternal")
+
+        assert "Could not find file" in caplog.text
+
+        item.load()
+        assert "alt.myexternal" not in item
+
+    def test_source_file_missing_after_updated(self, caplog: pytest.LogCaptureFixture):
+        item = self.add_external_track("myexternal")
+        alt_path = self.get_path(item)
+        assert alt_path.is_file()
+
+        Path(str(item.path, "utf8")).unlink()
+
+        self.runcli("alt", "update", "myexternal")
+
+        assert "Could not find file" in caplog.text
+        item.load()
+        assert self.get_path(item) == alt_path
+        assert alt_path.is_file()
+
     def test_add_replace(self):
         item = self.add_external_track("myexternal")
         del item["alt.myexternal"]

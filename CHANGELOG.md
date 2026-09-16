@@ -3,6 +3,8 @@
 ## Unreleased
 
 - Ensure tests pass with beets v2.14
+- Warn and skip instead of crashing when an item's original file is missing during
+  `alt update` (Fixes #262)
 
 ## v0.14.3 - 2026-06-29
 
