@@ -52,6 +52,7 @@ filterwarnings = [
   "error",
   "ignore:.*pkgutil.get_loader.*:DeprecationWarning:confuse.util",
   "ignore:.*beets.art.*:DeprecationWarning:beets",
+  "ignore:.*Passing bytes as '.*' is deprecated.*:DeprecationWarning:beetsplug.alternatives",
   "ignore::ResourceWarning:beets.util.artresizer",
 ]
 
