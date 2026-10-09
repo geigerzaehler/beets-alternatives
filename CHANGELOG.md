@@ -1,6 +1,6 @@
 # Change Log
 
-## Unreleased
+## v0.14.5 - 2026-10-09
 
 - Add compatibility with upcoming beets 2.15 release
 - Drop support for beets <= 2.4
