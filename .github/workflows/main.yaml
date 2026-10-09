@@ -64,7 +64,6 @@ jobs:
       matrix:
         beets:
           - "git+https://github.com/beetbox/beets#master"
-          - "beets==2.4.*"
           - "beets==2.5.*"
           - "beets==2.6.*"
           - "beets==2.7.*"
@@ -74,6 +73,7 @@ jobs:
           - "beets==2.11.*"
           - "beets==2.12.*"
           - "beets==2.13.*"
+          - "beets==2.14.*"
     env:
       UV_PYTHON: "3.10"
 

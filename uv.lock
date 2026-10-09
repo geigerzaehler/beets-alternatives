@@ -59,7 +59,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "beets", specifier = ">=2.4.0" },
+    { name = "beets", specifier = ">=2.5.0" },
     { name = "typing-extensions", specifier = ">=4.9.0" },
 ]
 
