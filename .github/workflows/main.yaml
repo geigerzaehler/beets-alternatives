@@ -41,7 +41,7 @@ jobs:
         with:
           version: "0.12.x"
           enable-cache: false
-      - run: uv sync
+      - run: uv sync --locked
       - run: uv run ruff format --check
       - run: uv run ruff check
       - run: uv run pyright --warnings
