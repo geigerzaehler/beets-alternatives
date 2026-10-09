@@ -277,7 +277,7 @@ class Config:
         else:
             dir = Path(collection_id)
         if not dir.is_absolute():
-            dir = Path(str(lib.directory, "utf8")) / dir
+            dir = Path(os.fsdecode(lib.directory)) / dir
         self.directory = dir
 
         link_type = config["link_type"].get(
@@ -336,7 +336,7 @@ class External:
             actions.append(Action.MOVE)
 
         item_mtime_alt = actual.stat().st_mtime
-        if item_mtime_alt < Path(str(item.path, "utf8")).stat().st_mtime:
+        if item_mtime_alt < Path(os.fsdecode(item.path)).stat().st_mtime:
             actions.append(Action.WRITE)
         album = item.get_album()
 
@@ -344,8 +344,8 @@ class External:
             self._config.album_art_embed
             and album
             and album.artpath
-            and Path(str(album.artpath, "utf8")).is_file()
-            and (item_mtime_alt < Path(str(album.artpath, "utf8")).stat().st_mtime)
+            and Path(os.fsdecode(album.artpath)).is_file()
+            and (item_mtime_alt < Path(os.fsdecode(album.artpath)).stat().st_mtime)
         ):
             actions.append(Action.SYNC_ART)
 
@@ -372,10 +372,9 @@ class External:
 
         for item in self.lib.items():
             if item.id in matched_ids or self._config.query.match(item):
-                if not Path(str(item.path, "utf8")).is_file():
-                    self._log.warning(
-                        f"skipping {item}. Could not find file {str(item.path, 'utf8')}"
-                    )
+                path = Path(os.fsdecode(item.path))
+                if not path.is_file():
+                    self._log.warning(f"skipping {item}. Could not find file {path}")
                     continue
                 yield (item, self._matched_item_action(item))
             elif self._get_stored_path(item):
@@ -498,12 +497,12 @@ class External:
             album_artpath = album.artpath
             if not album_artpath:
                 continue
-            artpath = Path(str(album_artpath, "utf8"))
+            artpath = Path(os.fsdecode(album_artpath))
             if not artpath.is_file():
                 continue
 
             dest = album.art_destination(album_artpath, bytes(dest_dir))
-            dest = Path(str(dest, "utf8"))
+            dest = Path(os.fsdecode(dest))
 
             if self._config.album_art_format and not link:
                 new_format = self._config.album_art_format.lower()
@@ -558,10 +557,11 @@ class External:
 
     def destination(self, item: Item) -> Path:
         """Returns the path for `item` in the external collection."""
-        path = item.destination(
-            path_formats=self._config.path_formats, relative_to_libdir=True
-        ).decode("utf-8")
-        assert isinstance(path, str)
+        path = os.fsdecode(
+            item.destination(
+                path_formats=self._config.path_formats, relative_to_libdir=True
+            )
+        )
         return self._config.directory / path
 
     def album_destination(self, album: Album) -> Path | None:
@@ -607,7 +607,7 @@ class External:
     def _sync_art(self, item: Item, path: Path):
         """Embed artwork in the file at `path`."""
         album = item.get_album()
-        if album and album.artpath and Path(str(album.artpath, "utf8")).is_file():
+        if album and album.artpath and Path(os.fsdecode(album.artpath)).is_file():
             self._log.debug(f"Embedding art from {album.artpath} into {path}")
 
             artpath = self.resize_art(album.artpath)
@@ -689,7 +689,7 @@ class SymlinkView(External):
         if (
             actual == dest
             and actual.is_file()  # Symlink not broken, `.samefile()` doesn’t throw
-            and actual.samefile(Path(str(item.path, "utf8")))
+            and actual.samefile(Path(os.fsdecode(item.path)))
         ):
             return []
         else:
@@ -732,7 +732,7 @@ class SymlinkView(External):
     def _create_symlink(self, item: Item):
         dest = self.destination(item)
         dest.parent.mkdir(exist_ok=True, parents=True)
-        item_path = Path(str(item.path, "utf8"))
+        item_path = Path(os.fsdecode(item.path))
         link = (
             os.path.relpath(item_path, dest.parent)
             if self._config.link_type == SymlinkType.RELATIVE

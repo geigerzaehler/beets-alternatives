@@ -305,7 +305,7 @@ def convert_command(tag: str) -> str:
         raise RuntimeError(f"Unsupported system: {system}")
 
 
-def touch_art(source: bytes, dest: Path):
+def touch_art(source: bytes | Path, dest: Path):
     """`touch` the dest file, but don't set mtime to the current
     time since the tests run rather fast and item and art mtimes might
     end up identical if the filesystem has low mtime granularity or
@@ -315,5 +315,5 @@ def touch_art(source: bytes, dest: Path):
     update <name>` in a real use-case, this should not obscure any
     bugs.
     """
-    item_mtime_alt = Path(str(source, "utf8")).stat().st_mtime
+    item_mtime_alt = Path(os.fsdecode(source)).stat().st_mtime
     os.utime(dest, (item_mtime_alt + 2, item_mtime_alt + 2))
