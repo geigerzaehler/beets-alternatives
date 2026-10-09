@@ -6,11 +6,14 @@
   "semanticCommits": "disabled",
   "packageRules": [
     {
+      "matchUpdateTypes": ["minor", "patch", "pin", "digest"],
+      "automerge": true
+    },
+    {
       "updateTypes": ["minor", "patch"],
       "matchDepTypes": ["dependency-groups"],
       "matchPackageNames": ["!ruff", "!pyright"],
       "groupName": "non-major dev",
-      "automerge": true,
       "schedule": ["* 0-7 1,15 * *"]
     },
     {
