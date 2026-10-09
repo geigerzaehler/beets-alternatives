@@ -3,6 +3,7 @@
 ## Unreleased
 
 - Add compatibility with upcoming beets 2.15 release
+- Drop support for beets <= 2.4
 
 ## v0.14.4 - 2026-09-16
 
