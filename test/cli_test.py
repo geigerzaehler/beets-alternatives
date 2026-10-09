@@ -1,4 +1,5 @@
 import io
+import os
 import platform
 from pathlib import Path
 from time import sleep
@@ -226,7 +227,7 @@ class TestSymlinkView(TestHelper):
 
         # Symlink is created
         assert album.artpath
-        assert_symlink(external_art_path, Path(str(album.artpath, "utf8")))
+        assert_symlink(external_art_path, Path(os.fsdecode(album.artpath)))
 
 
 class TestExternalCopy(TestHelper):
@@ -272,7 +273,7 @@ class TestExternalCopy(TestHelper):
 
     def test_source_file_missing(self, caplog: pytest.LogCaptureFixture):
         item = self.add_track(myexternal="true")
-        Path(str(item.path, "utf8")).unlink()
+        Path(os.fsdecode(item.path)).unlink()
 
         self.runcli("alt", "update", "myexternal")
 
@@ -286,7 +287,7 @@ class TestExternalCopy(TestHelper):
         alt_path = self.get_path(item)
         assert alt_path.is_file()
 
-        Path(str(item.path, "utf8")).unlink()
+        Path(os.fsdecode(item.path)).unlink()
 
         self.runcli("alt", "update", "myexternal")
 
@@ -481,7 +482,7 @@ class TestExternalArt(TestHelper):
         self.external_config["album_art_maxwidth"] = 1
         album.set_art(bytes(self.IMAGE_FIXTURE1))
         assert album.artpath
-        artpath = Path(str(album.artpath, "utf8"))
+        artpath = Path(os.fsdecode(album.artpath))
         touch_art(album.artpath, artpath)
         album.store()
         self.runcli("alt", "update", "myexternal")
@@ -526,14 +527,14 @@ class TestExternalArt(TestHelper):
 
         album.set_art(bytes(self.IMAGE_FIXTURE1))
         assert album.artpath
-        touch_art(album.artpath, Path(str(album.artpath, "utf8")))
+        touch_art(album.artpath, Path(os.fsdecode(album.artpath)))
         album.store()
         self.runcli("alt", "update", "myexternal")
         assert_same_file_content(external_art_path, self.IMAGE_FIXTURE1)
 
         # Update art file
         album.set_art(bytes(self.IMAGE_FIXTURE2))
-        touch_art(album.artpath, Path(str(album.artpath, "utf8")))
+        touch_art(album.artpath, Path(os.fsdecode(album.artpath)))
         self.runcli("alt", "update", "myexternal")
         assert_same_file_content(external_art_path, self.IMAGE_FIXTURE2)
 
@@ -596,7 +597,7 @@ class TestExternalArt(TestHelper):
         # now set a maxwidth and verify the final image has the right
         # dimensions
         assert album.artpath
-        touch_art(item.path, Path(str(album.artpath, "utf8")))
+        touch_art(item.path, Path(os.fsdecode(album.artpath)))
         self.external_config["album_art_maxwidth"] = 1
         self.runcli("alt", "update", "myexternal")
         mediafile = MediaFile(self.get_path(item))

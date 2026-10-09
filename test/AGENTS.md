@@ -30,7 +30,8 @@
 - **`removable` defaults to `True`.** If the collection `directory` does not already
   exist, `alt update` prompts to create it and hangs without stdin. Either set
   `"removable": False`, pass `--create`, or wrap the call in `control_stdin("y")`.
-- **`item.path` is `bytes`.** Convert with `Path(str(item.path, "utf8"))`.
+- **`item.path` is `bytes` or `Path`,** depending on the beets version. Convert with
+  `Path(os.fsdecode(item.path))`. The same applies to `album.artpath`.
 - **mtime granularity.** Comparisons rely on mtimes; use `touch_art` and `sleep(0.1)`
   where the existing tests do to avoid flakiness on coarse filesystems.
 - **Doctests run.** `pytest` uses `--doctest-modules`; docstring examples in

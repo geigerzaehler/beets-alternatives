@@ -1,5 +1,9 @@
 # Change Log
 
+## Unreleased
+
+- Add compatibility with upcoming beets 2.15 release
+
 ## v0.14.4 - 2026-09-16
 
 - Ensure tests pass with beets v2.14
