@@ -545,7 +545,7 @@ class External:
             tmp_path = util.get_temp_filename(__name__, "reformat", path)
             util.copy(path, tmp_path, replace=True)
             path = ArtResizer.shared.reformat(
-                tmp_path,
+                bytes(tmp_path),
                 self._config.album_art_format,
                 deinterlaced=self._config.album_art_deinterlace,
             )
