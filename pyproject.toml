@@ -28,7 +28,7 @@ Repository = "http://www.github.com/geigerzaehler/beets-alternatives"
 
 [dependency-groups]
 dev = [
-  "coverage==7.16.1",
+  "coverage==7.16.2",
   "mock==5.2.0",
   "pyright==1.1.414",
   "pytest==9.1.1",
@@ -37,7 +37,7 @@ dev = [
   "typeguard==4.6.0",
   "pillow==12.3.0",
   "pytest-watcher==0.6.3",
-  "tomli==2.4.1",
+  "tomli==2.5.0",
 ]
 
 [tool.hatch.build.targets.sdist]
