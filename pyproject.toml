@@ -35,7 +35,7 @@ dev = [
   "pytest-cov==7.1.0",
   "ruff==0.17.0",
   "typeguard==4.6.0",
-  "pillow==12.3.0",
+  "pillow==13.0.0",
   "pytest-watcher==0.6.3",
   "tomli==2.5.0",
 ]
