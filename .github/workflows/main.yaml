@@ -16,17 +16,16 @@ jobs:
       matrix:
         os: ["ubuntu-latest"]
         python:
-          - "3.10" # minimum required
-          - "3.13"
-          - "3.14" # latest
+          - "3.11" # minimum required
+          - "3.14"
+          - "3.15" # latest
         include:
-          - python: "3.10"
+          - python: "3.11"
             os: windows-latest
-          - python: "3.10"
+          - python: "3.11"
             os: macos-latest
 
     runs-on: ${{ matrix.os }}
-    continue-on-error: ${{ matrix.python == '3.14' }}
     permissions:
       contents: read
       checks: write
@@ -50,7 +49,7 @@ jobs:
       - uses: coverallsapp/github-action@8d6379e14d29928660c4ba802d8e85393440b329 # v2.3.8
         if: >
           (github.event_name == 'pull_request' || github.ref_name == 'main') &&
-          matrix.python == '3.10' &&
+          matrix.python == '3.11' &&
           matrix.os == 'ubuntu-latest'
         with:
           # Ignore .coverage, which has limited support from coveralls
@@ -75,7 +74,7 @@ jobs:
           - "beets==2.13.*"
           - "beets==2.14.*"
     env:
-      UV_PYTHON: "3.10"
+      UV_PYTHON: "3.11"
 
     continue-on-error: ${{ contains(matrix.beets, 'master') }}
     steps:
