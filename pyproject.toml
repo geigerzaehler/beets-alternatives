@@ -12,7 +12,7 @@ authors = [
 ]
 license = "MIT"
 readme = "README.md"
-requires-python = ">=3.10"
+requires-python = ">=3.11"
 dependencies = ["beets>=2.5.0", "typing-extensions>=4.9.0"]
 classifiers = [
   "Topic :: Multimedia :: Sound/Audio",

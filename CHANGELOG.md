@@ -1,5 +1,9 @@
 # Change Log
 
+## Unreleased
+
+- Drop support for Python <= 3.10
+
 ## v0.14.5 - 2026-10-09
 
 - Add compatibility with upcoming beets 2.15 release
